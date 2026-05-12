@@ -1,13 +1,21 @@
-            import telebot
+import os
+import telebot
 from telebot import types
 import sqlite3
 import time
 import threading
+from dotenv import load_dotenv
 
-TOKEN = "8735227955:AAEgEQmB4f6yPQw6ak1szZemSatLbiuuwSE"
-CHANNEL_ID = -1003871616356
-ADMIN_ID = 8693522887
-MBANK_NUMBER = "0227(155603"
+load_dotenv()
+
+# ================= КОНФИГУРАЦИЯ =================
+TOKEN = os.getenv("BOT_TOKEN")
+if not TOKEN:
+    raise ValueError("BOT_TOKEN табылган жок! .env файлды текшериңиз.")
+
+CHANNEL_ID = int(os.getenv("CHANNEL_ID", "-1003871616356"))
+ADMIN_ID = int(os.getenv("ADMIN_ID", "8693522887"))
+MBANK_NUMBER = os.getenv("MBANK_NUMBER", "0227)155603")
 
 POST_PRICE = 30
 
@@ -19,17 +27,18 @@ REGION_PRICES = {
     "Нарын облусу": 500,
     "Талас облусу": 500,
 }
-CITY_PRICES = {"Ош шаар": 600}
+
+CITY_PRICES = {"Ош шаар": 600}  # Эгер керек болсо get_price_for_region'ге кошуу
 
 bot = telebot.TeleBot(TOKEN)
 
 regions = {
-    "Ысык-Көл облусу": ["Каракол","Балыкчы","Чолпон-Ата","Түп","Ак-Суу","Жети-Өгүз","Тоң"],
-    "Нарын облусу": ["Нарын","Ат-Башы","Ак-Талаа","Жумгал","Кочкор"],
-    "Ош облусу": ["Ош шаар","Кара-Суу","Араван","Ноокат","Өзгөн","Кара-Кулжа","Чоң-Алай"],
-    "Жалал-Абад облусу": ["Манас","Сузак","Базар-Коргон","Ноокен","Кара-Көл","Таш-Көмүр","Майлуу-Суу","Ала-Бука","Аксы","Чаткал"],
-    "Баткен облусу": ["Баткен","Кадамжай","Лейлек (Раззаков)","Кызыл-Кыя","Сүлүктү"],
-    "Талас облусу": ["Талас","Бакай-Ата","Кара-Буура","Манас району"]
+    "Ысык-Көл облусу": ["Каракол", "Балыкчы", "Чолпон-Ата", "Түп", "Ак-Суу", "Жети-Өгүз", "Тоң"],
+    "Нарын облусу": ["Нарын", "Ат-Башы", "Ак-Талаа", "Жумгал", "Кочкор"],
+    "Ош облусу": ["Ош шаар", "Кара-Суу", "Араван", "Ноокат", "Өзгөн", "Кара-Кулжа", "Чоң-Алай"],
+    "Жалал-Абад облусу": ["Манас", "Сузак", "Базар-Коргон", "Ноокен", "Кара-Көл", "Таш-Көмүр", "Майлуу-Суу", "Ала-Бука", "Аксы", "Чаткал"],
+    "Баткен облусу": ["Баткен", "Кадамжай", "Лейлек (Раззаков)", "Кызыл-Кыя", "Сүлүктү"],
+    "Талас облусу": ["Талас", "Бакай-Ата", "Кара-Буура", "Манас району"]
 }
 
 region_map = {}
@@ -103,6 +112,9 @@ def is_subscribed(user_id):
     return bool(row and row[1] > time.time())
 
 def get_price_for_region(region_name):
+    # Шаар баасы барбы текшерүү
+    if region_name in CITY_PRICES:
+        return CITY_PRICES[region_name]
     return REGION_PRICES.get(region_name, 500)
 
 # ================= USER DATA =================
@@ -117,39 +129,13 @@ def get_data(uid):
 def reset(uid):
     user_data.pop(uid, None)
 
-# ================= КНОПКАЛАР =================
+# ================= МЕНЮ =================
 def menu():
     kb = types.ReplyKeyboardMarkup(resize_keyboard=True)
     kb.add("🚗 Айдоочумун", "🔍 Жүргүнчүмүн")
     kb.add("💳 Подпискам")
     return kb
 
-def back_kb():
-    """Артка кнопкасы бар клавиатура"""
-    kb = types.ReplyKeyboardMarkup(resize_keyboard=True)
-    kb.add("◀️ Артка")
-    return kb
-
-def menu_with_back():
-    """Меню + Артка кнопкасы"""
-    kb = types.ReplyKeyboardMarkup(resize_keyboard=True)
-    kb.add("🚗 Айдоочумун", "🔍 Жүргүнчүмүн")
-    kb.add("💳 Подпискам", "◀️ Артка")
-    return kb
-
-# ================= АРТКА БАСКЫЧЫН ТЕКШЕРҮҮ =================
-def check_back(message, next_step_handler=None):
-    """
-    Артка басылганда менюга кайтат.
-    next_step_handler - кайсы функцияга кайра катталуу керек
-    """
-    if message.text == "◀️ Артка":
-        reset(message.chat.id)
-        bot.send_message(message.chat.id, "🏠 Башкы меню:", reply_markup=menu())
-        return True
-    return False
-
-# ================= МЕНЮ =================
 @bot.message_handler(commands=["start"])
 def start(m):
     reset(m.chat.id)
@@ -159,12 +145,6 @@ def start(m):
 def cancel(m):
     reset(m.chat.id)
     bot.send_message(m.chat.id, "❌ Жокко чыгарылды.", reply_markup=menu())
-
-@bot.message_handler(func=lambda m: m.text == "◀️ Артка")
-def back_handler(m):
-    """Артка кнопкасы глобалдык иштөөчү"""
-    reset(m.chat.id)
-    bot.send_message(m.chat.id, "🏠 Башкы меню:", reply_markup=menu())
 
 # ================= ПОДПИСКА =================
 @bot.message_handler(func=lambda m: m.text == "💳 Подпискам")
@@ -176,11 +156,10 @@ def check_sub(m):
             m.chat.id,
             "✅ Подпискаңыз активдүү\n"
             "📍 Облус: " + row[0] + "\n"
-            "📅 " + str(days_left) + " күн калды",
-            reply_markup=menu()
+            "📅 " + str(days_left) + " күн калды"
         )
     else:
-        bot.send_message(m.chat.id, "❌ Подпискаңыз жок же бүткөн.", reply_markup=menu())
+        bot.send_message(m.chat.id, "❌ Подпискаңыз жок же бүткөн.")
 
 # ================= ЖҮРГҮНЧҮ =================
 @bot.message_handler(func=lambda m: m.text and "Жүргүнчүмүн" in m.text)
@@ -195,7 +174,7 @@ def passenger(m):
 def driver(m):
     if is_subscribed(m.chat.id):
         set_data(m.chat.id, "pay_type", "subscribed")
-        msg = bot.send_message(m.chat.id, "Атыңыз:", reply_markup=back_kb())
+        msg = bot.send_message(m.chat.id, "Атыңыз:")
         bot.register_next_step_handler(msg, d_car)
     else:
         kb = types.InlineKeyboardMarkup()
@@ -204,14 +183,14 @@ def driver(m):
             callback_data="pay_post"
         ))
         kb.add(types.InlineKeyboardButton(
-            "🗓 Подписка — 1 ай (чектеусуз)",
+            "🗓 Подписка — 1 ай (чектеусүз)",
             callback_data="pay_sub"
         ))
         bot.send_message(
             m.chat.id,
             "Пост жарыялоо үчүн тандаңыз:\n\n"
             "📝 Жеке пост — " + str(POST_PRICE) + " сом (бир жолу)\n"
-            "🗓 Подписка — 1 ай, чектеусуз пост:\n"
+            "🗓 Подписка — 1 ай, чектеусүз пост:\n"
             "  • Баткен — 700 сом\n"
             "  • Ош, Жалал-Абад — 600 сом\n"
             "  • Калгандары — 500 сом",
@@ -219,17 +198,13 @@ def driver(m):
         )
 
 def d_car(m):
-    if check_back(m):
-        return
     if m.text == "/cancel":
         return cancel(m)
     set_data(m.chat.id, "name", m.text)
-    msg = bot.send_message(m.chat.id, "Машинаңыздын маркасы жана модели:", reply_markup=back_kb())
+    msg = bot.send_message(m.chat.id, "Машинаңыздын маркасы жана модели:")
     bot.register_next_step_handler(msg, d_route)
 
 def d_route(m):
-    if check_back(m):
-        return
     if m.text == "/cancel":
         return cancel(m)
     set_data(m.chat.id, "car", m.text)
@@ -239,44 +214,51 @@ def d_route(m):
     bot.send_message(m.chat.id, "Маршрут тандаңыз:", reply_markup=kb)
 
 def d_time(m):
-    if check_back(m):
-        return
     if m.text == "/cancel":
         return cancel(m)
     set_data(m.chat.id, "time", m.text)
-    msg = bot.send_message(m.chat.id, "Жол кире акы (сом):", reply_markup=back_kb())
+    msg = bot.send_message(m.chat.id, "Жол кире акы (сом):")
     bot.register_next_step_handler(msg, d_price)
 
 def d_price(m):
-    if check_back(m):
-        return
     if m.text == "/cancel":
         return cancel(m)
-    set_data(m.chat.id, "price", m.text)
-    msg = bot.send_message(m.chat.id, "Бош орун саны:", reply_markup=back_kb())
+    # Бааны текшерүү
+    try:
+        price = int(m.text)
+        if price <= 0:
+            raise ValueError
+    except ValueError:
+        msg = bot.send_message(m.chat.id, "❌ Баа туура сан болушу керек. Кайра жазыңыз:")
+        bot.register_next_step_handler(msg, d_price)
+        return
+    
+    set_data(m.chat.id, "price", str(price))
+    msg = bot.send_message(m.chat.id, "Бош орун саны:")
     bot.register_next_step_handler(msg, d_seats)
 
 def d_seats(m):
-    if check_back(m):
-        return
     if m.text == "/cancel":
         return cancel(m)
     set_data(m.chat.id, "seats", m.text)
-    msg = bot.send_message(m.chat.id, "Мобилдик телефон номериңиз:", reply_markup=back_kb())
+    msg = bot.send_message(m.chat.id, "Мобилдик телефон номериңиз (мисалы: 0700123456):")
     bot.register_next_step_handler(msg, d_phone)
 
 def d_phone(m):
-    if check_back(m):
-        return
     if m.text == "/cancel":
         return cancel(m)
+    # Телефон номерин жөнөкөй текшерүү
+    phone = m.text.replace(" ", "").replace("-", "").replace("+", "")
+    if not phone.isdigit() or len(phone) < 9:
+        msg = bot.send_message(m.chat.id, "❌ Телефон номери туура эмес. Кайра жазыңыз:")
+        bot.register_next_step_handler(msg, d_phone)
+        return
+    
     set_data(m.chat.id, "phone", m.text)
-    msg = bot.send_message(m.chat.id, "Комментарий жазыңыз (болбосо — сызыкча коюңуз):", reply_markup=back_kb())
+    msg = bot.send_message(m.chat.id, "Комментарий жазыңыз (болбосо — сызыкча коюңуз):")
     bot.register_next_step_handler(msg, d_finish)
 
 def d_finish(m):
-    if check_back(m):
-        return
     if m.text == "/cancel":
         return cancel(m)
     set_data(m.chat.id, "comment", m.text)
@@ -285,7 +267,7 @@ def d_finish(m):
     required = ["name", "car", "from", "to", "time", "price", "phone", "seats"]
     for field in required:
         if field not in data:
-            bot.send_message(m.chat.id, "❌ Маалымат жетишсиз. Кайрадан баштаңыз.", reply_markup=menu())
+            bot.send_message(m.chat.id, "❌ Маалымат жетишсиз (" + field + " жетишпейт). Кайрадан баштаңыз.", reply_markup=menu())
             reset(m.chat.id)
             return
 
@@ -300,8 +282,7 @@ def d_finish(m):
             "💳 Төлөм маалыматы:\n\n"
             "💰 Сумма: " + str(POST_PRICE) + " сом (1 пост)\n\n"
             "Мбанк/Элкарт номери:\n" + MBANK_NUMBER + "\n\n"
-            "Төлөгөндөн кийин чектин скриншотун жөнөтүңүз 👇",
-            reply_markup=back_kb()
+            "Төлөгөндөн кийин чектин скриншотун жөнөтүңүз 👇"
         )
     else:
         bot.send_message(m.chat.id, "❌ Ката. Кайрадан баштаңыз.", reply_markup=menu())
@@ -362,14 +343,16 @@ def search_drivers(chat_id, mode, city):
     with db_lock:
         conn, c = get_db()
         if mode == "to":
+            # Бишкекке бараткан айдоочулар: шаардан → Бишкек
             c.execute("SELECT * FROM drivers WHERE from_city=? AND to_city=?", (city, "Бишкек"))
         elif mode == "from":
+            # Бишкектен кеткен айдоочулар: Бишкек → шаарга
             c.execute("SELECT * FROM drivers WHERE from_city=? AND to_city=?", ("Бишкек", city))
         rows = c.fetchall()
         conn.close()
 
     if not rows:
-        bot.send_message(chat_id, "❌ Азырынча айдоочу табылган жок.\nКийинчерээк кайра текшериңиз.", reply_markup=menu())
+        bot.send_message(chat_id, "❌ Азырынча айдоочу табылган жок.\nКийинчерээк кайра текшериңиз.")
         return
 
     bot.send_message(chat_id, "✅ " + str(len(rows)) + " айдоочу табылды:")
@@ -386,9 +369,6 @@ def search_drivers(chat_id, mode, city):
             "💬 Комментарий: " + str(r[9])
         )
         bot.send_message(chat_id, text)
-    
-    # Бардык натыйжалар чыгарылгандан кийин меню кайтарат
-    bot.send_message(chat_id, "🏠 Башкы менюга кайттыңыз", reply_markup=menu())
 
 # ================= СКРИНШОТ =================
 @bot.message_handler(content_types=["photo"])
@@ -433,7 +413,7 @@ def receive_payment_photo(m):
         ),
         reply_markup=kb
     )
-    bot.send_message(m.chat.id, "✅ Чекиңиз жөнөтүлдү! Админ текшергенден кийин пост чыгат.", reply_markup=menu())
+    bot.send_message(m.chat.id, "✅ Чекиңиз жөнөтүлдү! Админ текшергенден кийин пост чыгат.")
     set_data(m.chat.id, "waiting_payment", False)
 
 # ================= CALLBACK =================
@@ -447,7 +427,7 @@ def cb(call):
     if data == "pay_post":
         set_data(chat_id, "pay_type", "post")
         set_data(chat_id, "pay_amount", POST_PRICE)
-        msg = bot.send_message(chat_id, "Атыңыз:", reply_markup=back_kb())
+        msg = bot.send_message(chat_id, "Атыңыз:")
         bot.register_next_step_handler(msg, d_car)
 
     elif data == "pay_sub":
@@ -477,12 +457,12 @@ def cb(call):
             "📍 Облус: " + region_name + "\n"
             "💰 Сумма: " + str(amount) + " сом/ай\n\n"
             "Мбанк/Элкарт номери:\n" + MBANK_NUMBER + "\n\n"
-            "Төлөгөндөн кийин чектин скриншотун жөнөтүңүз 👇",
-            reply_markup=back_kb()
+            "Төлөгөндөн кийин чектин скриншотун жөнөтүңүз 👇"
         )
 
     elif data.startswith("approve|"):
         if call.from_user.id != ADMIN_ID:
+            bot.answer_callback_query(call.id, "❌ Сиз админ эмессиз!")
             return
         uid = int(data.split("|")[1])
         with db_lock:
@@ -492,6 +472,7 @@ def cb(call):
             conn.close()
 
         if not row:
+            bot.answer_callback_query(call.id, "❌ Төлөм табылган жок!")
             return
 
         pay_type, region = row
@@ -515,8 +496,7 @@ def cb(call):
                 uid,
                 "✅ Подпискаңыз активдешти!\n"
                 "📍 Облус: " + region + "\n"
-                "📅 1 ай",
-                reply_markup=menu()
+                "📅 1 ай"
             )
 
         elif pay_type == "post":
@@ -539,6 +519,7 @@ def cb(call):
 
     elif data.startswith("reject|"):
         if call.from_user.id != ADMIN_ID:
+            bot.answer_callback_query(call.id, "❌ Сиз админ эмессиз!")
             return
         uid = int(data.split("|")[1])
         with db_lock:
@@ -547,7 +528,7 @@ def cb(call):
             conn.commit()
             conn.close()
         bot.edit_message_caption("❌ Четке кагылды", call.message.chat.id, msg_id)
-        bot.send_message(uid, "❌ Төлөмүңүз тастыкталган жок. Админ менен байланышыңыз.", reply_markup=menu())
+        bot.send_message(uid, "❌ Төлөмүңүз тастыкталган жок. Админ менен байланышыңыз.")
 
     elif data == "to":
         kb = types.InlineKeyboardMarkup()
@@ -565,19 +546,21 @@ def cb(call):
 
     elif data == "d_to":
         set_data(chat_id, "to", "Бишкек")
+        # from_city азырынча белгисиз, кийин тандалат
         kb = types.InlineKeyboardMarkup()
         kb.add(types.InlineKeyboardButton("✅ 🏙 Бишкекке барам", callback_data="d_to"))
         kb.add(types.InlineKeyboardButton("🌄 Бишкектен кетем", callback_data="d_from"))
         bot.edit_message_reply_markup(chat_id, msg_id, reply_markup=kb)
-        bot.send_message(chat_id, "🗺 Облус тандаңыз:", reply_markup=show_regions("driver_from"))
+        bot.send_message(chat_id, "🗺 Кайсы облустан чыгасыз:", reply_markup=show_regions("driver_from"))
 
     elif data == "d_from":
         set_data(chat_id, "from", "Бишкек")
+        # to_city азырынча белгисиз, кийин тандалат
         kb = types.InlineKeyboardMarkup()
         kb.add(types.InlineKeyboardButton("🏙 Бишкекке барам", callback_data="d_to"))
         kb.add(types.InlineKeyboardButton("✅ 🌄 Бишкектен кетем", callback_data="d_from"))
         bot.edit_message_reply_markup(chat_id, msg_id, reply_markup=kb)
-        bot.send_message(chat_id, "🗺 Облус тандаңыз:", reply_markup=show_regions("driver_to"))
+        bot.send_message(chat_id, "🗺 Кайсы облуска барасыз:", reply_markup=show_regions("driver_to"))
 
     elif data.startswith("reg|"):
         parts = data.split("|")
@@ -607,12 +590,16 @@ def cb(call):
         if mode in ("to", "from"):
             search_drivers(chat_id, mode, city)
         elif mode == "driver_from":
+            # Бишкекке бараткан: from=шаар, to=Бишкек (to мурунтан эле сакталган)
             set_data(chat_id, "from", city)
-            msg = bot.send_message(chat_id, "⏰ Качан жолго чыгасыз:", reply_markup=back_kb())
+            # to мурунтан эле "Бишкек" деп сакталган (d_to'до)
+            msg = bot.send_message(chat_id, "⏰ Качан жолго чыгасыз:")
             bot.register_next_step_handler(msg, d_time)
         elif mode == "driver_to":
+            # Бишкектен кеткен: from=Бишкек, to=шаар (from мурунтан эле сакталган)
             set_data(chat_id, "to", city)
-            msg = bot.send_message(chat_id, "⏰ Качан жолго чыгасыз:", reply_markup=back_kb())
+            # from мурунтан эле "Бишкек" деп сакталган (d_from'до)
+            msg = bot.send_message(chat_id, "⏰ Качан жолго чыгасыз:")
             bot.register_next_step_handler(msg, d_time)
 
 # ================= RUN =================
