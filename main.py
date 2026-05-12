@@ -10,7 +10,7 @@ load_dotenv()
 
 # ================= КОНФИГУРАЦИЯ =================
 TOKEN = os.getenv("BOT_TOKEN")
-if not TOKEN:
+if not TOKEN:"8735227955:AAEgEQmB4f6yPQw6ak1szZemSatLbiuuwSE"
     raise ValueError("BOT_TOKEN табылган жок! .env файлды текшериңиз.")
 
 CHANNEL_ID = int(os.getenv("CHANNEL_ID", "-1003871616356"))
