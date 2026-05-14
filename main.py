@@ -152,7 +152,7 @@ def check_sub(m):
         days_left = int((row[1] - time.time()) / 86400)
         bot.send_message(
             m.chat.id,
-            f"✅ Подпискаңыз активдүү
+            f"✅ Подпискаңыз активдүү"
 📍 Облус: {row[0]}
 📅 {days_left} күн калды"
         )
