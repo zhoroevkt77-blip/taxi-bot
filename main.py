@@ -561,7 +561,6 @@ def cb(call):
             search_drivers(chat_id, p_mode, city_name)
 
 # ================= СТАРТ =================
-if __name__ == "__main__":
-    init_db()
-    print("✅ Бот иштеп жатат...")
-    bot.infinity_polling()
+init_db()
+print("✅ Бот иштеп жатат...")
+bot.infinity_polling()
