@@ -4,6 +4,7 @@ from telebot import types
 import sqlite3
 import time
 import threading
+from collections import defaultdict
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -18,13 +19,13 @@ bot = telebot.TeleBot(TOKEN)
 
 # ================= REGIONS =================
 regions = {
-    "Баткен облусу": ["Баткен","Кадамжай","Лейлек (Раззаков)","Кызыл-Кыя","Сүлүктү"],
-    "Жалал-Абад облусу": ["Манас","Сузак","Базар-Коргон","Ноокен","Кара-Көл","Таш-Көмүр","Майлуу-Суу","Ала-Бука","Аксы","Чаткал","Тогуз-Торо"],
-    "Нарын облусу": ["Нарын","Ат-Башы","Ак-Талаа","Жумгал","Кочкор"],
-    "Ош облусу": ["Ош","Кара-Суу","Араван","Ноокат","Өзгөн","Кара-Кулжа","Алай","Чоң-Алай"],
-    "Талас облусу": ["Талас","Бакай-Ата","Кара-Буура","Манас району"],
-    "Чүй облусу": ["Жайыл","Токмок","Кемин"],
-    "Ысык-Көл облусу": ["Каракол","Балыкчы","Чолпон-Ата","Түп","Ак-Суу","Жети-Өгүз","Тоң"]
+    "Баткен облусу": ["Баткен", "Кадамжай", "Лейлек (Раззаков)", "Кызыл-Кыя", "Сүлүктү"],
+    "Жалал-Абад облусу": ["Манас", "Сузак", "Базар-Коргон", "Ноокен", "Кара-Көл", "Таш-Көмүр", "Майлуу-Суу", "Ала-Бука", "Аксы", "Чаткал", "Тогуз-Торо"],
+    "Нарын облусу": ["Нарын", "Ат-Башы", "Ак-Талаа", "Жумгал", "Кочкор"],
+    "Ош облусу": ["Ош", "Кара-Суу", "Араван", "Ноокат", "Өзгөн", "Кара-Кулжа", "Алай", "Чоң-Алай"],
+    "Талас облусу": ["Талас", "Бакай-Ата", "Кара-Буура", "Манас району"],
+    "Чүй облусу": ["Жайыл", "Токмок", "Кемин"],
+    "Ысык-Көл облусу": ["Каракол", "Балыкчы", "Чолпон-Ата", "Түп", "Ак-Суу", "Жети-Өгүз", "Тоң"]
 }
 
 region_map = {}
@@ -80,7 +81,7 @@ def clean_old_records():
 
 def auto_clean_loop():
     while True:
-        time.sleep(3600)  # ар 1 саатта текшерет
+        time.sleep(3600)
         clean_old_records()
 
 # ================= USER DATA =================
@@ -241,35 +242,81 @@ def show_cities(region_name, mode, selected_ccode=None):
             kb.add(types.InlineKeyboardButton(text, callback_data=f"cty|{mode}|{code}"))
     return kb
 
-# ================= ИЗДӨӨ =================
-def search_drivers(chat_id, from_city, to_city):
+# ================= ИЗДӨӨ (жаңыртылган) =================
+def search_drivers(chat_id, from_city=None, to_city=None, from_cities=None, to_cities=None):
+    """
+    from_city / to_city      — конкреттүү шаар боюнча издөө (айдоочулар үчүн колдонулбайт)
+    from_cities              — облустун бардык шаарларынан Бишкекке издөө
+    to_cities                — Бишкектен облустун бардык шаарларына издөө
+    """
     clean_old_records()
     conn, c = get_db()
-    c.execute(
-        "SELECT * FROM drivers WHERE from_city=? AND to_city=?",
-        (from_city, to_city)
-    )
+
+    if from_cities:
+        # Бишкекке барам: облустун каалаган шаарынан → Бишкек
+        placeholders = ",".join("?" * len(from_cities))
+        c.execute(
+            f"SELECT * FROM drivers WHERE from_city IN ({placeholders}) AND to_city='Бишкек'",
+            from_cities
+        )
+    elif to_cities:
+        # Бишкектен кетем: Бишкек → облустун каалаган шаарына
+        placeholders = ",".join("?" * len(to_cities))
+        c.execute(
+            f"SELECT * FROM drivers WHERE from_city='Бишкек' AND to_city IN ({placeholders})",
+            to_cities
+        )
+    else:
+        # Конкреттүү шаар боюнча издөө
+        c.execute(
+            "SELECT * FROM drivers WHERE from_city=? AND to_city=?",
+            (from_city, to_city)
+        )
+
     rows = c.fetchall()
     conn.close()
 
     if not rows:
-        bot.send_message(chat_id, "❌ Азырынча айдоочу табылган жок.\nКийинчерээк кайра текшериңиз.")
+        bot.send_message(
+            chat_id,
+            "❌ Азырынча айдоочу табылган жок.\nКийинчерээк кайра текшериңиз.",
+            reply_markup=menu()
+        )
         return
 
-    bot.send_message(chat_id, f"✅ {len(rows)} айдоочу табылды:")
+    bot.send_message(chat_id, f"✅ Жалпы <b>{len(rows)}</b> айдоочу табылды:", parse_mode="HTML")
+
+    # Шаар боюнча топтоштуруу
+    grouped = defaultdict(list)
     for r in rows:
-        text = (
-            "🚗 <b>Айдоочу</b>\n\n"
-            f"👤 Аты: {r[1]}\n"
-            f"🚘 Машина: {r[2]}\n"
-            f"📍 Маршрут: {r[3]} → {r[4]}\n"
-            f"⏰ Убакыт: {r[5]}\n"
-            f"💰 Баа: {r[6]} сом\n"
-            f"🪑 Орун: {r[8]}\n"
-            f"📞 Тел: {r[7]}\n"
-            f"💬 Комментарий: {r[9]}\n"
+        if from_cities:
+            city_key = r[3]  # from_city
+        elif to_cities:
+            city_key = r[4]  # to_city
+        else:
+            city_key = r[3]
+        grouped[city_key].append(r)
+
+    for city_key, drivers in grouped.items():
+        # Шаардын аталышын баш кылып жиберүү
+        bot.send_message(
+            chat_id,
+            f"📍 <b>{city_key}</b> — {len(drivers)} айдоочу",
+            parse_mode="HTML"
         )
-        bot.send_message(chat_id, text, parse_mode="HTML")
+        for r in drivers:
+            text = (
+                "🚗 <b>Айдоочу</b>\n\n"
+                f"👤 Аты: {r[1]}\n"
+                f"🚘 Машина: {r[2]}\n"
+                f"📍 Маршрут: {r[3]} → {r[4]}\n"
+                f"⏰ Убакыт: {r[5]}\n"
+                f"💰 Баа: {r[6]} сом\n"
+                f"🪑 Орун: {r[8]}\n"
+                f"📞 Тел: {r[7]}\n"
+                f"💬 Комментарий: {r[9]}\n"
+            )
+            bot.send_message(chat_id, text, parse_mode="HTML")
 
 # ================= CALLBACK =================
 @bot.callback_query_handler(func=lambda call: True)
@@ -279,6 +326,7 @@ def cb(call):
     msg_id = call.message.message_id
     data = call.data
 
+    # ---------- Жүргүнчү: маршрут тандоо ----------
     if data == "to":
         kb = types.InlineKeyboardMarkup()
         kb.add(types.InlineKeyboardButton("✅ 🏙 Бишкекке барам", callback_data="to"))
@@ -293,13 +341,14 @@ def cb(call):
         bot.edit_message_reply_markup(chat_id, msg_id, reply_markup=kb)
         bot.send_message(chat_id, "🗺 Облус тандаңыз:", reply_markup=show_regions("from"))
 
+    # ---------- Айдоочу: маршрут тандоо ----------
     elif data == "d_to":
         set_data(chat_id, "to", "Бишкек")
         kb = types.InlineKeyboardMarkup()
         kb.add(types.InlineKeyboardButton("✅ 🏙 Бишкекке барам", callback_data="d_to"))
         kb.add(types.InlineKeyboardButton("🌄 Бишкектен кетем", callback_data="d_from"))
         bot.edit_message_reply_markup(chat_id, msg_id, reply_markup=kb)
-        bot.send_message(chat_id, "🗺 Чыккан жериңизди тандаңыз:", reply_markup=show_regions("driver_from"))
+        bot.send_message(chat_id, "🗺 Чыккан жериңизди тандаңыз (облус):", reply_markup=show_regions("driver_from"))
 
     elif data == "d_from":
         set_data(chat_id, "from", "Бишкек")
@@ -307,19 +356,53 @@ def cb(call):
         kb.add(types.InlineKeyboardButton("🏙 Бишкекке барам", callback_data="d_to"))
         kb.add(types.InlineKeyboardButton("✅ 🌄 Бишкектен кетем", callback_data="d_from"))
         bot.edit_message_reply_markup(chat_id, msg_id, reply_markup=kb)
-        bot.send_message(chat_id, "🗺 Барар жериңизди тандаңыз:", reply_markup=show_regions("driver_to"))
+        bot.send_message(chat_id, "🗺 Барар жериңизди тандаңыз (облус):", reply_markup=show_regions("driver_to"))
 
+    # ---------- Облус тандоо ----------
     elif data.startswith("reg|"):
         _, mode, rcode = data.split("|")
         region_name = region_map.get(rcode)
         if not region_name:
             return
+
+        city_list = regions.get(region_name, [])
+
         try:
-            bot.edit_message_reply_markup(chat_id, msg_id, reply_markup=show_regions(mode, selected_rcode=rcode))
+            bot.edit_message_reply_markup(
+                chat_id, msg_id,
+                reply_markup=show_regions(mode, selected_rcode=rcode)
+            )
         except Exception:
             pass
-        bot.send_message(chat_id, f"📍 {region_name}\nШаар тандаңыз:", reply_markup=show_cities(region_name, mode))
 
+        if mode == "to":
+            # Жүргүнчү: Бишкекке барам → облустун бардык шаарларынан издөө
+            bot.send_message(
+                chat_id,
+                f"🔍 <b>{region_name}</b> облусунан Бишкекке баткан айдоочулар:",
+                parse_mode="HTML"
+            )
+            search_drivers(chat_id, from_cities=city_list)
+
+        elif mode == "from":
+            # Жүргүнчү: Бишкектен кетем → облустун бардык шаарларына издөө
+            bot.send_message(
+                chat_id,
+                f"🔍 Бишкектен <b>{region_name}</b> облусуна кеткен айдоочулар:",
+                parse_mode="HTML"
+            )
+            search_drivers(chat_id, to_cities=city_list)
+
+        elif mode in ("driver_from", "driver_to"):
+            # Айдоочу: шаар тандоосун көрсөтүү
+            bot.send_message(
+                chat_id,
+                f"📍 <b>{region_name}</b>\nШаар/район тандаңыз:",
+                parse_mode="HTML",
+                reply_markup=show_cities(region_name, mode)
+            )
+
+    # ---------- Шаар тандоо (айдоочу үчүн гана) ----------
     elif data.startswith("cty|"):
         _, mode, ccode = data.split("|")
         city = city_map.get(ccode)
@@ -332,20 +415,18 @@ def cb(call):
                 bot.edit_message_text(
                     chat_id=chat_id,
                     message_id=msg_id,
-                    text=f"📍 {region_name}\nШаар тандаңыз:",
+                    text=f"📍 <b>{region_name}</b>\nШаар/район тандаңыз:",
+                    parse_mode="HTML",
                     reply_markup=show_cities(region_name, mode, selected_ccode=ccode)
                 )
             except Exception:
                 pass
 
-        if mode == "to":
-            search_drivers(chat_id, from_city=city, to_city="Бишкек")
-        elif mode == "from":
-            search_drivers(chat_id, from_city="Бишкек", to_city=city)
-        elif mode == "driver_from":
+        if mode == "driver_from":
             set_data(chat_id, "from", city)
             msg = bot.send_message(chat_id, "⏰ Качан жолго чыгасыз:")
             bot.register_next_step_handler(msg, d_time)
+
         elif mode == "driver_to":
             set_data(chat_id, "to", city)
             msg = bot.send_message(chat_id, "⏰ Качан жолго чыгасыз:")
