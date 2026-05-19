@@ -379,7 +379,7 @@ def cb(call):
             # Жүргүнчү: Бишкекке барам → облустун бардык шаарларынан издөө
             bot.send_message(
                 chat_id,
-                f"🔍 <b>{region_name}</b> облусунан Бишкекке жөнөгөн айдоочулар:",
+                f"🔍 <b>{region_name}</b> Бишкекке жөнөгөн айдоочулар:",
                 parse_mode="HTML"
             )
             search_drivers(chat_id, from_cities=city_list)
@@ -388,7 +388,7 @@ def cb(call):
             # Жүргүнчү: Бишкектен кетем → облустун бардык шаарларына издөө
             bot.send_message(
                 chat_id,
-                f"🔍 Бишкектен <b>{region_name}</b> облусуна кеткен айдоочулар:",
+                f"🔍 Бишкектен <b>{region_name}</b> кеткен айдоочулар:",
                 parse_mode="HTML"
             )
             search_drivers(chat_id, to_cities=city_list)
