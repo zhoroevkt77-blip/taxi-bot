@@ -379,7 +379,7 @@ def cb(call):
             # Жүргүнчү: Бишкекке барам → облустун бардык шаарларынан издөө
             bot.send_message(
                 chat_id,
-                f"🔍 <b>{region_name}</b> облусунан Бишкекке баткан айдоочулар:",
+                f"🔍 <b>{region_name}</b> облусунан Бишкекке жөнөгөн айдоочулар:",
                 parse_mode="HTML"
             )
             search_drivers(chat_id, from_cities=city_list)
