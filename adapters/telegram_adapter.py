@@ -1,107 +1,81 @@
 # -*- coding: utf-8 -*-
 """
-adapters/whatsapp_adapter.py
-==============================
-Green API webhook'тон келген JSON'ду core.messenger.IncomingMessage'ге
-которот.
-
-WhatsApp'та Telegram'дагыдай inline keyboard жок (Business план керек),
-ошондуктан Keyboard'ду номерленген текст-меню кылып чыгарабыз —
-Developer (акысыз) тарифте да иштейт:
-
-    Багытты тандаңыз:
-    1) Бишкекке барам
-    2) Бишкектен кетем
-
-Колдонуучу "1" деп жазат — биз аны route:to_bishkek action'га которобуз.
+adapters/telegram_adapter.py
+=============================
+Telegram update'терди core.messenger.IncomingMessage'ге айландырат.
+Эч бир бизнес-эреже бул жерде жазылбайт — баары core/logic.py'де.
 """
 
 import os
-import requests
-from flask import Flask, request, jsonify
+import telebot
+from telebot import types
 
 from core.messenger import Messenger, IncomingMessage, make_uid
 from core import logic
 
-GREEN_API_INSTANCE = os.environ.get("GREEN_API_INSTANCE")
-GREEN_API_TOKEN = os.environ.get("GREEN_API_TOKEN")
-GREEN_API_BASE = f"https://api.green-api.com/waInstance{GREEN_API_INSTANCE}"
-
-app = Flask(__name__)
-
-# Ар бир колдонуучунун азыркы номерленген менюсу
-_PENDING_MENU = {}   # user_id -> {"1": "route:to_bishkek", ...}
+BOT_TOKEN = os.environ.get("BOT_TOKEN")
+bot = telebot.TeleBot(BOT_TOKEN, parse_mode="HTML")
 
 
-class WhatsAppMessenger(Messenger):
-    platform_name = "whatsapp"
+class TelegramMessenger(Messenger):
+    platform_name = "telegram"
 
     def send_text(self, user_id, text):
-        phone = user_id.split(":", 1)[1]
-        requests.post(
-            f"{GREEN_API_BASE}/sendMessage/{GREEN_API_TOKEN}",
-            json={"chatId": f"{phone}@c.us", "message": text},
-            timeout=10)
+        chat_id = user_id.split(":", 1)[1]
+        bot.send_message(chat_id, text)
 
     def send_buttons(self, user_id, text, keyboard):
-        phone = user_id.split(":", 1)[1]
-        flat = [b for row in keyboard.rows for b in row]
-
-        if len(flat) <= 3:
-            # Green API sendButtons (Business тарифте иштейт)
-            buttons = [{"buttonId": str(i), "buttonText": {"displayText": b.text}}
-                       for i, b in enumerate(flat)]
-            _PENDING_MENU[user_id] = {str(i): b.action for i, b in enumerate(flat)}
-            requests.post(
-                f"{GREEN_API_BASE}/sendButtons/{GREEN_API_TOKEN}",
-                json={"chatId": f"{phone}@c.us", "message": text,
-                      "footer": "ТАКСИ роБОТ", "buttons": buttons},
-                timeout=10)
-        else:
-            # Fallback: номерленген текст-меню — акысыз тарифте да иштейт
-            lines = [text, ""]
-            mapping = {}
-            for i, b in enumerate(flat, start=1):
-                lines.append(f"{i}) {b.text}")
-                mapping[str(i)] = b.action
-            _PENDING_MENU[user_id] = mapping
-            self.send_text(user_id, "\n".join(lines))
+        chat_id = user_id.split(":", 1)[1]
+        kb = types.InlineKeyboardMarkup()
+        for row in keyboard.rows:
+            kb.row(*[types.InlineKeyboardButton(b.text, callback_data=b.action)
+                     for b in row])
+        bot.send_message(chat_id, text, reply_markup=kb)
 
     def ask_phone_contact(self, user_id, text):
-        # WhatsApp'та контакт бөлүшүү баскычы жок — колдонуучу өзү жазат
-        self.send_text(user_id, text + "\n\nНомериңизди жазыңыз (мис. 0700123456):")
+        chat_id = user_id.split(":", 1)[1]
+        kb = types.ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=True)
+        kb.add(types.KeyboardButton("📱 Номеримди бөлүшөм", request_contact=True))
+        bot.send_message(chat_id, text, reply_markup=kb)
 
 
-messenger = WhatsAppMessenger()
+messenger = TelegramMessenger()
 
 
-@app.route("/webhook/whatsapp", methods=["POST"])
-def webhook():
-    payload = request.get_json(force=True, silent=True) or {}
-    if payload.get("typeWebhook") != "incomingMessageReceived":
-        return jsonify({"ok": True})
-
-    sender = payload["senderData"]["sender"].replace("@c.us", "")
-    uid = make_uid("whatsapp", sender)
-    body = payload.get("messageData", {})
-    text = (body.get("textMessageData", {}).get("textMessage")
-            or body.get("extendedTextMessageData", {}).get("text")
-            or body.get("buttonRepliesData", {}).get("buttonId", ""))
-    text = text.strip()
-
-    mapping = _PENDING_MENU.get(uid)
-    if mapping and text in mapping:
-        msg = IncomingMessage(user_id=uid, platform="whatsapp",
-                              is_button=True, button_action=mapping[text])
-        _PENDING_MENU.pop(uid, None)
-    else:
-        msg = IncomingMessage(user_id=uid, platform="whatsapp", text=text)
-
+@bot.message_handler(commands=["start"])
+def _start(m):
+    msg = IncomingMessage(user_id=make_uid("telegram", m.from_user.id),
+                          platform="telegram", text="/start")
     logic.handle_update(messenger, msg)
-    return jsonify({"ok": True})
+
+
+@bot.message_handler(content_types=["contact"])
+def _contact(m):
+    msg = IncomingMessage(user_id=make_uid("telegram", m.from_user.id),
+                          platform="telegram", text=m.contact.phone_number)
+    logic.handle_update(messenger, msg)
+
+
+@bot.message_handler(func=lambda m: True, content_types=["text"])
+def _text(m):
+    msg = IncomingMessage(user_id=make_uid("telegram", m.from_user.id),
+                          platform="telegram", text=m.text)
+    logic.handle_update(messenger, msg)
+
+
+@bot.callback_query_handler(func=lambda c: True)
+def _callback(c):
+    msg = IncomingMessage(user_id=make_uid("telegram", c.from_user.id),
+                          platform="telegram", is_button=True, button_action=c.data)
+    logic.handle_update(messenger, msg)
+    bot.answer_callback_query(c.id)
+
+
+def run():
+    from core.db import init_db
+    init_db()
+    bot.infinity_polling()
 
 
 if __name__ == "__main__":
-    from core.db import init_db
-    init_db()
-    app.run(port=5001)
+    run()
