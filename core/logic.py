@@ -92,9 +92,9 @@ def handle_update(messenger, msg):
     session = SESSIONS.get(msg.user_id)
 
     text = (msg.text or "").strip()
-     if text == "/admin" and admin.handle_command(messenger, msg, account, _say):
-        return
-     if text.startswith("/start") or text in ("старт", "start"):
+    if text == "/admin" and admin.handle_command(messenger, msg, account, _say):
+        return 
+    if text.startswith("/start") or text in ("старт", "start"):
         SESSIONS.pop(msg.user_id, None)
         parts = text.split()
         if len(parts) > 1 and parts[1].startswith("ref"):
