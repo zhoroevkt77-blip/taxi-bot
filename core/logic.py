@@ -287,26 +287,48 @@ def hashtag(frm, to):
     return f"#{short(frm)}_{short(to)}"
 
 
+def channel_text(d, role, tag):
+    """Каналга чыгуучу жарыянын тексти."""
+    if role == "driver":
+        return (
+            f"🚖 <b>{d.get('from_city')} ➡️ {d.get('to_city')}</b>\n"
+            f"🧍 Аты: {d.get('name')}\n"
+            f"🚘 Унаа: {d.get('car')}\n"
+            f"📅 {d.get('date_text')} · ⏰ {d.get('time_text')}\n"
+            f"👥 Бош орун: {d.get('seats')}\n"
+            f"💰 Баасы: {d.get('price')}\n"
+            f"📝 {d.get('comment')}\n"
+            f"📞 <code>{d.get('phone')}</code>\n\n{tag}"
+        )
+    return ""
+
+
 def save(messenger, msg, account, st):
     d = st["data"]
-    posts.create_post(account["account_id"], st["role"], d)
+    role = st["role"]
+    post_id = posts.create_post(account["account_id"], role, d)
     SESSIONS.pop(msg.user_id, None)
 
     _say(messenger, msg, account,
          "✅ Жарыя чыкты! Платформада 24 саат турат, андан кийин автоматтык өчүрүлөт.")
 
-    if st["role"] == "driver":
-        _say(messenger, msg, account,
-             "📢 Жарыяңыз каналга да чыкты — жүргүнчүлөр аны ошол жерден көрө алат.")
+    tag = hashtag(d.get("from_city"), d.get("to_city"))
+
+    if role == "driver":
+        # Каналга чыгарабыз — платформа өзү билет, core билбейт
+        msg_id = messenger.publish_to_channel(channel_text(d, role, tag))
+        if msg_id:
+            posts.set_channel_msg(post_id, msg_id)
+            _say(messenger, msg, account,
+                 "📢 Жарыяңыз каналга да чыкты — жүргүнчүлөр аны ошол жерден көрө алат.")
     else:
         _say(messenger, msg, account,
              "🔒 Жүргүнчүнүн жарыясы каналга чыкпайт — аны айдоочулар платформада гана көрөт.")
 
-    tag = hashtag(d.get("from_city"), d.get("to_city"))
     _say(messenger, msg, account,
         f"💡Хештегди басып, ошол багыттагы айдоочуларды издеп көрүңүз.\n\n{tag}")
 
-    if st["role"] == "driver":
+    if role == "driver":
         _say(messenger, msg, account, "Тандаңыз:", driver_menu_kb())
     else:
         _say(messenger, msg, account, "Тандаңыз:", passenger_menu_kb())
