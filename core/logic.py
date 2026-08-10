@@ -94,10 +94,17 @@ def handle_update(messenger, msg):
     text = (msg.text or "").strip()
       if text == "/admin" and admin.handle_command(messenger, msg, account, _say):
         return
-    if text in ("/start", "старт", "start"):
+    if text.startswith("/start") or text in ("старт", "start"):
         SESSIONS.pop(msg.user_id, None)
+        parts = text.split()
+        if len(parts) > 1 and parts[1].startswith("ref"):
+            try:
+                inviter_id = int(parts[1][3:])
+                register_referral(messenger, account, inviter_id)
+                account = db.get_account(account["account_id"])
+            except ValueError:
+                pass
         return _say(messenger, msg, account, WELCOME, main_menu_kb())
-
     if session:
         if msg.is_button:
             return _wizard_button(messenger, msg, account, session)
