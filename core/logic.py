@@ -5,7 +5,7 @@ core/logic.py — БИР МЭЭ (толук визард)
 Referral, wizard кадамдары, меню, издөө — баары ушул жерде, БИР ЖОЛУ.
 Telegram да, WhatsApp да ушул файлды колдонот.
 """
-
+import os
 import re
 from core import db, posts
 from core.messenger import Keyboard, Button
