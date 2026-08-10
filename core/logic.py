@@ -584,7 +584,15 @@ def show_results(messenger, msg, account, action):
 
 
 def _hashtag(messenger, msg, account, text):
+    """#Ош_Бишкек → ошол багыттагы жарыялар."""
     parts = text[1:].split("_")
     if len(parts) < 2:
         return _say(messenger, msg, account, "❓ Бул хештегди тааныган жокмун.")
+    frm, to = parts[0], "_".join(parts[1:])
+    rows = posts.search_by_hashtag(frm, to)
     _say(messenger, msg, account, f"🔎 Издөө: <b>{text}</b>")
+    if not rows:
+        return _say(messenger, msg, account, "❌ Бул багытта азырынча жарыя жок.")
+    for p in rows:
+        _say(messenger, msg, account,
+             post_card(p) + f"\n\n📞 Байланыш: <code>{p['phone']}</code>")
