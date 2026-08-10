@@ -57,7 +57,7 @@ class TelegramMessenger(Messenger):
         kb.add(types.KeyboardButton("📱 Номеримди бөлүшөм", request_contact=True))
         bot.send_message(chat_id, text, reply_markup=kb)
 
-def publish_to_channel(self, text):
+    def publish_to_channel(self, text):
         """Жарыяны Telegram каналына чыгарат."""
         if not CHANNEL_ID:
             return None
