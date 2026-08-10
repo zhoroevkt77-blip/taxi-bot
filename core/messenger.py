@@ -59,7 +59,14 @@ class Messenger(ABC):
     @abstractmethod
     def ask_phone_contact(self, user_id, text):
         ...
-
+def publish_to_channel(self, text):
+        """
+        Жарыяны платформанын жалпы каналына чыгарат.
+        Telegram — каналга, WhatsApp — группага (кийин).
+        Канал жөндөлбөсө — эч нерсе кылбайт.
+        Кайтарат: билдирүүнүн id'си (кийин өчүрүү үчүн) же None.
+        """
+        return None
 
 def make_uid(platform, raw_id):
     """Ар кайсы платформанын ID'син бирдиктүү форматка келтирет."""
