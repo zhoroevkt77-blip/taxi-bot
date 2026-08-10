@@ -151,3 +151,13 @@ def get_account(account_id):
                            WHERE account_id = ? LIMIT 1""", (account_id,))
         row = cur.fetchone()
         return row["platform_id"] if row else None
+def search_by_hashtag(frm, to):
+    """Хештег боюнча издейт: #Ош_Бишкек → from='Ош%', to='Бишкек%'
+    Ролго карабай баарын кайтарат (айдоочу да, жүргүнчү да)."""
+    with db() as conn:
+        cur = conn.cursor()
+        cur.execute("""SELECT * FROM posts WHERE active = 1
+                       AND from_city LIKE ? AND to_city LIKE ?
+                       ORDER BY is_vip DESC, created_at DESC""",
+                    (f"{frm}%", f"{to}%"))
+        return [dict(r) for r in cur.fetchall()]
