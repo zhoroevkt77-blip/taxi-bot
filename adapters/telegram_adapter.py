@@ -18,6 +18,7 @@ from core.messenger import Messenger, IncomingMessage, make_uid
 from core import logic
 
 BOT_TOKEN = os.environ.get("BOT_TOKEN")
+CHANNEL_ID = os.environ.get("CHANNEL_ID")  # мис. @kanal_aty же -1001234567890
 bot = telebot.TeleBot(BOT_TOKEN, parse_mode="HTML")
 
 # Ылдыйкы клавиатурадагы жазуу → core'дун ички коду
@@ -56,7 +57,16 @@ class TelegramMessenger(Messenger):
         kb.add(types.KeyboardButton("📱 Номеримди бөлүшөм", request_contact=True))
         bot.send_message(chat_id, text, reply_markup=kb)
 
-
+def publish_to_channel(self, text):
+        """Жарыяны Telegram каналына чыгарат."""
+        if not CHANNEL_ID:
+            return None
+        try:
+            m = bot.send_message(CHANNEL_ID, text)
+            return m.message_id
+        except Exception as e:
+            print("Каналга жарыялоо ишке ашкан жок:", e)
+            return None
 messenger = TelegramMessenger()
 
 
