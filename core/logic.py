@@ -92,7 +92,7 @@ def handle_update(messenger, msg):
     session = SESSIONS.get(msg.user_id)
 
     text = (msg.text or "").strip()
-  if text == "/admin" and admin.handle_command(messenger, msg, account, _say):
+      if text == "/admin" and admin.handle_command(messenger, msg, account, _say):
         return
     if text in ("/start", "старт", "start"):
         SESSIONS.pop(msg.user_id, None)
