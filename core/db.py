@@ -161,3 +161,45 @@ def search_by_hashtag(frm, to):
                        ORDER BY is_vip DESC, created_at DESC""",
                     (f"{frm}%", f"{to}%"))
         return [dict(r) for r in cur.fetchall()]
+def count_accounts():
+    """Жалпы колдонуучу саны."""
+    with db() as conn:
+        cur = conn.cursor()
+        cur.execute("SELECT COUNT(*) AS n FROM accounts")
+        return cur.fetchone()["n"]
+
+
+def count_banned():
+    with db() as conn:
+        cur = conn.cursor()
+        cur.execute("SELECT COUNT(*) AS n FROM accounts WHERE banned = 1")
+        return cur.fetchone()["n"]
+
+
+def all_platform_ids(exclude_banned=True):
+    """Жалпы билдирүү үчүн — бардык колдонуучулардын platform_id'си."""
+    q = """SELECT pi.platform_id FROM platform_identities pi
+           JOIN accounts a ON a.account_id = pi.account_id"""
+    if exclude_banned:
+        q += " WHERE a.banned = 0"
+    with db() as conn:
+        cur = conn.cursor()
+        cur.execute(q)
+        return [r["platform_id"] for r in cur.fetchall()]
+
+
+def recent_accounts(limit=10):
+    with db() as conn:
+        cur = conn.cursor()
+        cur.execute("""SELECT * FROM accounts ORDER BY created_at DESC LIMIT ?""",
+                    (limit,))
+        return [dict(r) for r in cur.fetchall()]
+
+
+def set_banned(account_id, banned=True):
+    with db() as conn:
+        cur = conn.cursor()
+        cur.execute("UPDATE accounts SET banned = ? WHERE account_id = ?",
+                    (1 if banned else 0, account_id))
+        conn.commit()
+        return cur.rowcount > 0
