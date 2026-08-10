@@ -612,8 +612,7 @@ def _hashtag(messenger, msg, account, text):
     for p in rows:
         _say(messenger, msg, account,
              post_card(p) + f"\n\n📞 Байланыш: <code>{p['phone']}</code>")
-    def register_referral(messenger, newbie, inviter_id):
-    """Жаңы колдонуучу шилтеме аркылуу кирди — чакыруучуга бонус."""
+def register_referral(messenger, newbie, inviter_id):
     if inviter_id == newbie["account_id"]:
         return
     if newbie.get("referred_by"):
@@ -621,21 +620,16 @@ def _hashtag(messenger, msg, account, text):
     inviter = db.get_account(inviter_id)
     if not inviter:
         return
-
     db.update_account(newbie["account_id"], referred_by=inviter_id)
     new_count = inviter["ref_count"] + 1
-    db.update_account(inviter_id,
-                      ref_count=new_count,
+    db.update_account(inviter_id, ref_count=new_count,
                       free_posts=inviter["free_posts"] + 1)
-
     pid = db.platform_id_of(inviter_id)
     if not pid:
         return
     try:
         messenger.send_text(pid, f"✅ Жаңы дос кошулду! Жалпы: {new_count} дос.")
         if new_count == REQUIRED_REFERRALS:
-            messenger.send_text(pid,
-                f"🎉 Куттуктайбыз! {REQUIRED_REFERRALS} дос чакырдыңыз — "
-                f"платформа толук ачылды!")
+            messenger.send_text(pid, "🎉 Куттуктайбыз! Платформа толук ачылды!")
     except Exception:
         pass
