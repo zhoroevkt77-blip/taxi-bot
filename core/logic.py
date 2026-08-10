@@ -92,9 +92,9 @@ def handle_update(messenger, msg):
     session = SESSIONS.get(msg.user_id)
 
     text = (msg.text or "").strip()
-      if text == "/admin" and admin.handle_command(messenger, msg, account, _say):
+     if text == "/admin" and admin.handle_command(messenger, msg, account, _say):
         return
-    if text.startswith("/start") or text in ("старт", "start"):
+     if text.startswith("/start") or text in ("старт", "start"):
         SESSIONS.pop(msg.user_id, None)
         parts = text.split()
         if len(parts) > 1 and parts[1].startswith("ref"):
@@ -597,6 +597,8 @@ def show_results(messenger, msg, account, action):
              post_card(p) + f"\n\n📞 Байланыш: <code>{p['phone']}</code>")
 
 
+
+
 def _hashtag(messenger, msg, account, text):
     """#Ош_Бишкек → ошол багыттагы жарыялар."""
     parts = text[1:].split("_")
@@ -610,3 +612,30 @@ def _hashtag(messenger, msg, account, text):
     for p in rows:
         _say(messenger, msg, account,
              post_card(p) + f"\n\n📞 Байланыш: <code>{p['phone']}</code>")
+    def register_referral(messenger, newbie, inviter_id):
+    """Жаңы колдонуучу шилтеме аркылуу кирди — чакыруучуга бонус."""
+    if inviter_id == newbie["account_id"]:
+        return
+    if newbie.get("referred_by"):
+        return
+    inviter = db.get_account(inviter_id)
+    if not inviter:
+        return
+
+    db.update_account(newbie["account_id"], referred_by=inviter_id)
+    new_count = inviter["ref_count"] + 1
+    db.update_account(inviter_id,
+                      ref_count=new_count,
+                      free_posts=inviter["free_posts"] + 1)
+
+    pid = db.platform_id_of(inviter_id)
+    if not pid:
+        return
+    try:
+        messenger.send_text(pid, f"✅ Жаңы дос кошулду! Жалпы: {new_count} дос.")
+        if new_count == REQUIRED_REFERRALS:
+            messenger.send_text(pid,
+                f"🎉 Куттуктайбыз! {REQUIRED_REFERRALS} дос чакырдыңыз — "
+                f"платформа толук ачылды!")
+    except Exception:
+        pass
