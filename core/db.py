@@ -137,3 +137,17 @@ def get_account(account_id):
         cur.execute("SELECT * FROM accounts WHERE account_id = ?", (account_id,))
         row = cur.fetchone()
         return dict(row) if row else None
+      def platform_id_of(account_id, platform=None):
+    """Аккаунттун platform_id'син кайтарат — кабар жиберүү үчүн керек.
+    platform көрсөтүлсө, ошол платформадагысын гана издейт."""
+    with db() as conn:
+        cur = conn.cursor()
+        if platform:
+            cur.execute("""SELECT platform_id FROM platform_identities
+                           WHERE account_id = ? AND platform = ? LIMIT 1""",
+                        (account_id, platform))
+        else:
+            cur.execute("""SELECT platform_id FROM platform_identities
+                           WHERE account_id = ? LIMIT 1""", (account_id,))
+        row = cur.fetchone()
+        return row["platform_id"] if row else None
