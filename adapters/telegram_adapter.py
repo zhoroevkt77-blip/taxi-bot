@@ -4,6 +4,10 @@ adapters/telegram_adapter.py
 =============================
 Telegram update'терди core.messenger.IncomingMessage'ге айландырат.
 Эч бир бизнес-эреже бул жерде жазылбайт — баары core/logic.py'де.
+
+Башкы меню (Айдоочумун / Жүргүнчүмүн / Жардам) — Telegram'дын ылдыйкы
+reply-клавиатурасы. Ал ар дайым көрүнүп турат. Колдонуучу аны басканда
+текст келет, биз аны core тааныган баскыч кодуна которобуз.
 """
 
 import os
@@ -15,6 +19,20 @@ from core import logic
 
 BOT_TOKEN = os.environ.get("BOT_TOKEN")
 bot = telebot.TeleBot(BOT_TOKEN, parse_mode="HTML")
+
+# Ылдыйкы клавиатурадагы жазуу → core'дун ички коду
+MAIN_MENU = {
+    "🚗 Айдоочумун": "menu:driver",
+    "🔍 Жүргүнчүмүн": "menu:passenger",
+    "🆘 Жардам": "menu:help",
+}
+
+
+def main_reply_kb():
+    kb = types.ReplyKeyboardMarkup(resize_keyboard=True)
+    kb.row("🚗 Айдоочумун", "🔍 Жүргүнчүмүн")
+    kb.row("🆘 Жардам")
+    return kb
 
 
 class TelegramMessenger(Messenger):
@@ -44,6 +62,8 @@ messenger = TelegramMessenger()
 
 @bot.message_handler(commands=["start"])
 def _start(m):
+    # Башкы менюну ылдыйга орнотуп коёбуз
+    bot.send_message(m.chat.id, "🚕", reply_markup=main_reply_kb())
     msg = IncomingMessage(user_id=make_uid("telegram", m.from_user.id),
                           platform="telegram", text="/start")
     logic.handle_update(messenger, msg)
@@ -51,6 +71,8 @@ def _start(m):
 
 @bot.message_handler(content_types=["contact"])
 def _contact(m):
+    # Контакт баскычын алып салып, башкы менюну кайтарабыз
+    bot.send_message(m.chat.id, "✅ Рахмат!", reply_markup=main_reply_kb())
     msg = IncomingMessage(user_id=make_uid("telegram", m.from_user.id),
                           platform="telegram", text=m.contact.phone_number)
     logic.handle_update(messenger, msg)
@@ -58,8 +80,14 @@ def _contact(m):
 
 @bot.message_handler(func=lambda m: True, content_types=["text"])
 def _text(m):
-    msg = IncomingMessage(user_id=make_uid("telegram", m.from_user.id),
-                          platform="telegram", text=m.text)
+    uid = make_uid("telegram", m.from_user.id)
+    action = MAIN_MENU.get(m.text)
+    if action:
+        # Ылдыйкы менюнун баскычы — аны core'го баскыч катары беребиз
+        msg = IncomingMessage(user_id=uid, platform="telegram",
+                              is_button=True, button_action=action)
+    else:
+        msg = IncomingMessage(user_id=uid, platform="telegram", text=m.text)
     logic.handle_update(messenger, msg)
 
 
