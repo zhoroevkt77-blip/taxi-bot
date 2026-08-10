@@ -98,3 +98,19 @@ def cleanup_expired():
                         f"({','.join('?' * len(ids))})", ids)
             conn.commit()
         return ids
+def set_channel_msg(post_id, channel_msg_id):
+    """Каналдагы билдирүүнүн id'син сактайт — кийин өчүрүү үчүн."""
+    with db() as conn:
+        cur = conn.cursor()
+        cur.execute("UPDATE posts SET channel_msg_id = ? WHERE id = ?",
+                    (channel_msg_id, post_id))
+        conn.commit()
+
+
+def get_post(post_id):
+    """Бир жарыяны id боюнча кайтарат."""
+    with db() as conn:
+        cur = conn.cursor()
+        cur.execute("SELECT * FROM posts WHERE id = ?", (post_id,))
+        row = cur.fetchone()
+        return dict(row) if row else None
