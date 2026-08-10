@@ -92,6 +92,8 @@ def handle_update(messenger, msg):
     session = SESSIONS.get(msg.user_id)
 
     text = (msg.text or "").strip()
+  if text == "/admin" and admin.handle_command(messenger, msg, account, _say):
+        return
     if text in ("/start", "старт", "start"):
         SESSIONS.pop(msg.user_id, None)
         return _say(messenger, msg, account, WELCOME, main_menu_kb())
@@ -102,7 +104,12 @@ def handle_update(messenger, msg):
         return _wizard_text(messenger, msg, account, session)
 
     if msg.is_button:
+        if admin.handle_button(messenger, msg, account, _say):
+            return
         return _menu_button(messenger, msg, account)
+
+    if admin.handle_text(messenger, msg, account, _say):
+        return
 
     if text.startswith("#"):
         return _hashtag(messenger, msg, account, text)
