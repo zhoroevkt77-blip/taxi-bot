@@ -7,7 +7,7 @@ Telegram да, WhatsApp да ушул файлды колдонот.
 """
 import os
 import re
-from core import db, posts
+from core import db, posts, admin
 from core.messenger import Keyboard, Button
 from core.geo import REGIONS, DISTRICTS, DISTRICT_OBLASTS
 from core.texts import (render, WELCOME, GUIDE, DRIVER_WARNING,
