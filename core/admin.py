@@ -89,7 +89,7 @@ def handle_button(messenger, msg, account, say):
 
 .   elif action == "unban":
         ADMIN_STATE[msg.user_id] = "unban"
-        say(messenger, msg, account, "✅ Бөгө...
+        say(messenger, msg, account, "✅ Бөгөттөн чыгаруучу колдонуучунун ID'син жазыңыз:")
 
     elif action == "setref":
         ADMIN_STATE[msg.user_id] = "setref"
