@@ -31,7 +31,15 @@ def admin_kb():
         Button("🚫 Бөгөттөө", "adm:ban"),
         Button("✅ Бөгөттөн чыгаруу", "adm:unban"),
     ])
-
+def admin_kb():
+    return Keyboard.from_flat([
+        Button("📊 Статистика", "adm:stats"),
+        Button("👥 Акыркы колдонуучулар", "adm:users"),
+        Button("📢 Жалпы билдирүү", "adm:broadcast"),
+        Button("🚫 Бөгөттөө", "adm:ban"),
+        Button("✅ Бөгөттөн чыгаруу", "adm:unban"),
+        Button("🧪 Referral коюу (тест)", "adm:setref"),
+    ])
 
 def handle_command(messenger, msg, account, say):
     """/admin буйругу."""
@@ -79,13 +87,19 @@ def handle_button(messenger, msg, account, say):
         ADMIN_STATE[msg.user_id] = "ban"
         say(messenger, msg, account, "🚫 Бөгөттөөчү колдонуучунун ID'син жазыңыз:")
 
-    elif action == "unban":
+.   elif action == "unban":
         ADMIN_STATE[msg.user_id] = "unban"
-        say(messenger, msg, account, "✅ Бөгөттөн чыгаруучу колдонуучунун ID'син жазыңыз:")
+        say(messenger, msg, account, "✅ Бөгө...
+
+    elif action == "setref":
+        ADMIN_STATE[msg.user_id] = "setref"
+        say(messenger, msg, account,
+            "🧪 <b>Referral коюу</b>\n\n"
+            "Форматы: <code>account_id саны</code>\n"
+            "Мисалы: <code>1 3</code> — 1-акк...
 
     return True
-
-
+    
 def handle_text(messenger, msg, account, say):
     """Админ бир нерсе күтүп жатканда келген текст."""
     state = ADMIN_STATE.get(msg.user_id)
