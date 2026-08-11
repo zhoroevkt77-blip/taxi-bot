@@ -10,10 +10,6 @@ core/db.py  (SQLite варианты)
 
   - platform_id    — "tg:123456" же "wa:996700123456"
   - verified_phone — эки платформаны бир аккаунтка байлаган ачкыч
-
-ЭСКЕРТҮҮ: Railway сервисти кайра иштеткенде бул файл жоголушу мүмкүн.
-Туруктуу сактоо үчүн кийин PostgreSQL'ге өтөбүз — ошондо ушул файлдын
-өзүн гана алмаштырабыз, калган код тийбейт.
 """
 
 import os
@@ -80,7 +76,6 @@ def init_db():
 
 
 def get_or_create_account(platform_id, platform, username=None, first_name=None):
-    """platform_id менен аккаунт бар болсо кайтарат, жок болсо жаңы түзөт."""
     with db() as conn:
         cur = conn.cursor()
         cur.execute("SELECT account_id FROM platform_identities WHERE platform_id = ?",
@@ -101,7 +96,6 @@ def get_or_create_account(platform_id, platform, username=None, first_name=None)
 
 
 def link_second_platform(existing_account_id, new_platform_id, platform):
-    """Телефон боюнча ырастоодон кийин эки ооз бир мээге кошулат."""
     with db() as conn:
         cur = conn.cursor()
         cur.execute(
@@ -137,36 +131,24 @@ def get_account(account_id):
         cur.execute("SELECT * FROM accounts WHERE account_id = ?", (account_id,))
         row = cur.fetchone()
         return dict(row) if row else None
-      def platform_id_of(account_id, platform=None):
-    """Аккаунттун platform_id'син кайтарат — кабар жиберүү үчүн керек.
-    platform көрсөтүлсө, ошол платформадагысын гана издейт."""
+
+
+def platform_id_of(account_id, platform=None):
+    """Аккаунттун platform_id'син кайтарат — кабар жиберүү үчүн."""
     with db() as conn:
         cur = conn.cursor()
         if platform:
-            cur.execute("""SELECT platform_id FROM platform_identities
-                           WHERE account_id = ? AND platform = ? LIMIT 1""",
+            cur.execute("SELECT platform_id FROM platform_identities "
+                        "WHERE account_id = ? AND platform = ? LIMIT 1",
                         (account_id, platform))
         else:
-            cur.execute("""SELECT platform_id FROM platform_identities
-                           WHERE account_id = ? LIMIT 1""", (account_id,))
+            cur.execute("SELECT platform_id FROM platform_identities "
+                        "WHERE account_id = ? LIMIT 1", (account_id,))
         row = cur.fetchone()
         return row["platform_id"] if row else None
 
 
-def search_by_hashtag(frm, to):
-    """Хештег боюнча издейт: #Ош_Бишкек → from='Ош%', to='Бишкек%'
-    Ролго карабай баарын кайтарат (айдоочу да, жүргүнчү да)."""
-    with db() as conn:
-        cur = conn.cursor()
-        cur.execute("""SELECT * FROM posts WHERE active = 1
-                       AND from_city LIKE ? AND to_city LIKE ?
-                       ORDER BY is_vip DESC, created_at DESC""",
-                    (f"{frm}%", f"{to}%"))
-        return [dict(r) for r in cur.fetchall()]
-
-
 def count_accounts():
-    """Жалпы колдонуучу саны."""
     with db() as conn:
         cur = conn.cursor()
         cur.execute("SELECT COUNT(*) AS n FROM accounts")
@@ -181,9 +163,8 @@ def count_banned():
 
 
 def all_platform_ids(exclude_banned=True):
-    """Жалпы билдирүү үчүн — бардык колдонуучулардын platform_id'си."""
-    q = """SELECT pi.platform_id FROM platform_identities pi
-           JOIN accounts a ON a.account_id = pi.account_id"""
+    q = ("SELECT pi.platform_id FROM platform_identities pi "
+         "JOIN accounts a ON a.account_id = pi.account_id")
     if exclude_banned:
         q += " WHERE a.banned = 0"
     with db() as conn:
@@ -195,8 +176,7 @@ def all_platform_ids(exclude_banned=True):
 def recent_accounts(limit=10):
     with db() as conn:
         cur = conn.cursor()
-        cur.execute("""SELECT * FROM accounts ORDER BY created_at DESC LIMIT ?""",
-                    (limit,))
+        cur.execute("SELECT * FROM accounts ORDER BY created_at DESC LIMIT ?", (limit,))
         return [dict(r) for r in cur.fetchall()]
 
 
