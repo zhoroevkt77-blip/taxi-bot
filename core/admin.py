@@ -123,7 +123,23 @@ def handle_text(messenger, msg, account, say):
             f"✅ <b>Жиберилди</b>\n\n{sent} колдонуучуга жеткирилди.\n"
             f"❌ Жеткен жок: {failed}")
         return True
-
+.   if state == "setref":
+        parts = text.split()
+        if len(parts) != 2:
+            say(messenger, msg, account, "⚠️ Формат: account_id саны (мис. 1 3)")
+            return True
+        try:
+            acc_id, count = int(parts[0]), int(parts[1])
+        except ValueError:
+            say(messenger, msg, account, "⚠️ Эки сан жазыңыз (мис. 1 3)")
+            return True
+        if not db.get_account(acc_id):
+            say(messenger, msg, account, "❌ Мындай аккаунт жок.")
+            return True
+        db.update_account(acc_id, ref_count=count)
+        say(messenger, msg, account,
+            f"✅ {acc_id}-аккаунттун referral саны {count} болду.")
+        return True
     try:
         target = int(text)
     except ValueError:
