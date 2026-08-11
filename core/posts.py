@@ -114,3 +114,12 @@ def get_post(post_id):
         cur.execute("SELECT * FROM posts WHERE id = ?", (post_id,))
         row = cur.fetchone()
         return dict(row) if row else None
+def search_by_hashtag(frm, to):
+    """Хештег боюнча издейт: #Ош_Бишкек → from='Ош%', to='Бишкек%'"""
+    with db() as conn:
+        cur = conn.cursor()
+        cur.execute("""SELECT * FROM posts WHERE active = 1
+                       AND from_city LIKE ? AND to_city LIKE ?
+                       ORDER BY is_vip DESC, created_at DESC""",
+                    (f"{frm}%", f"{to}%"))
+        return [dict(r) for r in cur.fetchall()]
