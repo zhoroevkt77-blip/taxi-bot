@@ -16,7 +16,7 @@ from core.messenger import Keyboard, Button
 ADMIN_ACCOUNT = int(os.environ.get("ADMIN_ACCOUNT", "0"))
 
 # Админ эмнени күтүп жатканын эстеп турат
-ADMIN_STATE = {}   # platform_id -> "broadcast" | "ban" | "unban"
+ADMIN_STATE = {}   # platform_id -> "broadcast" | "ban" | "unban" | "setref"
 
 
 def is_admin(account):
@@ -30,16 +30,9 @@ def admin_kb():
         Button("📢 Жалпы билдирүү", "adm:broadcast"),
         Button("🚫 Бөгөттөө", "adm:ban"),
         Button("✅ Бөгөттөн чыгаруу", "adm:unban"),
-    ])
-def admin_kb():
-    return Keyboard.from_flat([
-        Button("📊 Статистика", "adm:stats"),
-        Button("👥 Акыркы колдонуучулар", "adm:users"),
-        Button("📢 Жалпы билдирүү", "adm:broadcast"),
-        Button("🚫 Бөгөттөө", "adm:ban"),
-        Button("✅ Бөгөттөн чыгаруу", "adm:unban"),
         Button("🧪 Referral коюу (тест)", "adm:setref"),
     ])
+
 
 def handle_command(messenger, msg, account, say):
     """/admin буйругу."""
@@ -87,7 +80,7 @@ def handle_button(messenger, msg, account, say):
         ADMIN_STATE[msg.user_id] = "ban"
         say(messenger, msg, account, "🚫 Бөгөттөөчү колдонуучунун ID'син жазыңыз:")
 
-.   elif action == "unban":
+    elif action == "unban":
         ADMIN_STATE[msg.user_id] = "unban"
         say(messenger, msg, account, "✅ Бөгөттөн чыгаруучу колдонуучунун ID'син жазыңыз:")
 
@@ -96,10 +89,11 @@ def handle_button(messenger, msg, account, say):
         say(messenger, msg, account,
             "🧪 <b>Referral коюу</b>\n\n"
             "Форматы: <code>account_id саны</code>\n"
-            "Мисалы: <code>1 3</code> — 1-акк...
+            "Мисалы: <code>1 3</code> — 1-аккаунтка 3 referral коёт.")
 
     return True
-    
+
+
 def handle_text(messenger, msg, account, say):
     """Админ бир нерсе күтүп жатканда келген текст."""
     state = ADMIN_STATE.get(msg.user_id)
@@ -123,7 +117,8 @@ def handle_text(messenger, msg, account, say):
             f"✅ <b>Жиберилди</b>\n\n{sent} колдонуучуга жеткирилди.\n"
             f"❌ Жеткен жок: {failed}")
         return True
-.   if state == "setref":
+
+    if state == "setref":
         parts = text.split()
         if len(parts) != 2:
             say(messenger, msg, account, "⚠️ Формат: account_id саны (мис. 1 3)")
@@ -140,6 +135,7 @@ def handle_text(messenger, msg, account, say):
         say(messenger, msg, account,
             f"✅ {acc_id}-аккаунттун referral саны {count} болду.")
         return True
+
     try:
         target = int(text)
     except ValueError:
@@ -169,3 +165,4 @@ def handle_text(messenger, msg, account, say):
                 pass
 
     return True
+
