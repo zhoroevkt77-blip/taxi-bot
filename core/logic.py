@@ -16,7 +16,7 @@ from core.texts import (render, WELCOME, GUIDE, DRIVER_WARNING,
 
 SESSIONS = {}
 _SEARCH_CACHE = {}
-BOT_USERNAME = "taxirobotbot"
+BOT_USERNAME = "taxirobot_bot"
 
 REGION_LIST = list(REGIONS.keys())
 
