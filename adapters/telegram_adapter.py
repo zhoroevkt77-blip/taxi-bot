@@ -5,9 +5,9 @@ adapters/telegram_adapter.py
 Telegram update'терди core.messenger.IncomingMessage'ге айландырат.
 Эч бир бизнес-эреже бул жерде жазылбайт — баары core/logic.py'де.
 
-Башкы меню (Айдоочумун / Жүргүнчүмүн / Жардам) — Telegram'дын ылдыйкы
-reply-клавиатурасы. Ал ар дайым көрүнүп турат. Колдонуучу аны басканда
-текст келет, биз аны core тааныган баскыч кодуна которобуз.
+Башкы меню (Айдоочумун / Жүргүнчүмүн / Жардам / Тил) — Telegram'дын
+ылдыйкы reply-клавиатурасы. Ал ар дайым көрүнүп турат. Колдонуучу аны
+басканда текст келет, биз аны core тааныган баскыч кодуна которобуз.
 """
 
 import os
@@ -27,13 +27,16 @@ MAIN_MENU = {
     "🔍 Жүргүнчүмүн": "menu:passenger",
     "🆘 Жардам": "menu:help",
     "🌐 Тил / Язык": "menu:lang",
+    # Орусча варианттары да ушул эле коддорго барат
+    "🚗 Я водитель": "menu:driver",
+    "🔍 Я пассажир": "menu:passenger",
+    "🆘 Помощь": "menu:help",
 }
 
 
 def main_reply_kb():
     kb = types.ReplyKeyboardMarkup(resize_keyboard=True)
     kb.row("🚗 Айдоочумун", "🔍 Жүргүнчүмүн")
-    kb.row("🆘 Жардам")
     kb.row("🆘 Жардам", "🌐 Тил / Язык")
     return kb
 
@@ -69,6 +72,8 @@ class TelegramMessenger(Messenger):
         except Exception as e:
             print("Каналга жарыялоо ишке ашкан жок:", e)
             return None
+
+
 messenger = TelegramMessenger()
 
 
@@ -119,3 +124,4 @@ def run():
 
 if __name__ == "__main__":
     run()
+
