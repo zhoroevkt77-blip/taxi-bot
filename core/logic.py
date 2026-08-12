@@ -74,7 +74,7 @@ def lang_kb():
 def driver_menu_kb():
     return Keyboard.from_flat([
         Button("📝 Пост жазам", "d_types"),
-        Button("🔍 Жүргүнчүлөрдү издеймин", "d_search"),
+        Button("🔍 Жүргүнчүлөрдү издейм", "d_search"),
         Button("📄 Менин посторум", "d_my"),
         Button("⭐ VIP болуу", "d_vip"),
     ])
@@ -83,7 +83,7 @@ def driver_menu_kb():
 def passenger_menu_kb():
     return Keyboard.from_flat([
         Button("📝 Пост жазам", "p_types"),
-        Button("🔍 Айдоочуларды издеймин", "p_search"),
+        Button("🔍 Айдоочуларды издейм", "p_search"),
         Button("📄 Менин посторум", "p_my"),
     ])
 
