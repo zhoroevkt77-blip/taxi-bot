@@ -11,6 +11,8 @@ Telegram update'терди core.messenger.IncomingMessage'ге айландыр�
 """
 
 import os
+import time
+import threading
 import telebot
 from telebot import types
 
@@ -137,9 +139,30 @@ def _callback(c):
     bot.answer_callback_query(c.id)
 
 
+def _cleanup_loop():
+    """Фондо ар саат сайын эскирген жарыяларды өчүрөт."""
+    from core import posts
+    while True:
+        try:
+            expired = posts.cleanup_expired()
+            for p in expired:
+                mid = p.get("channel_msg_id")
+                if mid and CHANNEL_ID:
+                    try:
+                        bot.delete_message(CHANNEL_ID, mid)
+                    except Exception:
+                        pass
+            if expired:
+                print(f"Тазаланды: {len(expired)} жарыя")
+        except Exception as e:
+            print("Cleanup катасы:", e)
+        time.sleep(3600)   # ар саат сайын
+
+
 def run():
     from core.db import init_db
     init_db()
+    threading.Thread(target=_cleanup_loop, daemon=True).start()
     bot.infinity_polling()
 
 
