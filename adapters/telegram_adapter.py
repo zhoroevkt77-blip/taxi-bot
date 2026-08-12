@@ -34,11 +34,25 @@ MAIN_MENU = {
 }
 
 
-def main_reply_kb():
+def main_reply_kb(lang="ky"):
     kb = types.ReplyKeyboardMarkup(resize_keyboard=True)
-    kb.row("🚗 Айдоочумун", "🔍 Жүргүнчүмүн")
-    kb.row("🆘 Жардам", "🌐 Тил / Язык")
+    if lang == "ru":
+        kb.row("🚗 Я водитель", "🔍 Я пассажир")
+        kb.row("🆘 Помощь", "🌐 Тил / Язык")
+    else:
+        kb.row("🚗 Айдоочумун", "🔍 Жүргүнчүмүн")
+        kb.row("🆘 Жардам", "🌐 Тил / Язык")
     return kb
+
+
+def _lang_of(tg_user_id):
+    """Колдонуучунун тилин базадан алат (клавиатура үчүн)."""
+    try:
+        from core import db
+        acc = db.get_or_create_account(make_uid("telegram", tg_user_id), "telegram")
+        return acc.get("lang", "ky")
+    except Exception:
+        return "ky"
 
 
 class TelegramMessenger(Messenger):
@@ -80,7 +94,8 @@ messenger = TelegramMessenger()
 @bot.message_handler(commands=["start"])
 def _start(m):
     # Башкы менюну ылдыйга орнотуп коёбуз
-    bot.send_message(m.chat.id, "🚕", reply_markup=main_reply_kb())
+    bot.send_message(m.chat.id, "🚕",
+                     reply_markup=main_reply_kb(_lang_of(m.from_user.id)))
     msg = IncomingMessage(user_id=make_uid("telegram", m.from_user.id),
                           platform="telegram", text="/start")
     logic.handle_update(messenger, msg)
@@ -89,7 +104,8 @@ def _start(m):
 @bot.message_handler(content_types=["contact"])
 def _contact(m):
     # Контакт баскычын алып салып, башкы менюну кайтарабыз
-    bot.send_message(m.chat.id, "✅ Рахмат!", reply_markup=main_reply_kb())
+    bot.send_message(m.chat.id, "✅ Рахмат!",
+                     reply_markup=main_reply_kb(_lang_of(m.from_user.id)))
     msg = IncomingMessage(user_id=make_uid("telegram", m.from_user.id),
                           platform="telegram", text=m.contact.phone_number)
     logic.handle_update(messenger, msg)
@@ -113,6 +129,11 @@ def _callback(c):
     msg = IncomingMessage(user_id=make_uid("telegram", c.from_user.id),
                           platform="telegram", is_button=True, button_action=c.data)
     logic.handle_update(messenger, msg)
+    # Тил алмашса — ылдыйкы клавиатураны да жаңыртабыз
+    if c.data.startswith("setlang:"):
+        new_lang = c.data.split(":")[1]
+        bot.send_message(c.message.chat.id, "🚕",
+                         reply_markup=main_reply_kb(new_lang))
     bot.answer_callback_query(c.id)
 
 
@@ -124,4 +145,3 @@ def run():
 
 if __name__ == "__main__":
     run()
-
