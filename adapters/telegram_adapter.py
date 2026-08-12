@@ -26,6 +26,7 @@ MAIN_MENU = {
     "🚗 Айдоочумун": "menu:driver",
     "🔍 Жүргүнчүмүн": "menu:passenger",
     "🆘 Жардам": "menu:help",
+    "🌐 Тил / Язык": "menu:lang",
 }
 
 
@@ -33,6 +34,7 @@ def main_reply_kb():
     kb = types.ReplyKeyboardMarkup(resize_keyboard=True)
     kb.row("🚗 Айдоочумун", "🔍 Жүргүнчүмүн")
     kb.row("🆘 Жардам")
+    kb.row("🆘 Жардам", "🌐 Тил / Язык")
     return kb
 
 
