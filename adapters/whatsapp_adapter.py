@@ -175,10 +175,15 @@ def _check_settings():
         print("⚠️ Green API жооп бербей жатат — ID/TOKEN туурабы?")
         return
     incoming = st.get("incomingWebhook")
+    hook_url = st.get("webhookUrl") or ""
     print(f"ℹ️ Green API жөндөөлөрү: incomingWebhook = {incoming}")
+    print(f"ℹ️ webhookUrl = '{hook_url}'")
     if incoming != "yes":
         print("⚠️ КАБАРЛАР ӨЧҮК! Console'до 'Получать уведомления о входящих "
               "сообщениях' жөндөөсүн күйгүзүңүз.")
+    if hook_url.strip():
+        print("⚠️ webhookUrl коюлган! Кабарлар кезекке түшпөйт. "
+              "Console'до webhookUrl'ди бош калтырыңыз.")
 
     state = _get("getStateInstance")
     if state:
