@@ -524,7 +524,8 @@ def normalize_phone(raw):
 def post_card(p):
     vip = " ⭐" if p.get("is_vip") else ""
     role_tag = "🚗 <b>АЙДООЧУ</b>" if p["role"] == "driver" else "🧳 <b>ЖҮРГҮНЧҮ</b>"
-    lines = [f"<b>{p['from_city']} ➡️ {p['to_city']}</b>{vip}",
+    lines = [role_tag,
+             f"<b>{p['from_city']} ➡️ {p['to_city']}</b>{vip}",
              f"🧍 Аты: {p['name']}"]
     if p["role"] == "driver":
         lines += [f"🚘 Унаа: {p['car']}", f"👥 Бош орун: {p['seats']}",
