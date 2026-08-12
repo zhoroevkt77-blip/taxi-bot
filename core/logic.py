@@ -181,10 +181,13 @@ def _menu_button(messenger, msg, account):
 def driver_entry(messenger, msg, account):
     if account["ref_count"] < REQUIRED_REFERRALS:
         link = referral_link(account["account_id"], msg.platform)
+        share = ("https://t.me/share/url?url=" + link +
+                 "&text=" + "ТАКСИ роБОТ — Бишкекке такси табуунун эң оңой жолу!")
         return _say(messenger, msg, account,
             f"🚫 Жарыя берүү үчүн {REQUIRED_REFERRALS} дос чакырышыңыз керек.\n"
             f"Учурдагы прогресс: {account['ref_count']}/{REQUIRED_REFERRALS}\n\n"
-            f"👇 Сиздин жеке шилтемеңиз:\n{link}")
+            f"👇 <a href=\"{share}\">Досторуңузга жиберүү</a>\n\n"
+            f"Же шилтемени көчүрүп алыңыз:\n<code>{link}</code>")
     _say(messenger, msg, account, "Тандаңыз:", driver_menu_kb())
 
 
