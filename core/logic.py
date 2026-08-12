@@ -220,7 +220,7 @@ def post_types(messenger, msg, account, role):
 
     SESSIONS[msg.user_id] = {"step": "mode", "role": role, "data": {}}
     kb = Keyboard.from_flat([
-        Button("Облустардын район/шаарларынан Бишкекке жана кайтуу", "mode:bishkek"),
+        Button("Облустун район/шаарынан Бишкекке жана кайра кайтуу", "mode:bishkek"),
         Button("Район/шаар аралык", "mode:local"),
     ])
     _say(messenger, msg, account, "Кайсы багытта жарыя бересиз?", kb)
@@ -236,7 +236,7 @@ def ask_route(messenger, msg, account, st):
         st["step"] = "dir"
         kb = Keyboard.from_flat([
             Button("🚕 Бишкекке барам", "route:to_bishkek"),
-            Button("🚕 Бишкектен кетем", "route:from_bishkek"),
+            Button("🚕 Бишкектен кайтам", "route:from_bishkek"),
         ])
         _say(messenger, msg, account, "Багытты тандаңыз:", kb)
 
