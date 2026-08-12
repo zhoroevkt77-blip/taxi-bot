@@ -22,6 +22,7 @@ SESSIONS = {}
 _SEARCH_CACHE = {}
 BOT_USERNAME = "taxirobot_bot"
 WA_BOT_NUMBER = os.environ.get("WA_BOT_NUMBER", "996227155603")
+CHANNEL_LINK = os.environ.get("CHANNEL_LINK", "https://t.me/taxirobotbot")
 
 REGION_LIST = list(REGIONS.keys())
 
@@ -122,10 +123,14 @@ def _say(messenger, msg, account, text, keyboard=None):
 
 # ============ КЛАВИАТУРАЛАР ============
 
-def main_menu_kb():
+def main_menu_kb(platform="telegram"):
+    # WhatsApp'та "канал" деген сөз чаташтырбаш үчүн так жазабыз
+    channel_label = ("📢 Каналыбыз" if platform == "telegram"
+                     else "📢 Telegram каналыбыз")
     return Keyboard.from_flat([
         Button("🚗 Айдоочумун", "menu:driver"),
         Button("🔍 Жүргүнчүмүн", "menu:passenger"),
+        Button(channel_label, "menu:channel"),
         Button("🆘 Жардам", "menu:help"),
         Button("🌐 Тил / Язык", "menu:lang"),
     ])
@@ -183,7 +188,7 @@ def handle_update(messenger, msg):
                 account = db.get_account(account["account_id"])
             except ValueError:
                 pass
-        return _say(messenger, msg, account, WELCOME, main_menu_kb())
+        return _say(messenger, msg, account, WELCOME, main_menu_kb(msg.platform))
 
     # WhatsApp referral: колдонуучу "REF12" деген текст жиберет
     if re.fullmatch(r"(?i)ref\d+", text):
@@ -193,12 +198,12 @@ def handle_update(messenger, msg):
             account = db.get_account(account["account_id"])
         except ValueError:
             pass
-        return _say(messenger, msg, account, WELCOME, main_menu_kb())
+        return _say(messenger, msg, account, WELCOME, main_menu_kb(msg.platform))
     if session:
         # "🏠 Башкы меню" визарддын ичинен да иштеши керек
         if msg.is_button and msg.button_action == "menu:home":
             SESSIONS.pop(msg.user_id, None)
-            return _say(messenger, msg, account, WELCOME, main_menu_kb())
+            return _say(messenger, msg, account, WELCOME, main_menu_kb(msg.platform))
         if msg.is_button:
             return _wizard_button(messenger, msg, account, session)
         return _wizard_text(messenger, msg, account, session)
@@ -224,7 +229,7 @@ def _menu_button(messenger, msg, account):
 
     if a == "menu:home":
         SESSIONS.pop(msg.user_id, None)
-        return _say(messenger, msg, account, WELCOME, main_menu_kb())
+        return _say(messenger, msg, account, WELCOME, main_menu_kb(msg.platform))
     if a == "menu:driver":
         return driver_entry(messenger, msg, account)
     if a == "menu:passenger":
@@ -238,6 +243,12 @@ def _menu_button(messenger, msg, account):
         return _say(messenger, msg, account, "Тандаңыз:", passenger_menu_kb())
     if a == "menu:help":
         return _say(messenger, msg, account, GUIDE)
+    if a == "menu:channel":
+        return _say(messenger, msg, account,
+            f"📢 <b>Биздин канал</b>\n\n"
+            f"Айдоочулардын жарыялары каналга чыгып турат — "
+            f"жазылып койсоңуз, эң жаңыларын биринчи болуп көрөсүз.\n\n"
+            f"{CHANNEL_LINK}")
     if a == "menu:lang":
         return _say(messenger, msg, account,
                     "🌐 Тилди тандаңыз / Выберите язык:", lang_kb())
@@ -245,7 +256,7 @@ def _menu_button(messenger, msg, account):
         new_lang = a.split(":")[1]
         db.update_account(account["account_id"], lang=new_lang)
         account = db.get_account(account["account_id"])
-        return _say(messenger, msg, account, WELCOME, main_menu_kb())
+        return _say(messenger, msg, account, WELCOME, main_menu_kb(msg.platform))
     if a == "d_types":
         return post_types(messenger, msg, account, "driver")
     if a == "p_types":
@@ -895,6 +906,4 @@ def register_referral(messenger, newbie, inviter_id):
                  f"🎁 {days} күн акысыз жарыя бере аласыз.")
         else:
             tell(f"🎁 Дагы {days} күн акысыз кошулду!")
-
-
 
