@@ -702,7 +702,7 @@ def show_results(messenger, msg, account, action):
 
 
 def _hashtag(messenger, msg, account, text):
-    """#Ош_Бишкек → ошол багыттагы жарыялар."""
+    """#Ош_Бишкек → ошол багыттагы жарыялар, ролго бөлүнүп."""
     parts = text[1:].split("_")
     if len(parts) < 2:
         return _say(messenger, msg, account, "❓ Бул хештегди тааныган жокмун.")
@@ -711,9 +711,23 @@ def _hashtag(messenger, msg, account, text):
     _say(messenger, msg, account, f"🔎 Издөө: <b>{text}</b>")
     if not rows:
         return _say(messenger, msg, account, "❌ Бул багытта азырынча жарыя жок.")
-    for p in rows:
+
+    drivers = [p for p in rows if p["role"] == "driver"]
+    passengers = [p for p in rows if p["role"] == "passenger"]
+
+    if drivers:
         _say(messenger, msg, account,
-             post_card(p) + f"\n\n📞 Байланыш: <code>{p['phone']}</code>")
+             f"🚗 <b>Айдоочулар</b> ({len(drivers)})")
+        for p in drivers:
+            _say(messenger, msg, account,
+                 post_card(p) + f"\n\n📞 Байланыш: <code>{p['phone']}</code>")
+
+    if passengers:
+        _say(messenger, msg, account,
+             f"🧳 <b>Жүргүнчүлөр</b> ({len(passengers)})")
+        for p in passengers:
+            _say(messenger, msg, account,
+                 post_card(p) + f"\n\n📞 Байланыш: <code>{p['phone']}</code>")
 
 
 def register_referral(messenger, newbie, inviter_id):
