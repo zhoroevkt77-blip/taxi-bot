@@ -76,14 +76,32 @@ def _chat_id(user_id):
     return f"{raw}@c.us"
 
 
+def _lang_of(user_id):
+    """Колдонуучунун тилин базадан алат."""
+    try:
+        from core import db
+        acc = db.get_or_create_account(user_id, "whatsapp")
+        return acc.get("lang", "ky")
+    except Exception:
+        return "ky"
+
+
 class WhatsAppMessenger(Messenger):
     platform_name = "whatsapp"
 
     def send_text(self, user_id, text):
         _post("sendMessage", {"chatId": _chat_id(user_id), "message": text})
 
+    def send_prompt(self, user_id, text):
+        """Меню жок кадамдарда '0 — башкы меню' эскертүүсүн кошот."""
+        lang = _lang_of(user_id)
+        hint = ("\n\n0 — 🏠 Главное меню" if lang == "ru"
+                else "\n\n0 — 🏠 Башкы меню")
+        self.send_text(user_id, text + hint)
+
     def send_buttons(self, user_id, text, keyboard):
         """Клавиатураны номерленген тизмеге айландырат."""
+        lang = _lang_of(user_id)
         lines = [text, ""]
         mapping = {}
         n = 1
@@ -93,11 +111,14 @@ class WhatsAppMessenger(Messenger):
                 mapping[str(n)] = b.action
                 n += 1
         # WhatsApp'та туруктуу меню жок — 0 дайыма башкы менюга кайтарат
-        lines.append("0 — 🏠 Башкы меню")
+        home = "0 — 🏠 Главное меню" if lang == "ru" else "0 — 🏠 Башкы меню"
+        hint = ("👉 Напишите номер вашего выбора." if lang == "ru"
+                else "👉 Тандооңуздун номерин жазыңыз.")
+        lines.append(home)
         mapping["0"] = "menu:home"
         LAST_MENU[user_id] = mapping
         lines.append("")
-        lines.append("👉 Тандооңуздун номерин жазыңыз.")
+        lines.append(hint)
         self.send_text(user_id, "\n".join(lines))
 
     def ask_phone_contact(self, user_id, text):
@@ -140,6 +161,17 @@ def _handle(body):
 
     # Телефонду автоматтык ырастап коёбуз (WhatsApp'та ал белгилүү)
     _ensure_phone(uid, phone)
+
+    # "0" — WhatsApp'та универсалдуу "башкы менюга кайтуу".
+    # Меню көрүнбөй турган кадамдарда да (аты, баа, комментарий) иштейт.
+    if text == "0":
+        msg = IncomingMessage(user_id=uid, platform="whatsapp",
+                              is_button=True, button_action="menu:home")
+        try:
+            logic.handle_update(messenger, msg)
+        except Exception as e:
+            print("Логика катасы:", e)
+        return
 
     # Номер басылдыбы? Ошондо аны баскычка айландырабыз
     mapping = LAST_MENU.get(uid, {})
@@ -225,6 +257,4 @@ def run():
 
 if __name__ == "__main__":
     run()
-
-
 
