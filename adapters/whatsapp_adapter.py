@@ -38,6 +38,22 @@ BASE = f"{GREEN_URL}/waInstance{GREEN_ID}"
 # Ар бир колдонуучунун акыркы менюсу: uid -> {"1": "menu:driver", ...}
 LAST_MENU = {}
 
+# Иштелип бүткөн кабарлардын id'си — кайталанып келгенин өткөрбөйт
+SEEN_IDS = []
+SEEN_MAX = 500
+
+
+def _already_seen(msg_id):
+    """Бул кабар мурда иштелип бүткөнбү?"""
+    if not msg_id:
+        return False
+    if msg_id in SEEN_IDS:
+        return True
+    SEEN_IDS.append(msg_id)
+    if len(SEEN_IDS) > SEEN_MAX:
+        del SEEN_IDS[:len(SEEN_IDS) - SEEN_MAX]
+    return False
+
 
 def _post(method, payload):
     """Green API'ге сурам жиберет."""
@@ -138,6 +154,11 @@ def _handle(body):
     if body.get("typeWebhook") != "incomingMessageReceived":
         return
 
+    # Кайталанган кабарды экинчи жолу иштетпейбиз
+    if _already_seen(body.get("idMessage")):
+        print("↩️ Кайталанган кабар — өткөрүлдү.")
+        return
+
     sender = body.get("senderData", {}).get("chatId", "")
     if not sender.endswith("@c.us"):
         return   # группалар азырынча эске алынбайт
@@ -225,12 +246,20 @@ def _check_settings():
         print(f"ℹ️ Инстанциянын абалы: {state.get('stateInstance')}")
 
 
+_RUNNING = False
+
+
 def run():
     """Green API'ден кабарларды үзгүлтүксүз алып турат."""
+    global _RUNNING
+    if _RUNNING:
+        print("⚠️ WhatsApp адаптери мурда башталган — экинчи жолу иштетилбейт.")
+        return
     if not GREEN_ID or not GREEN_TOKEN:
         print("⚠️ GREEN_API_ID же GREEN_API_TOKEN коюлган эмес — WhatsApp өчүк.")
         return
 
+    _RUNNING = True
     from core.db import init_db
     init_db()
     print(f"✅ WhatsApp адаптери башталды. BASE = {BASE}")
@@ -257,5 +286,4 @@ def run():
 
 if __name__ == "__main__":
     run()
-
 
