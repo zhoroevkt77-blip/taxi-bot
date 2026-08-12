@@ -117,8 +117,8 @@ def _say(messenger, msg, account, text, keyboard=None):
                 for b in row:
                     b.text = render(b.text, lang, messenger.platform_name)
         messenger.send_buttons(msg.user_id, out, keyboard)
-    elif msg.user_id in SESSIONS and hasattr(messenger, "send_prompt"):
-        # Визард ичинде меню жок — платформа кааласа эскертүү кошот
+    elif hasattr(messenger, "send_prompt"):
+        # Меню жок кабар — платформа кааласа "0 — башкы меню" эскертүүсүн кошот
         messenger.send_prompt(msg.user_id, out)
     else:
         messenger.send_text(msg.user_id, out)
