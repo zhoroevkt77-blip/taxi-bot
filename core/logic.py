@@ -44,6 +44,10 @@ def _say(messenger, msg, account, text, keyboard=None):
     lang = account.get("lang", "ky") if account else "ky"
     out = render(text, lang, messenger.platform_name)
     if keyboard:
+        if lang != "ky":
+            for row in keyboard.rows:
+                for b in row:
+                    b.text = render(b.text, lang, messenger.platform_name)
         messenger.send_buttons(msg.user_id, out, keyboard)
     else:
         messenger.send_text(msg.user_id, out)
