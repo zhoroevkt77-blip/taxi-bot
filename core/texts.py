@@ -16,7 +16,7 @@ from core.translations import RU, RU_WORDS
 
 # ============ ЖӨНДӨӨЛӨР ============
 REQUIRED_REFERRALS = 3
-GATE_BONUS_DAYS = 5
+GATE_BONUS_DAYS = 10
 REFERRAL_BONUS_STEP = 3
 REFERRAL_BONUS_DAYS = 3
 VIP_REFERRAL_STEP = 5
@@ -28,7 +28,7 @@ PASSENGER_POST_PRICE = "20 сом"
 LOCAL_DRIVER_POST_PRICE = "20 сом"
 LOCAL_PASSENGER_POST_PRICE = "10 сом"
 PASSENGER_FREE_POSTS = 3
-VIP_PRICE = "150 сом"
+VIP_PRICE = "100 сом"
 
 PAYMENT_REQUISITES = "Kaspi / MBank: 0700 000 000\nАты-жөнү: Дамира"
 SUPPORT_CONTACT = "@жазылсын_бул_жерге"
