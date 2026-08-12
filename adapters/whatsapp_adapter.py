@@ -168,6 +168,23 @@ def _ensure_phone(uid, phone):
         print("Телефон ырастоо катасы:", e)
 
 
+def _check_settings():
+    """Башталышта Green API'дин абалын текшерип, логго жазат."""
+    st = _get("getSettings")
+    if not st:
+        print("⚠️ Green API жооп бербей жатат — ID/TOKEN туурабы?")
+        return
+    incoming = st.get("incomingWebhook")
+    print(f"ℹ️ Green API жөндөөлөрү: incomingWebhook = {incoming}")
+    if incoming != "yes":
+        print("⚠️ КАБАРЛАР ӨЧҮК! Console'до 'Получать уведомления о входящих "
+              "сообщениях' жөндөөсүн күйгүзүңүз.")
+
+    state = _get("getStateInstance")
+    if state:
+        print(f"ℹ️ Инстанциянын абалы: {state.get('stateInstance')}")
+
+
 def run():
     """Green API'ден кабарларды үзгүлтүксүз алып турат."""
     if not GREEN_ID or not GREEN_TOKEN:
@@ -176,7 +193,8 @@ def run():
 
     from core.db import init_db
     init_db()
-    print("✅ WhatsApp адаптери башталды.")
+    print(f"✅ WhatsApp адаптери башталды. BASE = {BASE}")
+    _check_settings()
 
     while True:
         try:
@@ -186,6 +204,7 @@ def run():
                 continue
             receipt = note.get("receiptId")
             body = note.get("body", {})
+            print(f"📩 WhatsApp кабары: {body.get('typeWebhook')}")
             try:
                 _handle(body)
             finally:
@@ -198,5 +217,6 @@ def run():
 
 if __name__ == "__main__":
     run()
+
 
 
