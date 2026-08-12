@@ -588,7 +588,7 @@ def delete_post(messenger, msg, account, post_id):
 
 def search_menu(messenger, msg, account, target_role):
     kb = Keyboard.from_flat([
-        Button("⬅️ Бишкекке келе жаткандар", f"sb:to:{target_role}"),
+        Button("⬅️ Бишкекке бараткандар", f"sb:to:{target_role}"),
         Button("➡️ Бишкектен кетип жаткандар", f"sb:from:{target_role}"),
         Button("🗺 Район аралык — баары", f"la:{target_role}"),
         Button("🗺 Район аралык — облус боюнча", f"lo:{target_role}"),
