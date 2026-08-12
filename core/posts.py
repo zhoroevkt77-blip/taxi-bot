@@ -102,6 +102,34 @@ def cleanup_expired():
         return rows
 
 
+def local_route_counts():
+    """Бишкекке тиешеси жок бардык маршруттар (район/шаар аралык)."""
+    with db() as conn:
+        cur = conn.cursor()
+        cur.execute("""SELECT from_city, to_city, role, COUNT(*) AS n FROM posts
+                       WHERE active = 1
+                         AND from_city <> 'Бишкек' AND to_city <> 'Бишкек'
+                       GROUP BY from_city, to_city, role
+                       ORDER BY n DESC""")
+        return [dict(r) for r in cur.fetchall()]
+
+
+def local_routes_by_oblast(from_cities, to_cities, role=None):
+    """Эки облустун райондорунун ортосундагы маршруттар."""
+    q = """SELECT from_city, to_city, COUNT(*) AS n FROM posts
+           WHERE active = 1
+             AND from_city = ANY(%s) AND to_city = ANY(%s)"""
+    args = [from_cities, to_cities]
+    if role:
+        q += " AND role = %s"
+        args.append(role)
+    q += " GROUP BY from_city, to_city ORDER BY n DESC"
+    with db() as conn:
+        cur = conn.cursor()
+        cur.execute(q, args)
+        return [dict(r) for r in cur.fetchall()]
+
+
 def set_channel_msg(post_id, channel_msg_id):
     """Каналдагы билдирүүнүн id'син сактайт — кийин өчүрүү үчүн."""
     with db() as conn:
