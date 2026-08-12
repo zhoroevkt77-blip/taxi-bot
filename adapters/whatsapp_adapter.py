@@ -92,6 +92,9 @@ class WhatsAppMessenger(Messenger):
                 lines.append(f"{n} — {b.text}")
                 mapping[str(n)] = b.action
                 n += 1
+        # WhatsApp'та туруктуу меню жок — 0 дайыма башкы менюга кайтарат
+        lines.append("0 — 🏠 Башкы меню")
+        mapping["0"] = "menu:home"
         LAST_MENU[user_id] = mapping
         lines.append("")
         lines.append("👉 Тандооңуздун номерин жазыңыз.")
