@@ -320,7 +320,7 @@ def ask_route(messenger, msg, account, st):
         st["step"] = "dir"
         kb = Keyboard.from_flat([
             Button("🚕 Бишкекке барам", "route:to_bishkek"),
-            Button("🚕 Бишкектен кетем", "route:from_bishkek"),
+            Button("🚕 Бишкектен кайтам", "route:from_bishkek"),
         ])
         _say(messenger, msg, account, "Багытты тандаңыз:", kb)
 
