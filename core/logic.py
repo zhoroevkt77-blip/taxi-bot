@@ -60,6 +60,13 @@ def main_menu_kb():
     ])
 
 
+def lang_kb():
+    return Keyboard.from_flat([
+        Button("🇰🇬 Кыргызча", "setlang:ky"),
+        Button("🇷🇺 Русский", "setlang:ru"),
+    ])
+
+
 def driver_menu_kb():
     return Keyboard.from_flat([
         Button("📝 Пост жазам", "d_types"),
@@ -94,7 +101,7 @@ def handle_update(messenger, msg):
 
     text = (msg.text or "").strip()
     if text == "/admin" and admin.handle_command(messenger, msg, account, _say):
-        return 
+        return
     if text.startswith("/start") or text in ("старт", "start"):
         SESSIONS.pop(msg.user_id, None)
         parts = text.split()
@@ -135,19 +142,15 @@ def _menu_button(messenger, msg, account):
     if a == "menu:passenger":
         return _say(messenger, msg, account, "Тандаңыз:", passenger_menu_kb())
     if a == "menu:help":
+        return _say(messenger, msg, account, GUIDE)
     if a == "menu:lang":
-        kb = Keyboard.from_flat([
-            Button("🇰🇬 Кыргызча", "setlang:ky"),
-            Button("🇷🇺 Русский", "setlang:ru"),
-        ])
-        return _say(messenger, msg, account, "🌐 Тилди тандаңыз / Выберите язык:", kb)
-
+        return _say(messenger, msg, account,
+                    "🌐 Тилди тандаңыз / Выберите язык:", lang_kb())
     if a.startswith("setlang:"):
         new_lang = a.split(":")[1]
         db.update_account(account["account_id"], lang=new_lang)
         account = db.get_account(account["account_id"])
         return _say(messenger, msg, account, WELCOME, main_menu_kb())
-        return _say(messenger, msg, account, GUIDE)
     if a == "d_types":
         return post_types(messenger, msg, account, "driver")
     if a == "p_types":
@@ -612,8 +615,6 @@ def show_results(messenger, msg, account, action):
              post_card(p) + f"\n\n📞 Байланыш: <code>{p['phone']}</code>")
 
 
-
-
 def _hashtag(messenger, msg, account, text):
     """#Ош_Бишкек → ошол багыттагы жарыялар."""
     parts = text[1:].split("_")
@@ -627,6 +628,8 @@ def _hashtag(messenger, msg, account, text):
     for p in rows:
         _say(messenger, msg, account,
              post_card(p) + f"\n\n📞 Байланыш: <code>{p['phone']}</code>")
+
+
 def register_referral(messenger, newbie, inviter_id):
     if inviter_id == newbie["account_id"]:
         return
