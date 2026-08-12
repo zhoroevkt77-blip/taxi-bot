@@ -60,7 +60,7 @@ def main_menu_kb():
         Button("🚗 Айдоочумун", "menu:driver"),
         Button("🔍 Жүргүнчүмүн", "menu:passenger"),
         Button("🆘 Жардам", "menu:help"),
-        Button("🌐 Тил / Язык", "menu:lang"),
+        Button("🌐 Тил/Язык", "menu:lang"),
     ])
 
 
@@ -74,7 +74,7 @@ def lang_kb():
 def driver_menu_kb():
     return Keyboard.from_flat([
         Button("📝 Пост жазам", "d_types"),
-        Button("🔍 Жүргүнчүлөрдү издейм", "d_search"),
+        Button("🔍 Жүргүнчүлөрдү издеймин", "d_search"),
         Button("📄 Менин посторум", "d_my"),
         Button("⭐ VIP болуу", "d_vip"),
     ])
@@ -83,7 +83,7 @@ def driver_menu_kb():
 def passenger_menu_kb():
     return Keyboard.from_flat([
         Button("📝 Пост жазам", "p_types"),
-        Button("🔍 Айдоочуларды издейм", "p_search"),
+        Button("🔍 Айдоочуларды издеймин", "p_search"),
         Button("📄 Менин посторум", "p_my"),
     ])
 
@@ -253,8 +253,9 @@ def ask_step(messenger, msg, account, st, step):
         return _say(messenger, msg, account, "📅 Качан жолго чыгасыз?", kb)
 
     if step == "time":
-        hours = ["06:00", "07:00", "08:00", "09:00", "10:00", "12:00",
-                 "14:00", "16:00", "18:00", "20:00", "22:00", "00:00"]
+        hours = ["06:00", "07:00", "08:00", "09:00", "10:00", "11:00", "12:00",
+                 "13:00", "14:00", "15:00", "16:00", "17:00", "18:00", "19:00", 
+                 "20:00", "21:00", 22:00", "23:00", "00:00"]
         rows = [[Button(h, f"tm:{h}") for h in hours[k:k + 4]]
                 for k in range(0, len(hours), 4)]
         rows.append([Button("🔙 Артка", "wback")])
@@ -267,7 +268,7 @@ def ask_step(messenger, msg, account, st, step):
         kb = Keyboard.from_flat([Button("🤝 Келишим баада", "pr:deal"),
                                  Button("🔙 Артка", "wback")])
         return _say(messenger, msg, account,
-            "💰 Жол киреси канча?\n\n"
+            "💰 Жол кире акы канча?\n\n"
             "<i>Сумманы жазыңыз (мис. 1200), же төмөнкү баскычты басыңыз.</i>", kb)
 
     if step == "seats":
@@ -298,7 +299,7 @@ def ask_step(messenger, msg, account, st, step):
     prompts = {
         "name": "Атыңызды жазыңыз:",
         "car": "Машинаңыздын маркасы жана модели:",
-        "baggage": "🎒 Багажыңыз барбы? (мис. 2 чемодан, же жок):",
+        "baggage": "🎒 Багажыңыз барбы? (мис. 2 чемодан, Багажыңыз болбосо жок деп жазыңыз):",
         "comment": ("📝 Кошумча комментарий (жазбасаңыз, жок деп жазыңыз):"
                     if role == "driver" else "📝 Айдоочуларга эмне деп жазасыз?"),
     }
@@ -561,7 +562,7 @@ def post_card(p):
         lines += [f"🚘 Унаа: {p['car']}", f"👥 Бош орун: {p['seats']}",
                   f"💰 Баасы: {p['price']}"]
     else:
-        lines += [f"👥 Адам саны: {p['people_count']}", f"🎒 Багаж: {p['baggage']}"]
+        lines += [f"👥 Киши саны: {p['people_count']}", f"🎒 Багаж: {p['baggage']}"]
     lines += [f"📅 {p['date_text']} · ⏰ {p['time_text']}", f"📞 {p['phone']}"]
     if p.get("comment"):
         lines.append(f"📝 {p['comment']}")
@@ -589,9 +590,9 @@ def delete_post(messenger, msg, account, post_id):
 def search_menu(messenger, msg, account, target_role):
     kb = Keyboard.from_flat([
         Button("⬅️ Бишкекке бараткандар", f"sb:to:{target_role}"),
-        Button("➡️ Бишкектен кетип жаткандар", f"sb:from:{target_role}"),
-        Button("🗺 Район аралык — баары", f"la:{target_role}"),
-        Button("🗺 Район аралык — облус боюнча", f"lo:{target_role}"),
+        Button("➡️ Бишкектен кайткандар", f"sb:from:{target_role}"),
+        Button("🗺 Район/шаар аралык — баары", f"la:{target_role}"),
+        Button("🗺 Район/шаар аралык — облус боюнча", f"lo:{target_role}"),
     ])
     _say(messenger, msg, account, "Багытты тандаңыз:", kb)
 
