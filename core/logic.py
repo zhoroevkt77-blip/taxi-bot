@@ -7,12 +7,16 @@ Telegram да, WhatsApp да ушул файлды колдонот.
 """
 import os
 import re
+from datetime import datetime, timedelta
 from core import db, posts, admin
 from core.messenger import Keyboard, Button
 from core.geo import REGIONS, DISTRICTS, DISTRICT_OBLASTS
 from core.texts import (render, WELCOME, GUIDE, DRIVER_WARNING,
                         REQUIRED_REFERRALS, VIP_PRICE,
-                        PAYMENT_REQUISITES, VIP_REFERRAL_STEP)
+                        PAYMENT_REQUISITES, VIP_REFERRAL_STEP,
+                        GATE_BONUS_DAYS, REFERRAL_BONUS_DAYS,
+                        PASSENGER_FIRST_BONUS, PASSENGER_NEXT_BONUS,
+                        PAYMENT_AMOUNT, PAYMENT_HOURS)
 
 SESSIONS = {}
 _SEARCH_CACHE = {}
@@ -40,6 +44,56 @@ def referral_link(account_id, platform):
     return f"wa.me/?text=REF{account_id}"
 
 
+def _share_link(link):
+    """Telegram'дын контакт тандоо терезесин ачуучу шилтеме."""
+    return ("https://t.me/share/url?url=" + link +
+            "&text=" + "ТАКСИ роБОТ — Бишкекке такси табуунун эң оңой жолу!")
+
+
+def _now():
+    return datetime.now()
+
+
+def has_access(account):
+    """Айдоочунун акысыз мөөнөтү бүтө элекпи?"""
+    until = account.get("access_until")
+    if not until:
+        return False
+    try:
+        return datetime.fromisoformat(str(until)) > _now()
+    except (ValueError, TypeError):
+        return False
+
+
+def grant_days(account_id, days):
+    """Аккаунтка N күн кошот. Мөөнөт бүтө элек болсо — үстүнө кошот."""
+    acc = db.get_account(account_id)
+    base = _now()
+    until = acc.get("access_until") if acc else None
+    if until:
+        try:
+            cur = datetime.fromisoformat(str(until))
+            if cur > base:
+                base = cur
+        except (ValueError, TypeError):
+            pass
+    new_until = base + timedelta(days=days)
+    db.update_account(account_id, access_until=new_until.isoformat())
+    return new_until
+
+
+def days_left(account):
+    """Канча күн калганын кайтарат (бүтсө 0)."""
+    until = account.get("access_until")
+    if not until:
+        return 0
+    try:
+        delta = datetime.fromisoformat(str(until)) - _now()
+        return max(0, delta.days)
+    except (ValueError, TypeError):
+        return 0
+
+
 def _say(messenger, msg, account, text, keyboard=None):
     lang = account.get("lang", "ky") if account else "ky"
     out = render(text, lang, messenger.platform_name)
@@ -60,7 +114,7 @@ def main_menu_kb():
         Button("🚗 Айдоочумун", "menu:driver"),
         Button("🔍 Жүргүнчүмүн", "menu:passenger"),
         Button("🆘 Жардам", "menu:help"),
-        Button("🌐 Тил/Язык", "menu:lang"),
+        Button("🌐 Тил / Язык", "menu:lang"),
     ])
 
 
@@ -144,6 +198,14 @@ def _menu_button(messenger, msg, account):
     if a == "menu:driver":
         return driver_entry(messenger, msg, account)
     if a == "menu:passenger":
+        free = account.get("free_posts", 0) or 0
+        if free <= 0:
+            link = referral_link(account["account_id"], msg.platform)
+            share = _share_link(link)
+            _say(messenger, msg, account,
+                 f"💡 Акысыз посттоңуз бүттү, бирок жаза бересиз!\n\n"
+                 f"🎁 1 дос чакырсаңыз — дагы {PASSENGER_NEXT_BONUS} пост.\n\n"
+                 f"👇 <a href=\"{share}\">Досторуңузга жиберүү</a>")
         return _say(messenger, msg, account, "Тандаңыз:", passenger_menu_kb())
     if a == "menu:help":
         return _say(messenger, msg, account, GUIDE)
@@ -189,22 +251,44 @@ def _menu_button(messenger, msg, account):
 
 
 def driver_entry(messenger, msg, account):
-    if account["ref_count"] < REQUIRED_REFERRALS:
-        link = referral_link(account["account_id"], msg.platform)
+    link = referral_link(account["account_id"], msg.platform)
+    share = _share_link(link)
+
+    # 1-этап: гейт ачыла элек
+    if (account["ref_count"] or 0) < REQUIRED_REFERRALS:
         return _say(messenger, msg, account,
             f"🚫 Жарыя берүү үчүн {REQUIRED_REFERRALS} дос чакырышыңыз керек.\n"
-            f"Учурдагы прогресс: {account['ref_count']}/{REQUIRED_REFERRALS}\n\n"
-            f"👇 Сиздин жеке шилтемеңиз:\n{link}")
-    _say(messenger, msg, account, "Тандаңыз:", driver_menu_kb())
+            f"Учурдагы прогресс: {account['ref_count'] or 0}/{REQUIRED_REFERRALS}\n\n"
+            f"🎁 Ачылганда {GATE_BONUS_DAYS} күн акысыз жарыя бересиз!\n\n"
+            f"👇 <a href=\"{share}\">Досторуңузга жиберүү</a>\n\n"
+            f"Же шилтемени көчүрүп алыңыз:\n<code>{link}</code>")
+
+    # 2-этап: гейт ачык, бирок мөөнөт бүткөн
+    if not has_access(account):
+        return _say(messenger, msg, account,
+            f"⏳ Акысыз мөөнөтүңүз бүттү.\n\n"
+            f"Улантуу үчүн:\n"
+            f"🎁 {REQUIRED_REFERRALS} дос чакырыңыз — {REFERRAL_BONUS_DAYS} күн акысыз\n"
+            f"💳 Же {PAYMENT_AMOUNT} төлөңүз — {PAYMENT_HOURS} саат\n\n"
+            f"{PAYMENT_REQUISITES}\n\n"
+            f"👇 <a href=\"{share}\">Досторуңузга жиберүү</a>\n\n"
+            f"Же шилтемени көчүрүп алыңыз:\n<code>{link}</code>")
+
+    # 3-этап: баары ачык
+    left = days_left(account)
+    _say(messenger, msg, account,
+         f"✅ Акысыз мөөнөтүңүз: дагы {left} күн\n\nТандаңыз:", driver_menu_kb())
 
 
 def show_vip(messenger, msg, account):
     link = referral_link(account["account_id"], msg.platform)
+    share = _share_link(link)
     _say(messenger, msg, account,
         f"⭐ <b>VIP айдоочу</b>\n\n"
         f"VIP болсоңуз, жарыяңыз издөө тизмесинин эң үстүнөн чыгат!\n\n"
         f"💳 Баасы: {VIP_PRICE}\n{PAYMENT_REQUISITES}\n\n"
-        f"🎁 Же {VIP_REFERRAL_STEP} дос чакырсаңыз — акысыз:\n{link}")
+        f"🎁 Же {VIP_REFERRAL_STEP} дос чакырсаңыз — акысыз:\n\n"
+        f"👇 <a href=\"{share}\">Досторуңузга жиберүү</a>")
 
 
 # ============ ЖАРЫЯ БЕРҮҮ ============
@@ -220,7 +304,7 @@ def post_types(messenger, msg, account, role):
 
     SESSIONS[msg.user_id] = {"step": "mode", "role": role, "data": {}}
     kb = Keyboard.from_flat([
-        Button("Облустун район/шаарынан Бишкекке жана кайра кайтуу", "mode:bishkek"),
+        Button("Облустардын район/шаарларынан Бишкекке жана кайтуу", "mode:bishkek"),
         Button("Район/шаар аралык", "mode:local"),
     ])
     _say(messenger, msg, account, "Кайсы багытта жарыя бересиз?", kb)
@@ -236,7 +320,7 @@ def ask_route(messenger, msg, account, st):
         st["step"] = "dir"
         kb = Keyboard.from_flat([
             Button("🚕 Бишкекке барам", "route:to_bishkek"),
-            Button("🚕 Бишкектен кайтам", "route:from_bishkek"),
+            Button("🚕 Бишкектен кетем", "route:from_bishkek"),
         ])
         _say(messenger, msg, account, "Багытты тандаңыз:", kb)
 
@@ -269,7 +353,7 @@ def ask_step(messenger, msg, account, st, step):
         kb = Keyboard.from_flat([Button("🤝 Келишим баада", "pr:deal"),
                                  Button("🔙 Артка", "wback")])
         return _say(messenger, msg, account,
-            "💰 Жол кире акы канча?\n\n"
+            "💰 Жол киреси канча?\n\n"
             "<i>Сумманы жазыңыз (мис. 1200), же төмөнкү баскычты басыңыз.</i>", kb)
 
     if step == "seats":
@@ -300,7 +384,7 @@ def ask_step(messenger, msg, account, st, step):
     prompts = {
         "name": "Атыңызды жазыңыз:",
         "car": "Машинаңыздын маркасы жана модели:",
-        "baggage": "🎒 Багажыңыз барбы? (мис. 2 чемодан, Багажыңыз болбосо жок деп жазыңыз):",
+        "baggage": "🎒 Багажыңыз барбы? (мис. 2 чемодан, же жок):",
         "comment": ("📝 Кошумча комментарий (жазбасаңыз, жок деп жазыңыз):"
                     if role == "driver" else "📝 Айдоочуларга эмне деп жазасыз?"),
     }
@@ -563,7 +647,7 @@ def post_card(p):
         lines += [f"🚘 Унаа: {p['car']}", f"👥 Бош орун: {p['seats']}",
                   f"💰 Баасы: {p['price']}"]
     else:
-        lines += [f"👥 Киши саны: {p['people_count']}", f"🎒 Багаж: {p['baggage']}"]
+        lines += [f"👥 Адам саны: {p['people_count']}", f"🎒 Багаж: {p['baggage']}"]
     lines += [f"📅 {p['date_text']} · ⏰ {p['time_text']}", f"📞 {p['phone']}"]
     if p.get("comment"):
         lines.append(f"📝 {p['comment']}")
@@ -590,10 +674,10 @@ def delete_post(messenger, msg, account, post_id):
 
 def search_menu(messenger, msg, account, target_role):
     kb = Keyboard.from_flat([
-        Button("⬅️ Бишкекке бараткандар", f"sb:to:{target_role}"),
-        Button("➡️ Бишкектен кайткандар", f"sb:from:{target_role}"),
-        Button("🗺 Район/шаар аралык — баары", f"la:{target_role}"),
-        Button("🗺 Район/шаар аралык — облус боюнча", f"lo:{target_role}"),
+        Button("➡️ Бишкекке бараткандар", f"sb:to:{target_role}"),
+        Button("⬅️ Бишкектен кайткандар", f"sb:from:{target_role}"),
+        Button("🗺 Район аралык — баары", f"la:{target_role}"),
+        Button("🗺 Район аралык — облус боюнча", f"lo:{target_role}"),
     ])
     _say(messenger, msg, account, "Багытты тандаңыз:", kb)
 
@@ -740,16 +824,38 @@ def register_referral(messenger, newbie, inviter_id):
     inviter = db.get_account(inviter_id)
     if not inviter:
         return
+
     db.update_account(newbie["account_id"], referred_by=inviter_id)
-    new_count = inviter["ref_count"] + 1
+    new_count = (inviter["ref_count"] or 0) + 1
+    granted = inviter.get("gate_bonus", 0) or 0   # канча жолу бонус берилди
+
+    # ---- Жүргүнчү бонусу: ар бир дос ----
+    old_free = inviter.get("free_posts", 0) or 0
+    add_posts = PASSENGER_FIRST_BONUS if new_count == 1 else PASSENGER_NEXT_BONUS
     db.update_account(inviter_id, ref_count=new_count,
-                      free_posts=inviter["free_posts"] + 1)
+                      free_posts=old_free + add_posts)
+
     pid = db.platform_id_of(inviter_id)
     if not pid:
         return
-    try:
-        messenger.send_text(pid, f"✅ Жаңы дос кошулду! Жалпы: {new_count} дос.")
-        if new_count == REQUIRED_REFERRALS:
-            messenger.send_text(pid, "🎉 Куттуктайбыз! Платформа толук ачылды!")
-    except Exception:
-        pass
+
+    def tell(text):
+        try:
+            messenger.send_text(pid, text)
+        except Exception:
+            pass
+
+    tell(f"✅ Жаңы дос кошулду! Жалпы: {new_count} дос.\n"
+         f"🧳 Жүргүнчү катары +{add_posts} акысыз пост.")
+
+    # ---- Айдоочу бонусу: ар 3 дос сайын ----
+    earned = new_count // REQUIRED_REFERRALS      # канча бонус татыктуу
+    if earned > granted:
+        days = GATE_BONUS_DAYS if granted == 0 else REFERRAL_BONUS_DAYS
+        grant_days(inviter_id, days)
+        db.update_account(inviter_id, gate_bonus=earned)
+        if granted == 0:
+            tell(f"🎉 Куттуктайбыз! Платформа толук ачылды!\n"
+                 f"🎁 {days} күн акысыз жарыя бере аласыз.")
+        else:
+            tell(f"🎁 Дагы {days} күн акысыз кошулду!")
