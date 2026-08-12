@@ -163,7 +163,16 @@ def run():
     from core.db import init_db
     init_db()
     threading.Thread(target=_cleanup_loop, daemon=True).start()
-    bot.infinity_polling()
+    print("✅ Telegram адаптери башталды.")
+
+    # 409 (Conflict) же тармак катасы болсо — процессти өлтүрбөй, кайра аракет
+    while True:
+        try:
+            bot.infinity_polling(skip_pending=True, timeout=30,
+                                 long_polling_timeout=30)
+        except Exception as e:
+            print("Telegram polling катасы:", e)
+            time.sleep(15)
 
 
 if __name__ == "__main__":
