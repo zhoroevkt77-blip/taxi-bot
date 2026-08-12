@@ -56,6 +56,7 @@ def main_menu_kb():
         Button("🚗 Айдоочумун", "menu:driver"),
         Button("🔍 Жүргүнчүмүн", "menu:passenger"),
         Button("🆘 Жардам", "menu:help"),
+        Button("🌐 Тил / Язык", "menu:lang"),
     ])
 
 
@@ -134,6 +135,18 @@ def _menu_button(messenger, msg, account):
     if a == "menu:passenger":
         return _say(messenger, msg, account, "Тандаңыз:", passenger_menu_kb())
     if a == "menu:help":
+    if a == "menu:lang":
+        kb = Keyboard.from_flat([
+            Button("🇰🇬 Кыргызча", "setlang:ky"),
+            Button("🇷🇺 Русский", "setlang:ru"),
+        ])
+        return _say(messenger, msg, account, "🌐 Тилди тандаңыз / Выберите язык:", kb)
+
+    if a.startswith("setlang:"):
+        new_lang = a.split(":")[1]
+        db.update_account(account["account_id"], lang=new_lang)
+        account = db.get_account(account["account_id"])
+        return _say(messenger, msg, account, WELCOME, main_menu_kb())
         return _say(messenger, msg, account, GUIDE)
     if a == "d_types":
         return post_types(messenger, msg, account, "driver")
