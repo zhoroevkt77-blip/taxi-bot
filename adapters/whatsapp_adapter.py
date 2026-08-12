@@ -29,7 +29,11 @@ from core import logic
 
 GREEN_ID = os.environ.get("GREEN_API_ID")
 GREEN_TOKEN = os.environ.get("GREEN_API_TOKEN")
-BASE = f"https://api.green-api.com/waInstance{GREEN_ID}"
+# Green API ар бир инстанцияга өз доменин берет: https://7107.api.greenapi.com
+# Эгер GREEN_API_URL коюлбаса, idInstance'тин алгачкы 4 санынан курабыз.
+_default_url = f"https://{str(GREEN_ID)[:4]}.api.greenapi.com" if GREEN_ID else ""
+GREEN_URL = os.environ.get("GREEN_API_URL", _default_url)
+BASE = f"{GREEN_URL}/waInstance{GREEN_ID}"
 
 # Ар бир колдонуучунун акыркы менюсу: uid -> {"1": "menu:driver", ...}
 LAST_MENU = {}
@@ -194,4 +198,5 @@ def run():
 
 if __name__ == "__main__":
     run()
+
 
