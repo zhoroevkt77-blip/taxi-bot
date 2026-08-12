@@ -1,107 +1,197 @@
 # -*- coding: utf-8 -*-
 """
 adapters/whatsapp_adapter.py
-==============================
-Green API webhook'тон келген JSON'ду core.messenger.IncomingMessage'ге
-которот.
+=============================
+Green API аркылуу WhatsApp'ка туташат.
 
-WhatsApp'та Telegram'дагыдай inline keyboard жок (Business план керек),
-ошондуктан Keyboard'ду номерленген текст-меню кылып чыгарабыз —
-Developer (акысыз) тарифте да иштейт:
+НЕГИЗГИ АЙЫРМА: WhatsApp'та ишенимдүү inline баскыч жок.
+Ошондуктан clavatura номерленген текст менюга айланат:
 
-    Багытты тандаңыз:
-    1) Бишкекке барам
-    2) Бишкектен кетем
+    Тандаңыз:
 
-Колдонуучу "1" деп жазат — биз аны route:to_bishkek action'га которобуз.
+    1 — 🚗 Айдоочумун
+    2 — 🔍 Жүргүнчүмүн
+    3 — 🆘 Жардам
+
+Колдонуучу "2" деп жазса, биз аны core тааныган "menu:passenger"
+кодуна которобуз. Акыркы меню ар бир колдонуучу боюнча эстелип турат.
+
+Кабарлар polling менен алынат (receiveNotification/deleteNotification).
+Webhook керек эмес — Railway'де ачык порт ачуунун кажети жок.
 """
 
 import os
+import time
 import requests
-from flask import Flask, request, jsonify
 
 from core.messenger import Messenger, IncomingMessage, make_uid
 from core import logic
 
-GREEN_API_INSTANCE = os.environ.get("GREEN_API_INSTANCE")
-GREEN_API_TOKEN = os.environ.get("GREEN_API_TOKEN")
-GREEN_API_BASE = f"https://api.green-api.com/waInstance{GREEN_API_INSTANCE}"
+GREEN_ID = os.environ.get("GREEN_API_ID")
+GREEN_TOKEN = os.environ.get("GREEN_API_TOKEN")
+BASE = f"https://api.green-api.com/waInstance{GREEN_ID}"
 
-app = Flask(__name__)
+# Ар бир колдонуучунун акыркы менюсу: uid -> {"1": "menu:driver", ...}
+LAST_MENU = {}
 
-# Ар бир колдонуучунун азыркы номерленген менюсу
-_PENDING_MENU = {}   # user_id -> {"1": "route:to_bishkek", ...}
+
+def _post(method, payload):
+    """Green API'ге сурам жиберет."""
+    url = f"{BASE}/{method}/{GREEN_TOKEN}"
+    try:
+        r = requests.post(url, json=payload, timeout=30)
+        return r.json()
+    except Exception as e:
+        print("Green API POST катасы:", e)
+        return None
+
+
+def _get(method):
+    url = f"{BASE}/{method}/{GREEN_TOKEN}"
+    try:
+        r = requests.get(url, timeout=30)
+        if r.status_code != 200 or not r.text.strip():
+            return None
+        return r.json()
+    except Exception as e:
+        print("Green API GET катасы:", e)
+        return None
+
+
+def _delete(receipt_id):
+    url = f"{BASE}/deleteNotification/{GREEN_TOKEN}/{receipt_id}"
+    try:
+        requests.delete(url, timeout=30)
+    except Exception as e:
+        print("Green API DELETE катасы:", e)
+
+
+def _chat_id(user_id):
+    """'wa:996700123456' -> '996700123456@c.us'"""
+    raw = user_id.split(":", 1)[1]
+    return f"{raw}@c.us"
 
 
 class WhatsAppMessenger(Messenger):
     platform_name = "whatsapp"
 
     def send_text(self, user_id, text):
-        phone = user_id.split(":", 1)[1]
-        requests.post(
-            f"{GREEN_API_BASE}/sendMessage/{GREEN_API_TOKEN}",
-            json={"chatId": f"{phone}@c.us", "message": text},
-            timeout=10)
+        _post("sendMessage", {"chatId": _chat_id(user_id), "message": text})
 
     def send_buttons(self, user_id, text, keyboard):
-        phone = user_id.split(":", 1)[1]
-        flat = [b for row in keyboard.rows for b in row]
-
-        if len(flat) <= 3:
-            # Green API sendButtons (Business тарифте иштейт)
-            buttons = [{"buttonId": str(i), "buttonText": {"displayText": b.text}}
-                       for i, b in enumerate(flat)]
-            _PENDING_MENU[user_id] = {str(i): b.action for i, b in enumerate(flat)}
-            requests.post(
-                f"{GREEN_API_BASE}/sendButtons/{GREEN_API_TOKEN}",
-                json={"chatId": f"{phone}@c.us", "message": text,
-                      "footer": "ТАКСИ роБОТ", "buttons": buttons},
-                timeout=10)
-        else:
-            # Fallback: номерленген текст-меню — акысыз тарифте да иштейт
-            lines = [text, ""]
-            mapping = {}
-            for i, b in enumerate(flat, start=1):
-                lines.append(f"{i}) {b.text}")
-                mapping[str(i)] = b.action
-            _PENDING_MENU[user_id] = mapping
-            self.send_text(user_id, "\n".join(lines))
+        """Клавиатураны номерленген тизмеге айландырат."""
+        lines = [text, ""]
+        mapping = {}
+        n = 1
+        for row in keyboard.rows:
+            for b in row:
+                lines.append(f"{n} — {b.text}")
+                mapping[str(n)] = b.action
+                n += 1
+        LAST_MENU[user_id] = mapping
+        lines.append("")
+        lines.append("👉 Тандооңуздун номерин жазыңыз.")
+        self.send_text(user_id, "\n".join(lines))
 
     def ask_phone_contact(self, user_id, text):
-        # WhatsApp'та контакт бөлүшүү баскычы жок — колдонуучу өзү жазат
-        self.send_text(user_id, text + "\n\nНомериңизди жазыңыз (мис. 0700123456):")
+        """WhatsApp'та номер өзү белгилүү — сураштын кереги жок."""
+        self.send_text(user_id, text)
+
+    def publish_to_channel(self, text):
+        """WhatsApp тарабында канал жок — азырынча эч нерсе кылбайт."""
+        return None
 
 
 messenger = WhatsAppMessenger()
 
 
-@app.route("/webhook/whatsapp", methods=["POST"])
-def webhook():
-    payload = request.get_json(force=True, silent=True) or {}
-    if payload.get("typeWebhook") != "incomingMessageReceived":
-        return jsonify({"ok": True})
+def _handle(body):
+    """Бир webhook кабарын иштетет."""
+    if body.get("typeWebhook") != "incomingMessageReceived":
+        return
 
-    sender = payload["senderData"]["sender"].replace("@c.us", "")
-    uid = make_uid("whatsapp", sender)
-    body = payload.get("messageData", {})
-    text = (body.get("textMessageData", {}).get("textMessage")
-            or body.get("extendedTextMessageData", {}).get("text")
-            or body.get("buttonRepliesData", {}).get("buttonId", ""))
-    text = text.strip()
+    sender = body.get("senderData", {}).get("chatId", "")
+    if not sender.endswith("@c.us"):
+        return   # группалар азырынча эске алынбайт
 
-    mapping = _PENDING_MENU.get(uid)
-    if mapping and text in mapping:
+    phone = sender.replace("@c.us", "")
+    uid = make_uid("whatsapp", phone)
+
+    md = body.get("messageData", {})
+    tmsg = md.get("typeMessage")
+
+    if tmsg == "textMessage":
+        text = md.get("textMessageData", {}).get("textMessage", "")
+    elif tmsg == "extendedTextMessage":
+        text = md.get("extendedTextMessageData", {}).get("text", "")
+    else:
+        return   # сүрөт, аудио ж.б. — азырынча эске алынбайт
+
+    text = (text or "").strip()
+    if not text:
+        return
+
+    # Телефонду автоматтык ырастап коёбуз (WhatsApp'та ал белгилүү)
+    _ensure_phone(uid, phone)
+
+    # Номер басылдыбы? Ошондо аны баскычка айландырабыз
+    mapping = LAST_MENU.get(uid, {})
+    if text in mapping:
         msg = IncomingMessage(user_id=uid, platform="whatsapp",
                               is_button=True, button_action=mapping[text])
-        _PENDING_MENU.pop(uid, None)
     else:
         msg = IncomingMessage(user_id=uid, platform="whatsapp", text=text)
 
-    logic.handle_update(messenger, msg)
-    return jsonify({"ok": True})
+    try:
+        logic.handle_update(messenger, msg)
+    except Exception as e:
+        print("Логика катасы:", e)
+
+
+def _ensure_phone(uid, phone):
+    """WhatsApp колдонуучусунун номерин бир жолу базага жазат."""
+    try:
+        from core import db
+        acc = db.get_or_create_account(uid, "whatsapp")
+        if not acc.get("verified_phone"):
+            existing = db.find_account_by_phone(phone)
+            if existing and existing["account_id"] != acc["account_id"]:
+                # Telegram'дагы аккаунт менен бириктирүү
+                db.link_second_platform(existing["account_id"], uid, "whatsapp")
+            else:
+                db.update_account(acc["account_id"], verified_phone=phone)
+    except Exception as e:
+        print("Телефон ырастоо катасы:", e)
+
+
+def run():
+    """Green API'ден кабарларды үзгүлтүксүз алып турат."""
+    if not GREEN_ID or not GREEN_TOKEN:
+        print("⚠️ GREEN_API_ID же GREEN_API_TOKEN коюлган эмес — WhatsApp өчүк.")
+        return
+
+    from core.db import init_db
+    init_db()
+    print("✅ WhatsApp адаптери башталды.")
+
+    while True:
+        try:
+            note = _get("receiveNotification")
+            if not note:
+                time.sleep(1)
+                continue
+            receipt = note.get("receiptId")
+            body = note.get("body", {})
+            try:
+                _handle(body)
+            finally:
+                if receipt:
+                    _delete(receipt)
+        except Exception as e:
+            print("WhatsApp цикл катасы:", e)
+            time.sleep(5)
 
 
 if __name__ == "__main__":
-    from core.db import init_db
-    init_db()
-    app.run(port=5001)
+    run()
+
