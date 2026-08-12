@@ -27,11 +27,13 @@ bot = telebot.TeleBot(BOT_TOKEN, parse_mode="HTML")
 MAIN_MENU = {
     "🚗 Айдоочумун": "menu:driver",
     "🔍 Жүргүнчүмүн": "menu:passenger",
+    "📢 Каналыбыз": "menu:channel",
     "🆘 Жардам": "menu:help",
     "🌐 Тил / Язык": "menu:lang",
     # Орусча варианттары да ушул эле коддорго барат
     "🚗 Я водитель": "menu:driver",
     "🔍 Я пассажир": "menu:passenger",
+    "📢 Наш канал": "menu:channel",
     "🆘 Помощь": "menu:help",
 }
 
@@ -40,10 +42,12 @@ def main_reply_kb(lang="ky"):
     kb = types.ReplyKeyboardMarkup(resize_keyboard=True)
     if lang == "ru":
         kb.row("🚗 Я водитель", "🔍 Я пассажир")
-        kb.row("🆘 Помощь", "🌐 Тил / Язык")
+        kb.row("📢 Наш канал", "🆘 Помощь")
+        kb.row("🌐 Тил / Язык")
     else:
         kb.row("🚗 Айдоочумун", "🔍 Жүргүнчүмүн")
-        kb.row("🆘 Жардам", "🌐 Тил / Язык")
+        kb.row("📢 Каналыбыз", "🆘 Жардам")
+        kb.row("🌐 Тил / Язык")
     return kb
 
 
@@ -177,3 +181,4 @@ def run():
 
 if __name__ == "__main__":
     run()
+
