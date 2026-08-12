@@ -370,6 +370,14 @@ def ask_step(messenger, msg, account, st, step):
             "👥 Канча киши жолго чыгасыңар?\n\n"
             "<i>Салон болсо — Салон деп жазып жибериңиз.</i>", Keyboard(rows=rows))
 
+    if step == "baggage":
+        kb = Keyboard.from_flat([Button("🚫 Жок", "bg:no"),
+                                 Button("🔙 Артка", "wback")])
+        return _say(messenger, msg, account,
+            "🎒 Багажыңыз барбы?\n\n"
+            "<i>Жок болсо — төмөнкү баскычты басыңыз.\n"
+            "Бар болсо — жазып жибериңиз (мис. 2 чемодан).</i>", kb)
+
     if step == "phone":
         ph = account.get("verified_phone")
         if ph:
@@ -384,7 +392,6 @@ def ask_step(messenger, msg, account, st, step):
     prompts = {
         "name": "Атыңызды жазыңыз:",
         "car": "Машинаңыздын маркасы жана модели:",
-        "baggage": "🎒 Багажыңыз барбы? (мис. 2 чемодан, же жок):",
         "comment": ("📝 Кошумча комментарий (жазбасаңыз, жок деп жазыңыз):"
                     if role == "driver" else "📝 Айдоочуларга эмне деп жазасыз?"),
     }
@@ -559,6 +566,10 @@ def _wizard_button(messenger, msg, account, st):
     if a == "pr:deal":
         d["price"] = "Келишим"
         return next_step(messenger, msg, account, st, "price")
+
+    if a == "bg:no":
+        d["baggage"] = "Жок"
+        return next_step(messenger, msg, account, st, "baggage")
 
     if a.startswith("seat:"):
         d["seats"] = a.split(":")[1]
