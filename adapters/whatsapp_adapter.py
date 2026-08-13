@@ -21,11 +21,16 @@ Webhook керек эмес — Railway'де ачык порт ачуунун к
 """
 
 import os
+import sys
 import time
+import threading
 import requests
 
 from core.messenger import Messenger, IncomingMessage, make_uid
 from core import logic
+
+print(f"🟡 whatsapp_adapter модулу жүктөлдү. PID={os.getpid()}, "
+      f"module={id(sys.modules[__name__])}")
 
 GREEN_ID = os.environ.get("GREEN_API_ID")
 GREEN_TOKEN = os.environ.get("GREEN_API_TOKEN")
@@ -252,6 +257,11 @@ _RUNNING = False
 def run():
     """Green API'ден кабарларды үзгүлтүксүз алып турат."""
     global _RUNNING
+
+    print(f"🔵 WA run() чакырылды. PID={os.getpid()}, "
+          f"module={id(sys.modules[__name__])}, "
+          f"thread={threading.current_thread().name}, _RUNNING={_RUNNING}")
+
     if _RUNNING:
         print("⚠️ WhatsApp адаптери мурда башталган — экинчи жолу иштетилбейт.")
         return
@@ -262,7 +272,7 @@ def run():
     _RUNNING = True
     from core.db import init_db
     init_db()
-    print(f"✅ WhatsApp адаптери башталды. BASE = {BASE}")
+    print(f"✅ WhatsApp адаптери башталды. PID={os.getpid()} BASE = {BASE}")
     _check_settings()
 
     while True:
@@ -273,7 +283,8 @@ def run():
                 continue
             receipt = note.get("receiptId")
             body = note.get("body", {})
-            print(f"📩 WhatsApp кабары: {body.get('typeWebhook')}")
+            print(f"📩 WhatsApp кабары: {body.get('typeWebhook')} "
+                  f"(PID={os.getpid()})")
             try:
                 _handle(body)
             finally:
@@ -286,4 +297,5 @@ def run():
 
 if __name__ == "__main__":
     run()
+
 
