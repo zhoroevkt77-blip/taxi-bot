@@ -585,6 +585,25 @@ def channel_text(d, role, tag):
     return ""
 
 
+def _publish(messenger, text, links):
+    """Каналга чыгарат. Адаптердин эски версиясы менен да иштейт.
+
+    Эски адаптерде publish_to_channel(text) гана бар — ошондо баскычсыз
+    жарыялайбыз, программа кулабайт.
+    """
+    try:
+        return messenger.publish_to_channel(text, links)
+    except TypeError:
+        try:
+            return messenger.publish_to_channel(text)
+        except Exception as e:
+            print("Каналга жарыялоо катасы:", e)
+            return None
+    except Exception as e:
+        print("Каналга жарыялоо катасы:", e)
+        return None
+
+
 def save(messenger, msg, account, st):
     d = st["data"]
     role = st["role"]
@@ -599,8 +618,8 @@ def save(messenger, msg, account, st):
     if role == "driver":
         # Каналга чыгарабыз — платформа өзү билет, core билбейт.
         # Астына байланыш баскычтарын кошобуз.
-        msg_id = messenger.publish_to_channel(
-            channel_text(d, role, tag), contact_links(d.get("phone")))
+        msg_id = _publish(messenger, channel_text(d, role, tag),
+                          contact_links(d.get("phone")))
         if msg_id:
             posts.set_channel_msg(post_id, msg_id)
             _say(messenger, msg, account,
@@ -1102,3 +1121,4 @@ def register_referral(messenger, newbie, inviter_id):
                  f"🎁 {days} күн акысыз жарыя бере аласыз.")
         else:
             tell(f"🎁 Дагы {days} күн акысыз кошулду!")
+
