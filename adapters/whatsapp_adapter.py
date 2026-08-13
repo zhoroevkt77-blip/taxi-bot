@@ -12,9 +12,16 @@ Green API аркылуу WhatsApp'ка туташат.
     1 — 🚗 Айдоочумун
     2 — 🔍 Жүргүнчүмүн
     3 — 🆘 Жардам
+    99 — 🔙 Артка
+    0 — 🏠 Башкы меню
 
 Колдонуучу "2" деп жазса, биз аны core тааныган "menu:passenger"
 кодуна которобуз. Акыркы меню ар бир колдонуучу боюнча эстелип турат.
+
+ТУРУКТУУ САНДАР:
+    0  — ар дайым башкы меню
+    99 — ар дайым артка
+Булар эч качан алмашпайт, ошондуктан колдонуучу эстеп калат.
 
 Кабарлар polling менен алынат (receiveNotification/deleteNotification).
 Webhook керек эмес — Railway'де ачык порт ачуунун кажети жок.
@@ -39,6 +46,11 @@ GREEN_TOKEN = os.environ.get("GREEN_API_TOKEN")
 _default_url = f"https://{str(GREEN_ID)[:4]}.api.greenapi.com" if GREEN_ID else ""
 GREEN_URL = os.environ.get("GREEN_API_URL", _default_url)
 BASE = f"{GREEN_URL}/waInstance{GREEN_ID}"
+
+# Туруктуу баскычтардын коддору
+HOME_KEY = "0"
+BACK_KEY = "99"
+BACK_ACTION = "wback"
 
 # Ар бир колдонуучунун акыркы менюсу: uid -> {"1": "menu:driver", ...}
 LAST_MENU = {}
@@ -121,22 +133,38 @@ class WhatsAppMessenger(Messenger):
         self.send_text(user_id, text + hint)
 
     def send_buttons(self, user_id, text, keyboard):
-        """Клавиатураны номерленген тизмеге айландырат."""
+        """Клавиатураны номерленген тизмеге айландырат.
+
+        '🔙 Артка' баскычы жалпы номерленүүгө кирбейт — ал ар дайым 99.
+        Ошондуктан ар кадамда орду өзгөрбөйт.
+        """
         lang = _lang_of(user_id)
         lines = [text, ""]
         mapping = {}
         n = 1
+        back_label = None
+
         for row in keyboard.rows:
             for b in row:
+                if b.action == BACK_ACTION:
+                    # Артка баскычын бөлүп алабыз — ал 99 болот
+                    back_label = b.text
+                    continue
                 lines.append(f"{n} — {b.text}")
                 mapping[str(n)] = b.action
                 n += 1
-        # WhatsApp'та туруктуу меню жок — 0 дайыма башкы менюга кайтарат
+
+        # Туруктуу баскычтар — ар дайым эң ылдыйда, өзгөрбөгөн сандар менен
+        if back_label:
+            lines.append(f"{BACK_KEY} — {back_label}")
+            mapping[BACK_KEY] = BACK_ACTION
+
         home = "0 — 🏠 Главное меню" if lang == "ru" else "0 — 🏠 Башкы меню"
+        lines.append(home)
+        mapping[HOME_KEY] = "menu:home"
+
         hint = ("👉 Напишите номер вашего выбора." if lang == "ru"
                 else "👉 Тандооңуздун номерин жазыңыз.")
-        lines.append(home)
-        mapping["0"] = "menu:home"
         LAST_MENU[user_id] = mapping
         lines.append("")
         lines.append(hint)
@@ -146,7 +174,7 @@ class WhatsAppMessenger(Messenger):
         """WhatsApp'та номер өзү белгилүү — сураштын кереги жок."""
         self.send_text(user_id, text)
 
-    def publish_to_channel(self, text):
+    def publish_to_channel(self, text, links=None):
         """WhatsApp тарабында канал жок — азырынча эч нерсе кылбайт."""
         return None
 
@@ -190,9 +218,19 @@ def _handle(body):
 
     # "0" — WhatsApp'та универсалдуу "башкы менюга кайтуу".
     # Меню көрүнбөй турган кадамдарда да (аты, баа, комментарий) иштейт.
-    if text == "0":
+    if text == HOME_KEY:
         msg = IncomingMessage(user_id=uid, platform="whatsapp",
                               is_button=True, button_action="menu:home")
+        try:
+            logic.handle_update(messenger, msg)
+        except Exception as e:
+            print("Логика катасы:", e)
+        return
+
+    # "99" — универсалдуу "артка". Меню көрүнбөй турган кадамдарда да иштейт.
+    if text == BACK_KEY:
+        msg = IncomingMessage(user_id=uid, platform="whatsapp",
+                              is_button=True, button_action=BACK_ACTION)
         try:
             logic.handle_update(messenger, msg)
         except Exception as e:
