@@ -4,6 +4,13 @@ core/logic.py — БИР МЭЭ (толук визард)
 =======================================
 Referral, wizard кадамдары, меню, издөө — баары ушул жерде, БИР ЖОЛУ.
 Telegram да, WhatsApp да ушул файлды колдонот.
+
+НАВИГАЦИЯ:
+    Ар бир меню экраны NAV стегине жазылат. "🔙 Артка" басылганда
+    стектен акыркысы алынып, мурунку экран кайра көрсөтүлөт.
+    Визард (пост жазуу) өзүнүн wizard_back() логикасы менен иштейт.
+
+    WhatsApp'та бул баскыч ар дайым 99 болуп чыгат (adapter аны бөлүп алат).
 """
 import os
 import re
@@ -20,6 +27,7 @@ from core.texts import (render, WELCOME, GUIDE, DRIVER_WARNING,
 
 SESSIONS = {}
 _SEARCH_CACHE = {}
+NAV = {}          # user_id -> [экран действиелери] — "Артка" үчүн тарых
 BOT_USERNAME = "taxirobot_bot"
 WA_BOT_NUMBER = os.environ.get("WA_BOT_NUMBER", "996227155603")
 CHANNEL_LINK = os.environ.get("CHANNEL_LINK", "https://t.me/taxirobotbot")
@@ -34,6 +42,33 @@ STEP_FIELD = {
     "seats": "seats", "price": "price", "people": "people_count",
     "baggage": "baggage", "comment": "comment", "phone": "phone",
 }
+
+# Тарыхка жазылуучу экрандар (баскыч коддорунун башы)
+SCREEN_PREFIXES = (
+    "menu:driver", "menu:passenger", "menu:help", "menu:channel", "menu:lang",
+    "d_search", "p_search", "d_my", "p_my", "d_vip",
+    "sb:", "sr:", "la:", "lo:", "lof:", "lot:", "lr:",
+)
+
+BACK = Button("🔙 Артка", "wback")
+
+
+def _back_btn():
+    """Ар бир менюга жаңы объект керек — текст которулганда бузулбашы үчүн."""
+    return Button("🔙 Артка", "wback")
+
+
+def _is_screen(action):
+    return action.startswith(SCREEN_PREFIXES)
+
+
+def _nav_push(user_id, action):
+    stack = NAV.setdefault(user_id, [])
+    # Ошол эле экранды кайра-кайра жазбайбыз
+    if not stack or stack[-1] != action:
+        stack.append(action)
+    if len(stack) > 30:
+        del stack[:len(stack) - 30]
 
 
 def steps_of(role):
@@ -62,6 +97,30 @@ def _invite_block(account, platform):
                 f"Же шилтемени көчүрүп алыңыз:\n<code>{link}</code>")
     # WhatsApp'та HTML жок — түз шилтеме
     return f"👇 Досторуңузга ушул шилтемени жибериңиз:\n{link}"
+
+
+def _digits_only(phone):
+    """Номерди эл аралык форматка келтирет: '0555112233' -> '996555112233'."""
+    digits = "".join(ch for ch in str(phone or "") if ch.isdigit())
+    if digits.startswith("0") and len(digits) == 10:
+        digits = "996" + digits[1:]
+    return digits
+
+
+def contact_links(phone):
+    """Каналдагы жарыянын астындагы байланыш баскычтары.
+
+    Telegram inline баскычтары http/https/tg шилтемелерин гана кабыл алат,
+    ошондуктан 'чалуу' үчүн түз шилтеме жок — экөө тең чатты ачат,
+    андан кийин колдонуучу ошол жерден чала алат.
+    """
+    d = _digits_only(phone)
+    if len(d) < 9:
+        return None
+    return [[
+        ("💬 Telegram жазуу", f"https://t.me/+{d}"),
+        ("📱 WhatsApp жазуу", f"https://wa.me/{d}"),
+    ]]
 
 
 def _now():
@@ -143,6 +202,7 @@ def lang_kb():
     return Keyboard.from_flat([
         Button("🇰🇬 Кыргызча", "setlang:ky"),
         Button("🇷🇺 Русский", "setlang:ru"),
+        _back_btn(),
     ])
 
 
@@ -152,6 +212,7 @@ def driver_menu_kb():
         Button("🔍 Жүргүнчүлөрдү издейм", "d_search"),
         Button("📄 Менин посторум", "d_my"),
         Button("⭐ VIP болуу", "d_vip"),
+        _back_btn(),
     ])
 
 
@@ -160,16 +221,18 @@ def passenger_menu_kb():
         Button("📝 Пост жазам", "p_types"),
         Button("🔍 Айдоочуларды издейм", "p_search"),
         Button("📄 Менин посторум", "p_my"),
+        _back_btn(),
     ])
 
 
 def back_kb():
-    return Keyboard.from_flat([Button("🔙 Артка", "wback")])
+    return Keyboard.from_flat([_back_btn()])
 
 
 def regions_kb():
     return Keyboard.from_flat(
-        [Button(r, f"preg:{i}") for i, r in enumerate(REGION_LIST)])
+        [Button(r, f"preg:{i}") for i, r in enumerate(REGION_LIST)]
+        + [_back_btn()])
 
 
 # ============ КИРҮҮ НУКТАСЫ ============
@@ -183,6 +246,7 @@ def handle_update(messenger, msg):
         return
     if text.startswith("/start") or text in ("старт", "start"):
         SESSIONS.pop(msg.user_id, None)
+        NAV.pop(msg.user_id, None)
         parts = text.split()
         if len(parts) > 1 and parts[1].startswith("ref"):
             try:
@@ -196,16 +260,19 @@ def handle_update(messenger, msg):
     # WhatsApp referral: колдонуучу "REF12" деген текст жиберет
     if re.fullmatch(r"(?i)ref\d+", text):
         SESSIONS.pop(msg.user_id, None)
+        NAV.pop(msg.user_id, None)
         try:
             register_referral(messenger, account, int(text[3:]))
             account = db.get_account(account["account_id"])
         except ValueError:
             pass
         return _say(messenger, msg, account, WELCOME, main_menu_kb(msg.platform))
+
     if session:
         # "🏠 Башкы меню" визарддын ичинен да иштеши керек
         if msg.is_button and msg.button_action == "menu:home":
             SESSIONS.pop(msg.user_id, None)
+            NAV.pop(msg.user_id, None)
             return _say(messenger, msg, account, WELCOME, main_menu_kb(msg.platform))
         if msg.is_button:
             return _wizard_button(messenger, msg, account, session)
@@ -228,11 +295,33 @@ def handle_update(messenger, msg):
 # ============ МЕНЮ ============
 
 def _menu_button(messenger, msg, account):
+    """Навигация тарыхын жүргүзүп, экранды көрсөтөт."""
     a = msg.button_action
 
     if a == "menu:home":
         SESSIONS.pop(msg.user_id, None)
+        NAV.pop(msg.user_id, None)
         return _say(messenger, msg, account, WELCOME, main_menu_kb(msg.platform))
+
+    if a == "wback":
+        stack = NAV.get(msg.user_id, [])
+        if stack:
+            stack.pop()                      # учурдагы экранды алып салабыз
+        prev = stack[-1] if stack else None
+        if not prev:
+            NAV.pop(msg.user_id, None)
+            return _say(messenger, msg, account, WELCOME,
+                        main_menu_kb(msg.platform))
+        return _dispatch(messenger, msg, account, prev)
+
+    if _is_screen(a):
+        _nav_push(msg.user_id, a)
+
+    return _dispatch(messenger, msg, account, a)
+
+
+def _dispatch(messenger, msg, account, a):
+    """Баскычтын кодун тиешелүү экранга багыттайт."""
     if a == "menu:driver":
         return driver_entry(messenger, msg, account)
     if a == "menu:passenger":
@@ -245,13 +334,13 @@ def _menu_button(messenger, msg, account):
                  f"{invite}")
         return _say(messenger, msg, account, "Тандаңыз:", passenger_menu_kb())
     if a == "menu:help":
-        return _say(messenger, msg, account, GUIDE)
+        return _say(messenger, msg, account, GUIDE, back_kb())
     if a == "menu:channel":
         return _say(messenger, msg, account,
             f"📢 <b>Биздин канал</b>\n\n"
             f"Айдоочулардын жарыялары каналга чыгып турат — "
             f"жазылып койсоңуз, эң жаңыларын биринчи болуп көрөсүз.\n\n"
-            f"{CHANNEL_LINK}")
+            f"{CHANNEL_LINK}", back_kb())
     if a == "menu:lang":
         return _say(messenger, msg, account,
                     "🌐 Тилди тандаңыз / Выберите язык:", lang_kb())
@@ -259,6 +348,7 @@ def _menu_button(messenger, msg, account):
         new_lang = a.split(":")[1]
         db.update_account(account["account_id"], lang=new_lang)
         account = db.get_account(account["account_id"])
+        NAV.pop(msg.user_id, None)
         return _say(messenger, msg, account, WELCOME, main_menu_kb(msg.platform))
     if a == "d_types":
         return post_types(messenger, msg, account, "driver")
@@ -302,7 +392,7 @@ def driver_entry(messenger, msg, account):
             f"🚫 Жарыя берүү үчүн {REQUIRED_REFERRALS} дос чакырышыңыз керек.\n"
             f"Учурдагы прогресс: {account['ref_count'] or 0}/{REQUIRED_REFERRALS}\n\n"
             f"🎁 Ачылганда {GATE_BONUS_DAYS} күн акысыз жарыя бересиз!\n\n"
-            f"{invite}")
+            f"{invite}", back_kb())
 
     # 2-этап: гейт ачык, бирок мөөнөт бүткөн
     if not has_access(account):
@@ -312,7 +402,7 @@ def driver_entry(messenger, msg, account):
             f"🎁 {REQUIRED_REFERRALS} дос чакырыңыз — {REFERRAL_BONUS_DAYS} күн акысыз\n"
             f"💳 Же {PAYMENT_AMOUNT} төлөңүз — {PAYMENT_HOURS} саат\n\n"
             f"{PAYMENT_REQUISITES}\n\n"
-            f"{invite}")
+            f"{invite}", back_kb())
 
     # 3-этап: баары ачык
     left = days_left(account)
@@ -327,7 +417,7 @@ def show_vip(messenger, msg, account):
         f"VIP болсоңуз, жарыяңыз издөө тизмесинин эң үстүнөн чыгат!\n\n"
         f"💳 Баасы: {VIP_PRICE}\n{PAYMENT_REQUISITES}\n\n"
         f"🎁 Же {VIP_REFERRAL_STEP} дос чакырсаңыз — акысыз:\n\n"
-        f"{invite}")
+        f"{invite}", back_kb())
 
 
 # ============ ЖАРЫЯ БЕРҮҮ ============
@@ -345,6 +435,7 @@ def post_types(messenger, msg, account, role):
     kb = Keyboard.from_flat([
         Button("Облустардын район/шаарларынан Бишкекке жана кайтуу", "mode:bishkek"),
         Button("Район/шаар аралык", "mode:local"),
+        _back_btn(),
     ])
     _say(messenger, msg, account, "Кайсы багытта жарыя бересиз?", kb)
 
@@ -353,13 +444,15 @@ def ask_route(messenger, msg, account, st):
     if st["data"].get("mode") == "local":
         st["step"] = "loreg"
         kb = Keyboard.from_flat(
-            [Button(o, f"loreg:{i}") for i, o in enumerate(DISTRICT_OBLASTS)])
+            [Button(o, f"loreg:{i}") for i, o in enumerate(DISTRICT_OBLASTS)]
+            + [_back_btn()])
         _say(messenger, msg, account, "🗺 Кайсы облустан чыгасыз?", kb)
     else:
         st["step"] = "dir"
         kb = Keyboard.from_flat([
             Button("🚕 Бишкекке барам", "route:to_bishkek"),
             Button("🚕 Бишкектен кайтам", "route:from_bishkek"),
+            _back_btn(),
         ])
         _say(messenger, msg, account, "Багытты тандаңыз:", kb)
 
@@ -372,7 +465,7 @@ def ask_step(messenger, msg, account, st, step):
 
     if step == "date":
         kb = Keyboard(rows=[[Button("Бүгүн", "dq:0"), Button("Эртең", "dq:1")],
-                            [Button("🔙 Артка", "wback")]])
+                            [_back_btn()]])
         return _say(messenger, msg, account, "📅 Качан жолго чыгасыз?", kb)
 
     if step == "time":
@@ -382,7 +475,7 @@ def ask_step(messenger, msg, account, st, step):
                  "00:00", "01:00", "02:00", "03:00", "04:00", "05:00"]
         rows = [[Button(h, f"tm:{h}") for h in hours[k:k + 4]]
                 for k in range(0, len(hours), 4)]
-        rows.append([Button("🔙 Артка", "wback")])
+        rows.append([_back_btn()])
         return _say(messenger, msg, account,
             "⏰ Саат канчада жолго чыгасыз?\n\n"
             "<i>Башка убакыт болсо — жазып жибериңиз (мис. 05:30).</i>",
@@ -390,7 +483,7 @@ def ask_step(messenger, msg, account, st, step):
 
     if step == "price":
         kb = Keyboard.from_flat([Button("🤝 Келишим баада", "pr:deal"),
-                                 Button("🔙 Артка", "wback")])
+                                 _back_btn()])
         return _say(messenger, msg, account,
             "💰 Жол киреси канча?\n\n"
             "<i>Сумманы жазыңыз (мис. 1200), же төмөнкү баскычты басыңыз.</i>", kb)
@@ -398,20 +491,19 @@ def ask_step(messenger, msg, account, st, step):
     if step == "seats":
         rows = [[Button(str(i), f"seat:{i}") for i in range(1, 5)],
                 [Button(str(i), f"seat:{i}") for i in range(5, 8)],
-                [Button("🔙 Артка", "wback")]]
+                [_back_btn()]]
         return _say(messenger, msg, account, "👥 Канча бош орун бар?",
                     Keyboard(rows=rows))
 
     if step == "people":
         rows = [[Button(str(i), f"ppl:{i}") for i in range(1, 5)],
-                [Button("🔙 Артка", "wback")]]
+                [_back_btn()]]
         return _say(messenger, msg, account,
             "👥 Канча киши жолго чыгасыңар?\n\n"
             "<i>Салон болсо — Салон деп жазып жибериңиз.</i>", Keyboard(rows=rows))
 
     if step == "baggage":
-        kb = Keyboard.from_flat([Button("🚫 Жок", "bg:no"),
-                                 Button("🔙 Артка", "wback")])
+        kb = Keyboard.from_flat([Button("🚫 Жок", "bg:no"), _back_btn()])
         return _say(messenger, msg, account,
             "🎒 Багажыңыз барбы?\n\n"
             "<i>Жок болсо — төмөнкү баскычты басыңыз.\n"
@@ -420,8 +512,7 @@ def ask_step(messenger, msg, account, st, step):
     if step == "phone":
         ph = account.get("verified_phone")
         if ph:
-            kb = Keyboard.from_flat([Button(f"📱 {ph}", "usephone"),
-                                     Button("🔙 Артка", "wback")])
+            kb = Keyboard.from_flat([Button(f"📱 {ph}", "usephone"), _back_btn()])
             return _say(messenger, msg, account,
                 "📞 Байланыш номериңиз:\n\n"
                 "Ырасталган номериңизди колдонсоңуз — төмөнкү баскычты басыңыз.\n"
@@ -450,7 +541,7 @@ def finish(messenger, msg, account, st):
     if st["role"] == "driver":
         st["step"] = "confirm"
         kb = Keyboard.from_flat([Button("✅ Түшүндүм, жарыялаймын", "confirm"),
-                                 Button("🔙 Артка", "wback")])
+                                 _back_btn()])
         _say(messenger, msg, account, DRIVER_WARNING, kb)
     else:
         save(messenger, msg, account, st)
@@ -491,8 +582,10 @@ def save(messenger, msg, account, st):
     tag = hashtag(d.get("from_city"), d.get("to_city"))
 
     if role == "driver":
-        # Каналга чыгарабыз — платформа өзү билет, core билбейт
-        msg_id = messenger.publish_to_channel(channel_text(d, role, tag))
+        # Каналга чыгарабыз — платформа өзү билет, core билбейт.
+        # Астына байланыш баскычтарын кошобуз.
+        msg_id = messenger.publish_to_channel(
+            channel_text(d, role, tag), contact_links(d.get("phone")))
         if msg_id:
             posts.set_channel_msg(post_id, msg_id)
             _say(messenger, msg, account,
@@ -540,7 +633,7 @@ def _wizard_button(messenger, msg, account, st):
         st["step"] = "pcity"
         kb = Keyboard.from_flat(
             [Button(c, f"pcity:{i}") for i, c in enumerate(REGIONS[region])]
-            + [Button("🔙 Артка", "wback")])
+            + [_back_btn()])
         return _say(messenger, msg, account,
                     f"📍 <b>{region}</b>\nШаар/район тандаңыз:", kb)
 
@@ -561,7 +654,7 @@ def _wizard_button(messenger, msg, account, st):
         st["step"] = "lofrom"
         kb = Keyboard.from_flat(
             [Button(c, f"lofrom:{i}") for i, c in enumerate(DISTRICTS[oblast])]
-            + [Button("🔙 Артка", "wback")])
+            + [_back_btn()])
         return _say(messenger, msg, account,
                     f"📍 <b>{oblast}</b>\nКайсы райондон/шаардан чыгасыз?", kb)
 
@@ -571,7 +664,7 @@ def _wizard_button(messenger, msg, account, st):
         st["step"] = "lotoreg"
         kb = Keyboard.from_flat(
             [Button(o, f"lotoreg:{i}") for i, o in enumerate(DISTRICT_OBLASTS)]
-            + [Button("🔙 Артка", "wback")])
+            + [_back_btn()])
         return _say(messenger, msg, account,
             f"📍 Чыгуу: <b>{d['from_city']}</b>\n🗺 Кайсы облуска барасыз?", kb)
 
@@ -581,7 +674,7 @@ def _wizard_button(messenger, msg, account, st):
         st["step"] = "loto"
         btns = [Button(c, f"loto:{i}") for i, c in enumerate(DISTRICTS[oblast])
                 if c != d.get("from_city")]
-        btns.append(Button("🔙 Артка", "wback"))
+        btns.append(_back_btn())
         return _say(messenger, msg, account,
                     f"📍 <b>{oblast}</b>\nКайсы районго/шаарга барасыз?",
                     Keyboard.from_flat(btns))
@@ -638,6 +731,32 @@ def wizard_back(messenger, msg, account, st):
             return ask_route(messenger, msg, account, st)
         return ask_step(messenger, msg, account, st, steps[i - 1])
 
+    # Маршрут тандоо кадамдарынан артка
+    if step in ("pcity",):
+        st["step"] = "preg"
+        return _say(messenger, msg, account, "Облусту тандаңыз:", regions_kb())
+    if step in ("preg", "dir", "loreg"):
+        st["step"] = "mode"
+        kb = Keyboard.from_flat([
+            Button("Облустардын район/шаарларынан Бишкекке жана кайтуу",
+                   "mode:bishkek"),
+            Button("Район/шаар аралык", "mode:local"),
+            _back_btn(),
+        ])
+        return _say(messenger, msg, account, "Кайсы багытта жарыя бересиз?", kb)
+    if step == "lofrom":
+        return ask_route(messenger, msg, account, st)
+    if step in ("lotoreg", "loto"):
+        st["step"] = "lofrom"
+        oblast = st["data"].get("_oblast")
+        if oblast:
+            kb = Keyboard.from_flat(
+                [Button(c, f"lofrom:{i}") for i, c in enumerate(DISTRICTS[oblast])]
+                + [_back_btn()])
+            return _say(messenger, msg, account,
+                        f"📍 <b>{oblast}</b>\nКайсы райондон/шаардан чыгасыз?", kb)
+
+    # Визарддын эң башы — менюга кайтабыз
     SESSIONS.pop(msg.user_id, None)
     if st["role"] == "driver":
         _say(messenger, msg, account, "Тандаңыз:", driver_menu_kb())
@@ -707,17 +826,19 @@ def post_card(p):
 def show_my_posts(messenger, msg, account, role):
     rows = posts.my_posts(account["account_id"], role)
     if not rows:
-        return _say(messenger, msg, account, "❌ Сиздин учурда активдүү жарыяңыз жок.")
+        return _say(messenger, msg, account,
+                    "❌ Сиздин учурда активдүү жарыяңыз жок.", back_kb())
     _say(messenger, msg, account, "📄 <b>Сиздин активдүү посттор</b>")
     for p in rows:
         kb = Keyboard.from_flat([Button("❌ Өчүрүү", f"del:{p['id']}")])
         _say(messenger, msg, account, post_card(p), kb)
+    _say(messenger, msg, account, "⬇️ Кайтуу үчүн:", back_kb())
 
 
 def delete_post(messenger, msg, account, post_id):
     ok = posts.deactivate_post(post_id, account["account_id"])
     _say(messenger, msg, account,
-         "🗑 Жарыя өчүрүлдү." if ok else "❌ Жарыя табылган жок.")
+         "🗑 Жарыя өчүрүлдү." if ok else "❌ Жарыя табылган жок.", back_kb())
 
 
 # ============ ИЗДӨӨ ============
@@ -728,6 +849,7 @@ def search_menu(messenger, msg, account, target_role):
         Button("⬅️ Бишкектен кайткандар", f"sb:from:{target_role}"),
         Button("🗺 Район аралык — баары", f"la:{target_role}"),
         Button("🗺 Район аралык — облус боюнча", f"lo:{target_role}"),
+        _back_btn(),
     ])
     _say(messenger, msg, account, "Багытты тандаңыз:", kb)
 
@@ -737,7 +859,8 @@ def local_all(messenger, msg, account, action):
     role = action.split(":")[1]
     rows = [r for r in posts.local_route_counts() if r["role"] == role]
     if not rows:
-        return _say(messenger, msg, account, "❌ Бул багыт боюнча жарыя азырынча жок.")
+        return _say(messenger, msg, account,
+                    "❌ Бул багыт боюнча жарыя азырынча жок.", back_kb())
     btns = []
     pairs = []
     for i, r in enumerate(rows):
@@ -745,6 +868,7 @@ def local_all(messenger, msg, account, action):
                            f"lr:{role}:{i}"))
         pairs.append((r["from_city"], r["to_city"]))
     _SEARCH_CACHE[msg.user_id] = pairs
+    btns.append(_back_btn())
     _say(messenger, msg, account, "📋 <b>Жазылган посттор</b>",
          Keyboard.from_flat(btns))
 
@@ -753,7 +877,8 @@ def local_oblast_from(messenger, msg, account, action):
     """1-кадам: чыгуу облусу."""
     role = action.split(":")[1]
     kb = Keyboard.from_flat(
-        [Button(o, f"lof:{role}:{i}") for i, o in enumerate(DISTRICT_OBLASTS)])
+        [Button(o, f"lof:{role}:{i}") for i, o in enumerate(DISTRICT_OBLASTS)]
+        + [_back_btn()])
     _say(messenger, msg, account, "🗺 Кайсы облустан чыккандарды издейсиз?", kb)
 
 
@@ -761,7 +886,8 @@ def local_oblast_to(messenger, msg, account, action):
     """2-кадам: баруу облусу."""
     _, role, idx = action.split(":")
     kb = Keyboard.from_flat(
-        [Button(o, f"lot:{role}:{idx}:{i}") for i, o in enumerate(DISTRICT_OBLASTS)])
+        [Button(o, f"lot:{role}:{idx}:{i}") for i, o in enumerate(DISTRICT_OBLASTS)]
+        + [_back_btn()])
     frm = DISTRICT_OBLASTS[int(idx)]
     _say(messenger, msg, account,
          f"📍 Чыгуу: <b>{frm}</b>\n🗺 Кайсы облуска баргандарды издейсиз?", kb)
@@ -775,7 +901,8 @@ def local_oblast_results(messenger, msg, account, action):
     rows = posts.local_routes_by_oblast(
         DISTRICTS[ob_from], DISTRICTS[ob_to], role)
     if not rows:
-        return _say(messenger, msg, account, "❌ Бул багыт боюнча жарыя азырынча жок.")
+        return _say(messenger, msg, account,
+                    "❌ Бул багыт боюнча жарыя азырынча жок.", back_kb())
     btns = []
     pairs = []
     for i, r in enumerate(rows):
@@ -783,6 +910,7 @@ def local_oblast_results(messenger, msg, account, action):
                            f"lr:{role}:{i}"))
         pairs.append((r["from_city"], r["to_city"]))
     _SEARCH_CACHE[msg.user_id] = pairs
+    btns.append(_back_btn())
     _say(messenger, msg, account,
          f"📋 <b>{ob_from} ➡️ {ob_to}</b>", Keyboard.from_flat(btns))
 
@@ -792,14 +920,16 @@ def local_results(messenger, msg, account, action):
     _, role, idx = action.split(":")
     pairs = _SEARCH_CACHE.get(msg.user_id, [])
     if int(idx) >= len(pairs):
-        return _say(messenger, msg, account, "❌ Кайра издеп көрүңүз.")
+        return _say(messenger, msg, account, "❌ Кайра издеп көрүңүз.", back_kb())
     frm, to = pairs[int(idx)]
     rows = posts.search_posts(role, from_city=frm, to_city=to)
     if not rows:
-        return _say(messenger, msg, account, "❌ Бул багыт боюнча жарыя табылган жок.")
+        return _say(messenger, msg, account,
+                    "❌ Бул багыт боюнча жарыя табылган жок.", back_kb())
     for p in rows:
         _say(messenger, msg, account,
              post_card(p) + f"\n\n📞 Байланыш: <code>{p['phone']}</code>")
+    _say(messenger, msg, account, "⬇️ Кайтуу үчүн:", back_kb())
 
 
 def search_bishkek(messenger, msg, account, action):
@@ -807,7 +937,8 @@ def search_bishkek(messenger, msg, account, action):
     to_bishkek = direction == "to"
     rows = posts.route_counts(role, to_bishkek)
     if not rows:
-        return _say(messenger, msg, account, "❌ Бул багыт боюнча жарыя азырынча жок.")
+        return _say(messenger, msg, account,
+                    "❌ Бул багыт боюнча жарыя азырынча жок.", back_kb())
     btns = []
     for i, r in enumerate(rows):
         if to_bishkek:
@@ -816,6 +947,7 @@ def search_bishkek(messenger, msg, account, action):
             label = f"Бишкек ➡️ {r['k']} · {r['n']} жарыя"
         btns.append(Button(label, f"sr:{role}:{direction}:{i}"))
     _SEARCH_CACHE[msg.user_id] = [r["k"] for r in rows]
+    btns.append(_back_btn())
     _say(messenger, msg, account, "📋 <b>Жазылган посттор</b>",
          Keyboard.from_flat(btns))
 
@@ -824,17 +956,19 @@ def show_results(messenger, msg, account, action):
     _, role, direction, idx = action.split(":")
     cities = _SEARCH_CACHE.get(msg.user_id, [])
     if int(idx) >= len(cities):
-        return _say(messenger, msg, account, "❌ Кайра издеп көрүңүз.")
+        return _say(messenger, msg, account, "❌ Кайра издеп көрүңүз.", back_kb())
     city = cities[int(idx)]
     if direction == "to":
         rows = posts.search_posts(role, from_city=city, to_city="Бишкек")
     else:
         rows = posts.search_posts(role, from_city="Бишкек", to_city=city)
     if not rows:
-        return _say(messenger, msg, account, "❌ Бул багыт боюнча жарыя табылган жок.")
+        return _say(messenger, msg, account,
+                    "❌ Бул багыт боюнча жарыя табылган жок.", back_kb())
     for p in rows:
         _say(messenger, msg, account,
              post_card(p) + f"\n\n📞 Байланыш: <code>{p['phone']}</code>")
+    _say(messenger, msg, account, "⬇️ Кайтуу үчүн:", back_kb())
 
 
 def _hashtag(messenger, msg, account, text):
@@ -909,5 +1043,6 @@ def register_referral(messenger, newbie, inviter_id):
                  f"🎁 {days} күн акысыз жарыя бере аласыз.")
         else:
             tell(f"🎁 Дагы {days} күн акысыз кошулду!")
+
 
 
