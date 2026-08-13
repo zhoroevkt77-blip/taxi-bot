@@ -25,7 +25,7 @@ from core.texts import (render, WELCOME, GUIDE, DRIVER_WARNING,
                         PASSENGER_FIRST_BONUS, PASSENGER_NEXT_BONUS,
                         PAYMENT_AMOUNT, PAYMENT_HOURS)
 
-LOGIC_VERSION = "v5-publish-guard"
+LOGIC_VERSION = "v7-contact-lines"
 print(f"🧩 core/logic.py жүктөлдү. Версия = {LOGIC_VERSION}")
 
 SESSIONS = {}
@@ -121,9 +121,24 @@ def contact_links(phone):
     if len(d) < 9:
         return None
     return [[
-        ("💬 Telegram жазуу", f"https://t.me/+{d}"),
-        ("📱 WhatsApp жазуу", f"https://wa.me/{d}"),
+        ("💬 Telegram", f"https://t.me/+{d}"),
+        ("📱 WhatsApp — жазуу же чалуу", f"https://wa.me/{d}"),
     ]]
+
+
+def contact_lines(phone):
+    """Жарыя карточкасынын астындагы байланыш саптары.
+
+    Бот ичинде (издөө натыйжаларында) баскыч эмес, басылуучу шилтеме
+    колдонобуз — Telegram да, WhatsApp да аларды автоматтык таанып,
+    басылуучу кылат.
+    """
+    d = _digits_only(phone)
+    if len(d) < 9:
+        return f"📞 Байланыш: <code>{phone}</code>"
+    return (f"📞 Байланыш: <code>{phone}</code>\n"
+            f"💬 Telegram: https://t.me/+{d}\n"
+            f"📱 WhatsApp (жазуу же чалуу): https://wa.me/{d}")
 
 
 def _now():
@@ -583,7 +598,8 @@ def channel_text(d, role, tag):
             f"👥 Бош орун: {d.get('seats')}\n"
             f"💰 Баасы: {d.get('price')}\n"
             f"📝 {d.get('comment')}\n"
-            f"📞 <code>{d.get('phone')}</code>\n\n{tag}"
+            f"📞 <code>{d.get('phone')}</code>\n"
+            f"<i>👆 Чалуу үчүн номерди басып көчүрүңүз</i>\n\n{tag}"
         )
     return ""
 
@@ -978,7 +994,7 @@ def local_results(messenger, msg, account, action):
                     "❌ Бул багыт боюнча жарыя табылган жок.", back_kb())
     for p in rows:
         _say(messenger, msg, account,
-             post_card(p) + f"\n\n📞 Байланыш: <code>{p['phone']}</code>")
+             post_card(p) + "\n\n" + contact_lines(p["phone"]))
     _say(messenger, msg, account, "⬇️ Кайтуу үчүн:", back_kb())
 
 
@@ -1036,7 +1052,7 @@ def show_results(messenger, msg, account, action):
 
     for p in rows:
         _say(messenger, msg, account,
-             post_card(p) + f"\n\n📞 Байланыш: <code>{p['phone']}</code>")
+             post_card(p) + "\n\n" + contact_lines(p["phone"]))
     _say(messenger, msg, account, "⬇️ Кайтуу үчүн:", back_kb())
 
 
@@ -1069,14 +1085,14 @@ def _show_hashtag_results(messenger, msg, account, tag, frm, to):
              f"🚗 <b>Айдоочулар</b> ({len(drivers)})")
         for p in drivers:
             _say(messenger, msg, account,
-                 post_card(p) + f"\n\n📞 Байланыш: <code>{p['phone']}</code>")
+                 post_card(p) + "\n\n" + contact_lines(p["phone"]))
 
     if passengers:
         _say(messenger, msg, account,
              f"🧳 <b>Жүргүнчүлөр</b> ({len(passengers)})")
         for p in passengers:
             _say(messenger, msg, account,
-                 post_card(p) + f"\n\n📞 Байланыш: <code>{p['phone']}</code>")
+                 post_card(p) + "\n\n" + contact_lines(p["phone"]))
 
     _say(messenger, msg, account, "⬇️ Кайтуу үчүн:", back_kb())
 
@@ -1124,4 +1140,5 @@ def register_referral(messenger, newbie, inviter_id):
                  f"🎁 {days} күн акысыз жарыя бере аласыз.")
         else:
             tell(f"🎁 Дагы {days} күн акысыз кошулду!")
+
 
