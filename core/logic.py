@@ -572,6 +572,7 @@ def channel_text(d, role, tag):
     """Каналга чыгуучу жарыянын тексти."""
     if role == "driver":
         return (
+            f"🚗 <b>АЙДООЧУ</b>\n"
             f"🚖 <b>{d.get('from_city')} ➡️ {d.get('to_city')}</b>\n"
             f"🧍 Аты: {d.get('name')}\n"
             f"🚘 Унаа: {d.get('car')}\n"
