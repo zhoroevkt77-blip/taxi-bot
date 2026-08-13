@@ -25,6 +25,9 @@ from core.texts import (render, WELCOME, GUIDE, DRIVER_WARNING,
                         PASSENGER_FIRST_BONUS, PASSENGER_NEXT_BONUS,
                         PAYMENT_AMOUNT, PAYMENT_HOURS)
 
+LOGIC_VERSION = "v5-publish-guard"
+print(f"🧩 core/logic.py жүктөлдү. Версия = {LOGIC_VERSION}")
+
 SESSIONS = {}
 _SEARCH_CACHE = {}
 NAV = {}          # user_id -> [экран действиелери] — "Артка" үчүн тарых
