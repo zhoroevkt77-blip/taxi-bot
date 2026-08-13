@@ -47,7 +47,7 @@ STEP_FIELD = {
 SCREEN_PREFIXES = (
     "menu:driver", "menu:passenger", "menu:help", "menu:channel", "menu:lang",
     "d_search", "p_search", "d_my", "p_my", "d_vip",
-    "sb:", "sr:", "la:", "lo:", "lof:", "lot:", "lr:", "ht:",
+    "sb:", "sr:", "lo:", "lof:", "lot:", "lr:", "ht:",
 )
 
 BACK = Button("🔙 Артка", "wback")
@@ -369,8 +369,6 @@ def _dispatch(messenger, msg, account, a):
         return search_bishkek(messenger, msg, account, a)
     if a.startswith("sr:"):
         return show_results(messenger, msg, account, a)
-    if a.startswith("la:"):
-        return local_all(messenger, msg, account, a)
     if a.startswith("lo:"):
         return local_oblast_from(messenger, msg, account, a)
     if a.startswith("lof:"):
@@ -866,62 +864,70 @@ def search_menu(messenger, msg, account, target_role):
     kb = Keyboard.from_flat([
         Button("➡️ Бишкекке бараткандар", f"sb:to:{target_role}"),
         Button("⬅️ Бишкектен кайткандар", f"sb:from:{target_role}"),
-        Button("🗺 Район аралык — баары", f"la:{target_role}"),
-        Button("🗺 Район аралык — облус боюнча", f"lo:{target_role}"),
+        Button("🗺 Район аралык", f"lo:{target_role}"),
         _back_btn(),
     ])
     _say(messenger, msg, account, "Багытты тандаңыз:", kb)
 
 
-def local_all(messenger, msg, account, action):
-    """🗺 Район аралык — бардык маршруттар."""
+# ---- Район аралык издөө: облус → район → маршрут ----
+
+def local_oblast_from(messenger, msg, account, action):
+    """1-кадам: кайсы облустан чыккандарды издейт."""
     role = action.split(":")[1]
+
+    # Ар бир облустан канча жарыя бар экенин эсептейбиз
     rows = [r for r in posts.local_route_counts() if r["role"] == role]
-    if not rows:
-        return _say(messenger, msg, account,
-                    "❌ Бул багыт боюнча жарыя азырынча жок.", back_kb())
+    per_city = {}
+    for r in rows:
+        per_city[r["from_city"]] = per_city.get(r["from_city"], 0) + r["n"]
+
     btns = []
-    pairs = []
-    for i, r in enumerate(rows):
-        btns.append(Button(f"{r['from_city']} ➡️ {r['to_city']} · {r['n']} жарыя",
-                           f"lr:{role}:{i}"))
-        pairs.append((r["from_city"], r["to_city"]))
-    _SEARCH_CACHE[msg.user_id] = pairs
+    for i, oblast in enumerate(DISTRICT_OBLASTS):
+        n = sum(per_city.get(c, 0) for c in DISTRICTS[oblast])
+        btns.append(Button(f"{oblast} · {n} жарыя", f"lof:{role}:{i}"))
     btns.append(_back_btn())
-    _say(messenger, msg, account, "📋 <b>Жазылган посттор</b>",
+
+    _say(messenger, msg, account,
+         "🗺 <b>Район аралык</b>\n\nКайсы облустан чыккандарды издейсиз?",
          Keyboard.from_flat(btns))
 
 
-def local_oblast_from(messenger, msg, account, action):
-    """1-кадам: чыгуу облусу."""
-    role = action.split(":")[1]
-    kb = Keyboard.from_flat(
-        [Button(o, f"lof:{role}:{i}") for i, o in enumerate(DISTRICT_OBLASTS)]
-        + [_back_btn()])
-    _say(messenger, msg, account, "🗺 Кайсы облустан чыккандарды издейсиз?", kb)
-
-
 def local_oblast_to(messenger, msg, account, action):
-    """2-кадам: баруу облусу."""
+    """2-кадам: ошол облустун кайсы районунан."""
     _, role, idx = action.split(":")
-    kb = Keyboard.from_flat(
-        [Button(o, f"lot:{role}:{idx}:{i}") for i, o in enumerate(DISTRICT_OBLASTS)]
-        + [_back_btn()])
-    frm = DISTRICT_OBLASTS[int(idx)]
+    oblast = DISTRICT_OBLASTS[int(idx)]
+
+    rows = [r for r in posts.local_route_counts() if r["role"] == role]
+    per_city = {}
+    for r in rows:
+        per_city[r["from_city"]] = per_city.get(r["from_city"], 0) + r["n"]
+
+    btns = []
+    for i, city in enumerate(DISTRICTS[oblast]):
+        n = per_city.get(city, 0)
+        btns.append(Button(f"{city} · {n} жарыя", f"lot:{role}:{idx}:{i}"))
+    btns.append(_back_btn())
+
     _say(messenger, msg, account,
-         f"📍 Чыгуу: <b>{frm}</b>\n🗺 Кайсы облуска баргандарды издейсиз?", kb)
+         f"📍 <b>{oblast}</b>\n\nКайсы райондон/шаардан чыккандарды издейсиз?",
+         Keyboard.from_flat(btns))
 
 
 def local_oblast_results(messenger, msg, account, action):
-    """3-кадам: эки облустун ортосундагы маршруттар."""
-    _, role, i_from, i_to = action.split(":")
-    ob_from = DISTRICT_OBLASTS[int(i_from)]
-    ob_to = DISTRICT_OBLASTS[int(i_to)]
-    rows = posts.local_routes_by_oblast(
-        DISTRICTS[ob_from], DISTRICTS[ob_to], role)
+    """3-кадам: ошол райондон чыккан маршруттар."""
+    _, role, i_ob, i_city = action.split(":")
+    oblast = DISTRICT_OBLASTS[int(i_ob)]
+    city = DISTRICTS[oblast][int(i_city)]
+
+    rows = [r for r in posts.local_route_counts()
+            if r["role"] == role and r["from_city"] == city]
+
     if not rows:
         return _say(messenger, msg, account,
-                    "❌ Бул багыт боюнча жарыя азырынча жок.", back_kb())
+                    f"📍 <b>{city}</b>\n\n"
+                    f"❌ Бул жерден чыккан жарыя азырынча жок.", back_kb())
+
     btns = []
     pairs = []
     for i, r in enumerate(rows):
@@ -930,8 +936,9 @@ def local_oblast_results(messenger, msg, account, action):
         pairs.append((r["from_city"], r["to_city"]))
     _SEARCH_CACHE[msg.user_id] = pairs
     btns.append(_back_btn())
+
     _say(messenger, msg, account,
-         f"📋 <b>{ob_from} ➡️ {ob_to}</b>", Keyboard.from_flat(btns))
+         f"📍 <b>{city}</b> — кайда барат?", Keyboard.from_flat(btns))
 
 
 def local_results(messenger, msg, account, action):
@@ -942,6 +949,7 @@ def local_results(messenger, msg, account, action):
         return _say(messenger, msg, account, "❌ Кайра издеп көрүңүз.", back_kb())
     frm, to = pairs[int(idx)]
     rows = posts.search_posts(role, from_city=frm, to_city=to)
+    _say(messenger, msg, account, f"📋 <b>{frm} ➡️ {to}</b>")
     if not rows:
         return _say(messenger, msg, account,
                     "❌ Бул багыт боюнча жарыя табылган жок.", back_kb())
@@ -952,38 +960,57 @@ def local_results(messenger, msg, account, action):
 
 
 def search_bishkek(messenger, msg, account, action):
+    """Бишкек багыты — облус/шаар деңгээлинде тизме."""
     _, direction, role = action.split(":")
     to_bishkek = direction == "to"
+
+    # Ар бир шаар/райондун жарыя санын алып, облус боюнча чогултабыз
     rows = posts.route_counts(role, to_bishkek)
-    if not rows:
-        return _say(messenger, msg, account,
-                    "❌ Бул багыт боюнча жарыя азырынча жок.", back_kb())
+    counts = {r["k"]: r["n"] for r in rows}
+
     btns = []
-    for i, r in enumerate(rows):
+    for i, region in enumerate(REGION_LIST):
+        n = sum(counts.get(c, 0) for c in REGIONS[region])
         if to_bishkek:
-            label = f"{r['k']} ➡️ Бишкек · {r['n']} жарыя"
+            label = f"{region} ➡️ Бишкек · {n} жарыя"
         else:
-            label = f"Бишкек ➡️ {r['k']} · {r['n']} жарыя"
+            label = f"Бишкек ➡️ {region} · {n} жарыя"
         btns.append(Button(label, f"sr:{role}:{direction}:{i}"))
-    _SEARCH_CACHE[msg.user_id] = [r["k"] for r in rows]
+
     btns.append(_back_btn())
-    _say(messenger, msg, account, "📋 <b>Жазылган посттор</b>",
-         Keyboard.from_flat(btns))
+    title = ("➡️ <b>Бишкекке бараткандар</b>" if to_bishkek
+             else "⬅️ <b>Бишкектен кайткандар</b>")
+    _say(messenger, msg, account, title, Keyboard.from_flat(btns))
 
 
 def show_results(messenger, msg, account, action):
+    """Тандалган облустун бардык шаар/райондорунун жарыялары."""
     _, role, direction, idx = action.split(":")
-    cities = _SEARCH_CACHE.get(msg.user_id, [])
-    if int(idx) >= len(cities):
+    i = int(idx)
+    if i >= len(REGION_LIST):
         return _say(messenger, msg, account, "❌ Кайра издеп көрүңүз.", back_kb())
-    city = cities[int(idx)]
-    if direction == "to":
-        rows = posts.search_posts(role, from_city=city, to_city="Бишкек")
-    else:
-        rows = posts.search_posts(role, from_city="Бишкек", to_city=city)
+
+    region = REGION_LIST[i]
+    to_bishkek = direction == "to"
+
+    rows = []
+    for city in REGIONS[region]:
+        if to_bishkek:
+            rows += posts.search_posts(role, from_city=city, to_city="Бишкек")
+        else:
+            rows += posts.search_posts(role, from_city="Бишкек", to_city=city)
+
+    # VIP'тер башында, андан кийин жаңылары
+    rows.sort(key=lambda p: (not p.get("is_vip"), ), reverse=False)
+
+    header = (f"📋 <b>{region} ➡️ Бишкек</b>" if to_bishkek
+              else f"📋 <b>Бишкек ➡️ {region}</b>")
+    _say(messenger, msg, account, header)
+
     if not rows:
         return _say(messenger, msg, account,
-                    "❌ Бул багыт боюнча жарыя табылган жок.", back_kb())
+                    "❌ Бул багыт боюнча жарыя азырынча жок.", back_kb())
+
     for p in rows:
         _say(messenger, msg, account,
              post_card(p) + f"\n\n📞 Байланыш: <code>{p['phone']}</code>")
@@ -1074,4 +1101,3 @@ def register_referral(messenger, newbie, inviter_id):
                  f"🎁 {days} күн акысыз жарыя бере аласыз.")
         else:
             tell(f"🎁 Дагы {days} күн акысыз кошулду!")
-
