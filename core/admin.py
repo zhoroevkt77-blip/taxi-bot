@@ -16,7 +16,7 @@ from core.messenger import Keyboard, Button
 ADMIN_ACCOUNT = int(os.environ.get("ADMIN_ACCOUNT", "0"))
 
 # Админ эмнени күтүп жатканын эстеп турат
-ADMIN_STATE = {}   # platform_id -> "broadcast" | "ban" | "unban" | "setref"
+ADMIN_STATE = {}   # platform_id -> "broadcast" | "ban" | "unban" | "setref" | "grant"
 
 
 def is_admin(account):
@@ -31,6 +31,8 @@ def admin_kb():
         Button("🚫 Бөгөттөө", "adm:ban"),
         Button("✅ Бөгөттөн чыгаруу", "adm:unban"),
         Button("🧪 Referral коюу (тест)", "adm:setref"),
+        Button("🎁 Мөөнөт кошуу (тест)", "adm:grant"),
+        Button("⚡ Мага толук уруксат", "adm:me"),
     ])
 
 
@@ -41,6 +43,12 @@ def handle_command(messenger, msg, account, say):
     ADMIN_STATE.pop(msg.user_id, None)
     say(messenger, msg, account, "🎛 <b>Админ панель</b>", admin_kb())
     return True
+
+
+def _grant_days(account_id, days):
+    """logic.grant_days'ти чакырат (тегерек импорттон качуу үчүн ичинде)."""
+    from core import logic
+    return logic.grant_days(account_id, days)
 
 
 def handle_button(messenger, msg, account, say):
@@ -89,7 +97,27 @@ def handle_button(messenger, msg, account, say):
         say(messenger, msg, account,
             "🧪 <b>Referral коюу</b>\n\n"
             "Форматы: <code>account_id саны</code>\n"
-            "Мисалы: <code>1 3</code> — 1-аккаунтка 3 referral коёт.")
+            "Мисалы: <code>1 3</code> — 1-аккаунтка 3 referral коёт.\n\n"
+            "<i>Эскертүү: бул 30 күн мөөнөттү да кошуп берет, "
+            "ошондо айдоочу жарыя бере алат.</i>")
+
+    elif action == "grant":
+        ADMIN_STATE[msg.user_id] = "grant"
+        say(messenger, msg, account,
+            "🎁 <b>Мөөнөт кошуу</b>\n\n"
+            "Форматы: <code>account_id күн</code>\n"
+            "Мисалы: <code>1 30</code> — 1-аккаунтка 30 күн кошот.")
+
+    elif action == "me":
+        # Өзүнө дароо толук уруксат — тестирлөө үчүн эң тез жол
+        acc_id = account["account_id"]
+        db.update_account(acc_id, ref_count=99)
+        until = _grant_days(acc_id, 365)
+        say(messenger, msg, account,
+            f"⚡ <b>Даяр!</b>\n\n"
+            f"Referral: 99\n"
+            f"Мөөнөт: 365 күн\n\n"
+            f"Эми «🚗 Айдоочумун» бөлүмүнөн жарыя бере аласыз.")
 
     return True
 
@@ -132,8 +160,29 @@ def handle_text(messenger, msg, account, say):
             say(messenger, msg, account, "❌ Мындай аккаунт жок.")
             return True
         db.update_account(acc_id, ref_count=count)
+        # Гейт эки шарттуу: referral саны ЖАНА мөөнөт. Экөөнү тең берип коёбуз.
+        _grant_days(acc_id, 30)
         say(messenger, msg, account,
-            f"✅ {acc_id}-аккаунттун referral саны {count} болду.")
+            f"✅ {acc_id}-аккаунттун referral саны {count} болду.\n"
+            f"🎁 Ошондой эле 30 күн мөөнөт кошулду.")
+        return True
+
+    if state == "grant":
+        parts = text.split()
+        if len(parts) != 2:
+            say(messenger, msg, account, "⚠️ Формат: account_id күн (мис. 1 30)")
+            return True
+        try:
+            acc_id, days = int(parts[0]), int(parts[1])
+        except ValueError:
+            say(messenger, msg, account, "⚠️ Эки сан жазыңыз (мис. 1 30)")
+            return True
+        if not db.get_account(acc_id):
+            say(messenger, msg, account, "❌ Мындай аккаунт жок.")
+            return True
+        _grant_days(acc_id, days)
+        say(messenger, msg, account,
+            f"🎁 {acc_id}-аккаунтка {days} күн кошулду.")
         return True
 
     try:
@@ -165,5 +214,6 @@ def handle_text(messenger, msg, account, say):
                 pass
 
     return True
+
 
     
