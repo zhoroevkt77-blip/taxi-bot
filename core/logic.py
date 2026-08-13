@@ -47,7 +47,7 @@ STEP_FIELD = {
 SCREEN_PREFIXES = (
     "menu:driver", "menu:passenger", "menu:help", "menu:channel", "menu:lang",
     "d_search", "p_search", "d_my", "p_my", "d_vip",
-    "sb:", "sr:", "la:", "lo:", "lof:", "lot:", "lr:",
+    "sb:", "sr:", "la:", "lo:", "lof:", "lot:", "lr:", "ht:",
 )
 
 BACK = Button("🔙 Артка", "wback")
@@ -379,8 +379,24 @@ def _dispatch(messenger, msg, account, a):
         return local_oblast_results(messenger, msg, account, a)
     if a.startswith("lr:"):
         return local_results(messenger, msg, account, a)
+    if a.startswith("ht:"):
+        return hashtag_search(messenger, msg, account, int(a.split(":")[1]))
 
     _say(messenger, msg, account, "Бул баскыч азырынча иштелип чыккан жок.")
+
+
+def hashtag_search(messenger, msg, account, post_id):
+    """Жарыянын багыты боюнча издейт (хештег баскычы басылганда).
+
+    Telegram'да билдирүүдөгү хештегди басканда, ал ботко жиберилбейт —
+    Telegram өзүнүн издөөсүн ачат. Ошондуктан баскыч колдонобуз.
+    """
+    p = posts.get_post(post_id)
+    if not p:
+        return _say(messenger, msg, account, "❌ Жарыя табылган жок.", back_kb())
+    tag = hashtag(p.get("from_city"), p.get("to_city"))
+    _show_hashtag_results(messenger, msg, account, tag,
+                          p.get("from_city"), p.get("to_city"))
 
 
 def driver_entry(messenger, msg, account):
@@ -594,8 +610,11 @@ def save(messenger, msg, account, st):
         _say(messenger, msg, account,
              "🔒 Жүргүнчүнүн жарыясы каналга чыкпайт — аны айдоочулар платформада гана көрөт.")
 
+    # Хештегди БАСКЫЧ кылабыз — Telegram'да текст хештег ботко жетпейт
+    other = "айдоочуларды" if role == "passenger" else "жүргүнчүлөрдү"
     _say(messenger, msg, account,
-        f"💡Хештегди басып, ошол багыттагы айдоочуларды издеп көрүңүз.\n\n{tag}")
+         f"💡 {tag}\n\nУшул багыттагы {other} көрүү үчүн төмөнкү баскычты басыңыз:",
+         Keyboard.from_flat([Button(f"🔍 {tag}", f"ht:{post_id}"), _back_btn()]))
 
     if role == "driver":
         _say(messenger, msg, account, "Тандаңыз:", driver_menu_kb())
@@ -972,15 +991,25 @@ def show_results(messenger, msg, account, action):
 
 
 def _hashtag(messenger, msg, account, text):
-    """#Ош_Бишкек → ошол багыттагы жарыялар, ролго бөлүнүп."""
+    """#Ош_Бишкек деп КОЛ МЕНЕН жазылса — ошол багыттагы жарыялар."""
     parts = text[1:].split("_")
     if len(parts) < 2:
         return _say(messenger, msg, account, "❓ Бул хештегди тааныган жокмун.")
     frm, to = parts[0], "_".join(parts[1:])
-    rows = posts.search_by_hashtag(frm, to)
-    _say(messenger, msg, account, f"🔎 Издөө: <b>{text}</b>")
+    _show_hashtag_results(messenger, msg, account, text, frm, to)
+
+
+def _show_hashtag_results(messenger, msg, account, tag, frm, to):
+    """Багыт боюнча жарыяларды ролго бөлүп көрсөтөт."""
+    def short(s):
+        s = re.sub(r"\s*(облусу|шаары|району|\(Раззаков\))\s*", "", s or "")
+        return s.strip()
+
+    rows = posts.search_by_hashtag(short(frm), short(to))
+    _say(messenger, msg, account, f"🔎 Издөө: <b>{tag}</b>")
     if not rows:
-        return _say(messenger, msg, account, "❌ Бул багытта азырынча жарыя жок.")
+        return _say(messenger, msg, account,
+                    "❌ Бул багытта азырынча жарыя жок.", back_kb())
 
     drivers = [p for p in rows if p["role"] == "driver"]
     passengers = [p for p in rows if p["role"] == "passenger"]
@@ -998,6 +1027,8 @@ def _hashtag(messenger, msg, account, text):
         for p in passengers:
             _say(messenger, msg, account,
                  post_card(p) + f"\n\n📞 Байланыш: <code>{p['phone']}</code>")
+
+    _say(messenger, msg, account, "⬇️ Кайтуу үчүн:", back_kb())
 
 
 def register_referral(messenger, newbie, inviter_id):
@@ -1043,6 +1074,7 @@ def register_referral(messenger, newbie, inviter_id):
                  f"🎁 {days} күн акысыз жарыя бере аласыз.")
         else:
             tell(f"🎁 Дагы {days} күн акысыз кошулду!")
+
 
 
 
