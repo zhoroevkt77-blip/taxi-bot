@@ -83,27 +83,9 @@ class TelegramMessenger(Messenger):
         bot.send_message(chat_id, text, reply_markup=kb)
 
     def publish_to_channel(self, text, links=None):
-        """Жарыяны Telegram каналына чыгарат.
-
-        links — байланыш баскычтары:
-            [[("💬 Telegram", "https://t.me/+996..."),
-              ("📱 WhatsApp", "https://wa.me/996...")]]
-        Ар бир ички тизме — бир катар.
-        """
-        if not CHANNEL_ID:
-            return None
-        try:
-            markup = None
-            if links:
-                markup = types.InlineKeyboardMarkup()
-                for row in links:
-                    markup.row(*[types.InlineKeyboardButton(label, url=url)
-                                 for label, url in row])
-            m = bot.send_message(CHANNEL_ID, text, reply_markup=markup)
-            return m.message_id
-        except Exception as e:
-            print("Каналга жарыялоо ишке ашкан жок:", e)
-            return None
+        """Каналга жарыялоо эми core/channel.py'де — экөө тең колдонот."""
+        from core import channel
+        return channel.publish(text, links)
 
 
 messenger = TelegramMessenger()
@@ -157,17 +139,14 @@ def _callback(c):
 
 def _cleanup_loop():
     """Фондо ар саат сайын эскирген жарыяларды өчүрөт."""
-    from core import posts
+    from core import posts, channel
     while True:
         try:
             expired = posts.cleanup_expired()
             for p in expired:
                 mid = p.get("channel_msg_id")
-                if mid and CHANNEL_ID:
-                    try:
-                        bot.delete_message(CHANNEL_ID, mid)
-                    except Exception:
-                        pass
+                if mid:
+                    channel.delete(mid)
             if expired:
                 print(f"Тазаланды: {len(expired)} жарыя")
         except Exception as e:
@@ -193,5 +172,4 @@ def run():
 
 if __name__ == "__main__":
     run()
-
 
