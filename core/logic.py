@@ -23,9 +23,11 @@ from core.texts import (render, WELCOME, GUIDE, DRIVER_WARNING,
                         PAYMENT_REQUISITES, VIP_REFERRAL_STEP,
                         GATE_BONUS_DAYS, REFERRAL_BONUS_DAYS,
                         PASSENGER_FIRST_BONUS, PASSENGER_NEXT_BONUS,
-                        PAYMENT_AMOUNT, PAYMENT_HOURS)
+                        PAYMENT_AMOUNT, PAYMENT_HOURS,
+                        FAQ_INTRO, FAQ_POST, FAQ_FREE, FAQ_SEARCH,
+                        FAQ_CONTACT, FAQ_SAFETY)
 
-LOGIC_VERSION = "v7-contact-lines"
+LOGIC_VERSION = "v9-help-menu"
 print(f"🧩 core/logic.py жүктөлдү. Версия = {LOGIC_VERSION}")
 
 SESSIONS = {}
@@ -49,6 +51,7 @@ STEP_FIELD = {
 # Тарыхка жазылуучу экрандар (баскыч коддорунун башы)
 SCREEN_PREFIXES = (
     "menu:driver", "menu:passenger", "menu:help", "menu:channel", "menu:lang",
+    "menu:faq", "faq:", "menu:guide",
     "d_search", "p_search", "d_my", "p_my", "d_vip",
     "sb:", "sr:", "lo:", "lof:", "lot:", "lr:", "ht:",
 )
@@ -352,7 +355,13 @@ def _dispatch(messenger, msg, account, a):
                  f"{invite}")
         return _say(messenger, msg, account, "Тандаңыз:", passenger_menu_kb())
     if a == "menu:help":
+        return help_menu(messenger, msg, account)
+    if a == "menu:guide":
         return _say(messenger, msg, account, GUIDE, back_kb())
+    if a == "menu:faq":
+        return faq_menu(messenger, msg, account)
+    if a.startswith("faq:"):
+        return faq_section(messenger, msg, account, a.split(":")[1])
     if a == "menu:channel":
         return _say(messenger, msg, account,
             f"📢 <b>Биздин канал</b>\n\n"
@@ -413,6 +422,47 @@ def hashtag_search(messenger, msg, account, post_id):
     tag = hashtag(p.get("from_city"), p.get("to_city"))
     _show_hashtag_results(messenger, msg, account, tag,
                           p.get("from_city"), p.get("to_city"))
+
+
+def help_menu(messenger, msg, account):
+    """🆘 Жардам — эки бөлүм: нускама жана суроо-жооптор."""
+    kb = Keyboard.from_flat([
+        Button("📖 Нускама", "menu:guide"),
+        Button("❓ Көп берилүүчү суроолорго жооп", "menu:faq"),
+        _back_btn(),
+    ])
+    _say(messenger, msg, account,
+         "🆘 <b>Жардам</b>\n\nЭмне керек экенин тандаңыз:", kb)
+
+
+def faq_menu(messenger, msg, account):
+    """Көп берилүүчү суроолордун бөлүмдөрү."""
+    kb = Keyboard.from_flat([
+        Button("📝 Жарыя жөнүндө", "faq:post"),
+        Button("🎁 Акысыз мүмкүнчүлүк", "faq:free"),
+        Button("🔍 Издөө", "faq:search"),
+        Button("📞 Байланыш", "faq:contact"),
+        Button("🛡 Коопсуздук", "faq:safety"),
+        _back_btn(),
+    ])
+    _say(messenger, msg, account, FAQ_INTRO, kb)
+
+
+FAQ_SECTIONS = {
+    "post": FAQ_POST,
+    "free": FAQ_FREE,
+    "search": FAQ_SEARCH,
+    "contact": FAQ_CONTACT,
+    "safety": FAQ_SAFETY,
+}
+
+
+def faq_section(messenger, msg, account, key):
+    """Тандалган бөлүмдүн суроо-жооптору."""
+    text = FAQ_SECTIONS.get(key)
+    if not text:
+        return _say(messenger, msg, account, "❌ Бул бөлүм табылган жок.", back_kb())
+    _say(messenger, msg, account, text, back_kb())
 
 
 def driver_entry(messenger, msg, account):
@@ -1140,5 +1190,6 @@ def register_referral(messenger, newbie, inviter_id):
                  f"🎁 {days} күн акысыз жарыя бере аласыз.")
         else:
             tell(f"🎁 Дагы {days} күн акысыз кошулду!")
+
 
 
