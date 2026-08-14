@@ -1338,7 +1338,7 @@ def register_referral(messenger, newbie, inviter_id):
     # ---- Айдоочу бонусу: ар 3 дос сайын ----
     earned = new_count // REQUIRED_REFERRALS      # канча бонус татыктуу
     if earned > granted:
-        days = GATE_BONUS_DAYS BONUS granted == 0 else REFERRAL_BONUS_DAYS
+        days = GATE_BONUS_DAYS if granted == 0 else REFERRAL_BONUS_DAYS
         
         grant_days(inviter_id, days)
         db.update_account(inviter_id, gate_bonus=earned)
