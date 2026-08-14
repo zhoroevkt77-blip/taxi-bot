@@ -23,6 +23,9 @@ BOT_TOKEN = os.environ.get("BOT_TOKEN")
 CHANNEL_ID = os.environ.get("CHANNEL_ID")  # мис. @kanal_aty же -1001234567890
 bot = telebot.TeleBot(BOT_TOKEN, parse_mode="HTML")
 
+TG_ADAPTER_VERSION = "v3-start-params"
+print(f"📨 telegram_adapter жүктөлдү. Версия = {TG_ADAPTER_VERSION}")
+
 # Ылдыйкы клавиатурадагы жазуу → core'дун ички коду
 MAIN_MENU = {
     "🚗 Айдоочумун": "menu:driver",
@@ -96,8 +99,10 @@ def _start(m):
     # Башкы менюну ылдыйга орнотуп коёбуз
     bot.send_message(m.chat.id, "🚕",
                      reply_markup=main_reply_kb(_lang_of(m.from_user.id)))
+    # ВАЖНО: m.text'ти толук беребиз — "/start ref12" же "/start ht34"
+    # деген параметрлер core'го жетиши керек.
     msg = IncomingMessage(user_id=make_uid("telegram", m.from_user.id),
-                          platform="telegram", text="/start")
+                          platform="telegram", text=(m.text or "/start"))
     logic.handle_update(messenger, msg)
 
 
@@ -172,4 +177,5 @@ def run():
 
 if __name__ == "__main__":
     run()
+
 
