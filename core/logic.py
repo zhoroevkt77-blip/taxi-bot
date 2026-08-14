@@ -23,11 +23,11 @@ from core.texts import (render, WELCOME, GUIDE, DRIVER_WARNING,
                         PAYMENT_REQUISITES, VIP_REFERRAL_STEP,
                         GATE_BONUS_DAYS, REFERRAL_BONUS_DAYS,
                         PASSENGER_FIRST_BONUS, PASSENGER_NEXT_BONUS,
-                        PAYMENT_AMOUNT, PAYMENT_HOURS,
+                        PAYMENT_AMOUNT, PAYMENT_HOURS, DRIVER_DAILY_LIMIT,
                         FAQ_INTRO, FAQ_POST, FAQ_FREE, FAQ_SEARCH,
                         FAQ_CONTACT, FAQ_SAFETY)
 
-LOGIC_VERSION = "v13-shared-channel"
+LOGIC_VERSION = "v15-day-hours"
 print(f"🧩 core/logic.py жүктөлдү. Версия = {LOGIC_VERSION}")
 
 SESSIONS = {}
@@ -506,8 +506,13 @@ def driver_entry(messenger, msg, account):
 
     # 3-этап: баары ачык
     left = days_left(account)
+    quota, _free_at = daily_limit_left(account["account_id"], "driver")
+    quota_line = ""
+    if quota is not None:
+        quota_line = f"📝 Бүгүн дагы {max(0, quota)} жарыя бере аласыз\n"
     _say(messenger, msg, account,
-         f"✅ Акысыз мөөнөтүңүз: дагы {left} күн\n\nТандаңыз:", driver_menu_kb())
+         f"✅ Акысыз мөөнөтүңүз: дагы {left} күн\n"
+         f"{quota_line}\nТандаңыз:", driver_menu_kb())
 
 
 def show_vip(messenger, msg, account):
@@ -522,7 +527,31 @@ def show_vip(messenger, msg, account):
 
 # ============ ЖАРЫЯ БЕРҮҮ ============
 
+def daily_limit_left(account_id, role):
+    """24 саат ичинде дагы канча жарыя бере алат. (айдоочу үчүн гана)"""
+    if role != "driver":
+        return None, None
+    times = posts.recent_posts_times(account_id, "driver", 24)
+    left = DRIVER_DAILY_LIMIT - len(times)
+    if left > 0 or not times:
+        return left, None
+    # Эң эски жарыя 24 сааттан өткөндө орун бошойт
+    free_at = times[0] + timedelta(hours=24)
+    return left, free_at
+
+
 def post_types(messenger, msg, account, role):
+    # Айдоочуга суткалык чектөө: спамдын алдын алат
+    left, free_at = daily_limit_left(account["account_id"], role)
+    if left is not None and left <= 0:
+        when = free_at.strftime("%H:%M") if free_at else ""
+        return _say(messenger, msg, account,
+            f"🚫 Бир суткада эң көп <b>{DRIVER_DAILY_LIMIT} жарыя</b> бере аласыз.\n\n"
+            f"⏰ Кийинки жарыяны саат <b>{when}</b> чамасында бере аласыз.\n\n"
+            f"<i>Бул чектөө каналды жана издөө тизмесин таза кармоо үчүн "
+            f"коюлган — ар бир айдоочунун жарыясы көрүнүктүү болсун.</i>",
+            back_kb())
+
     if not account.get("verified_phone"):
         SESSIONS[msg.user_id] = {"step": "await_phone", "role": role, "data": {}}
         lang = account.get("lang", "ky")
@@ -559,6 +588,23 @@ def ask_route(messenger, msg, account, st):
 
 # ============ ВИЗАРД КАДАМДАРЫ ============
 
+def day_hours():
+    """Мезгилге жараша күндүзгү сааттардын тизмеси.
+
+    Жүргүнчүлөр негизинен күндүз жолго чыгат, ошондуктан түнкү сааттарды
+    тизмеге салбайбыз — керек болсо колдонуучу кол менен жазат.
+
+        Апрель–сентябрь : 06:00 – 21:00
+        Октябрь–март    : 07:00 – 19:00
+    """
+    month = datetime.now().month
+    if 4 <= month <= 9:
+        start, end = 6, 21
+    else:
+        start, end = 7, 19
+    return [f"{h:02d}:00" for h in range(start, end + 1)]
+
+
 def ask_step(messenger, msg, account, st, step):
     st["step"] = step
     role = st["role"]
@@ -569,16 +615,14 @@ def ask_step(messenger, msg, account, st, step):
         return _say(messenger, msg, account, "📅 Качан жолго чыгасыз?", kb)
 
     if step == "time":
-        hours = ["06:00", "07:00", "08:00", "09:00", "10:00", "11:00",
-                 "12:00", "13:00", "14:00", "15:00", "16:00", "17:00",
-                 "18:00", "19:00", "20:00", "21:00", "22:00", "23:00",
-                 "00:00", "01:00", "02:00", "03:00", "04:00", "05:00"]
+        hours = day_hours()
         rows = [[Button(h, f"tm:{h}") for h in hours[k:k + 4]]
                 for k in range(0, len(hours), 4)]
         rows.append([_back_btn()])
         return _say(messenger, msg, account,
             "⏰ Саат канчада жолго чыгасыз?\n\n"
-            "<i>Башка убакыт болсо — жазып жибериңиз (мис. 05:30).</i>",
+            "<i>Тизмеде жок убакыт болсо — жазып жибериңиз "
+            "(мис. 05:30 же 22:00).</i>",
             Keyboard(rows=rows))
 
     if step == "price":
@@ -1205,6 +1249,7 @@ def register_referral(messenger, newbie, inviter_id):
                  f"🎁 {days} күн акысыз жарыя бере аласыз.")
         else:
             tell(f"🎁 Дагы {days} күн акысыз кошулду!")
+
 
 
 
