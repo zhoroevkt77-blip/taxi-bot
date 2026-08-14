@@ -27,7 +27,7 @@ from core.texts import (render, WELCOME, GUIDE, DRIVER_WARNING,
                         FAQ_INTRO, FAQ_POST, FAQ_FREE, FAQ_SEARCH,
                         FAQ_CONTACT, FAQ_SAFETY)
 
-LOGIC_VERSION = "v9-help-menu"
+LOGIC_VERSION = "v10-call-link"
 print(f"🧩 core/logic.py жүктөлдү. Версия = {LOGIC_VERSION}")
 
 SESSIONS = {}
@@ -139,7 +139,9 @@ def contact_lines(phone):
     d = _digits_only(phone)
     if len(d) < 9:
         return f"📞 Байланыш: <code>{phone}</code>"
-    return (f"📞 Байланыш: <code>{phone}</code>\n"
+    # Номерди '+' менен жазабыз — Telegram да, WhatsApp да аны автоматтык
+    # таанып, басылуучу кылат: басканда дароо чалуу сунушу чыгат.
+    return (f"📞 Чалуу: +{d}\n"
             f"💬 Telegram: https://t.me/+{d}\n"
             f"📱 WhatsApp (жазуу же чалуу): https://wa.me/{d}")
 
@@ -648,7 +650,7 @@ def channel_text(d, role, tag):
             f"👥 Бош орун: {d.get('seats')}\n"
             f"💰 Баасы: {d.get('price')}\n"
             f"📝 {d.get('comment')}\n"
-            f"📞 <code>{d.get('phone')}</code>\n"
+            f"📞 Чалуу: +{_digits_only(d.get('phone'))}\n"
             f"<i>👆 Чалуу үчүн номерди басып көчүрүңүз</i>\n\n{tag}"
         )
     return ""
@@ -923,7 +925,7 @@ def post_card(p):
                   f"💰 Баасы: {p['price']}"]
     else:
         lines += [f"👥 Адам саны: {p['people_count']}", f"🎒 Багаж: {p['baggage']}"]
-    lines += [f"📅 {p['date_text']} · ⏰ {p['time_text']}", f"📞 {p['phone']}"]
+    lines += [f"📅 {p['date_text']} · ⏰ {p['time_text']}"]
     if p.get("comment"):
         lines.append(f"📝 {p['comment']}")
     return "\n".join(lines)
@@ -1190,6 +1192,7 @@ def register_referral(messenger, newbie, inviter_id):
                  f"🎁 {days} күн акысыз жарыя бере аласыз.")
         else:
             tell(f"🎁 Дагы {days} күн акысыз кошулду!")
+
 
 
 
