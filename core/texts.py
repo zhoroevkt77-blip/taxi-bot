@@ -402,4 +402,3 @@ def render(text, lang="ky", platform="telegram"):
     return out
 
 
-
