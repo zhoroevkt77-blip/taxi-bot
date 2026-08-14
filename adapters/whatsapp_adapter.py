@@ -175,8 +175,13 @@ class WhatsAppMessenger(Messenger):
         self.send_text(user_id, text)
 
     def publish_to_channel(self, text, links=None):
-        """WhatsApp тарабында канал жок — азырынча эч нерсе кылбайт."""
-        return None
+        """Telegram каналына чыгарат — core/channel.py аркылуу.
+
+        WhatsApp'тын өз каналы жок, бирок айдоочунун жарыясы ортоктош
+        Telegram каналына барышы керек: «бир мээ, эки ооз».
+        """
+        from core import channel
+        return channel.publish(text, links)
 
 
 messenger = WhatsAppMessenger()
@@ -335,5 +340,6 @@ def run():
 
 if __name__ == "__main__":
     run()
+
 
 
