@@ -763,7 +763,7 @@ def hashtag(frm, to):
         s = re.sub(r"\s*(облусу|шаары|району|\(Раззаков\))\s*", "", s or "")
         return re.sub(r"\s+", "_", s.strip())
     tag = f"{short(frm)}_{short(to)}"
-        return f'<a href="https://t.me/{BOT_USERNAME}?start=tag_{tag}">#{tag}</a>'
+    return f'<a href="https://t.me/{BOT_USERNAME}?start=tag_{tag}">#{tag}</a>'
 
 
 def channel_text(d, role, tag):
