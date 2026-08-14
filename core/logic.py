@@ -27,7 +27,7 @@ from core.texts import (render, WELCOME, GUIDE, DRIVER_WARNING,
                         FAQ_INTRO, FAQ_POST, FAQ_FREE, FAQ_SEARCH,
                         FAQ_CONTACT, FAQ_SAFETY)
 
-LOGIC_VERSION = "v10-call-link"
+LOGIC_VERSION = "v11-show-own-post"
 print(f"🧩 core/logic.py жүктөлдү. Версия = {LOGIC_VERSION}")
 
 SESSIONS = {}
@@ -684,6 +684,13 @@ def save(messenger, msg, account, st):
     _say(messenger, msg, account,
          "✅ Жарыя чыкты! Платформада 24 саат турат, андан кийин автоматтык өчүрүлөт.")
 
+    # Колдонуучу өз жарыясын дароо көрсүн
+    fresh = posts.get_post(post_id)
+    if fresh:
+        _say(messenger, msg, account,
+             "👇 <b>Сиздин жарыяңыз:</b>\n\n" + post_card(fresh)
+             + "\n\n" + contact_lines(fresh["phone"]))
+
     tag = hashtag(d.get("from_city"), d.get("to_city"))
 
     if role == "driver":
@@ -1192,6 +1199,7 @@ def register_referral(messenger, newbie, inviter_id):
                  f"🎁 {days} күн акысыз жарыя бере аласыз.")
         else:
             tell(f"🎁 Дагы {days} күн акысыз кошулду!")
+
 
 
 
