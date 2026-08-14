@@ -424,4 +424,3 @@ def render(text, lang="ky", platform="telegram"):
     if platform == "whatsapp":
         out = strip_html(out)
     return out
-
