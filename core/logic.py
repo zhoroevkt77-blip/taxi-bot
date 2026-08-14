@@ -778,8 +778,7 @@ def channel_text(d, role, tag):
             f"💰 Баасы: {d.get('price')}\n"
             f"📝 {d.get('comment')}\n"
             f"📞 Чалуу: +{_digits_only(d.get('phone'))}\n"
-            f'<i>👆 Чалуу үчүн номерди басып көчүрүңүз</i>\n\n'
-            f'<a href="https://t.me/{BOT_USERNAME}?start=tag_{tag.lstrip("#")}">{tag}</a>'
+            f"<i>👆 Чалуу үчүн номерди басып көчүрүңүз</i>\n\n{tag}"
             )
     return ""
 
