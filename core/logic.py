@@ -27,7 +27,7 @@ from core.texts import (render, WELCOME, GUIDE, DRIVER_WARNING,
                         FAQ_INTRO, FAQ_POST, FAQ_FREE, FAQ_SEARCH,
                         FAQ_CONTACT, FAQ_SAFETY)
 
-LOGIC_VERSION = "v17-bilingual"
+LOGIC_VERSION = "v18-invite-ru"
 print(f"🧩 core/logic.py жүктөлдү. Версия = {LOGIC_VERSION}")
 
 SESSIONS = {}
@@ -88,20 +88,27 @@ def referral_link(account_id, platform):
     return f"https://wa.me/{WA_BOT_NUMBER}?text=REF{account_id}"
 
 
-def _share_link(link):
+def _share_link(link, lang="ky"):
     """Telegram'дын контакт тандоо терезесин ачуучу шилтеме."""
-    return ("https://t.me/share/url?url=" + link +
-            "&text=" + "ТАКСИ роБОТ — Бишкекке такси табуунун эң оңой жолу!")
+    text = ("ТАКСИ роБОТ — самый простой способ найти такси!" if lang == "ru"
+            else "ТАКСИ роБОТ — Бишкекке такси табуунун эң оңой жолу!")
+    return "https://t.me/share/url?url=" + link + "&text=" + text
 
 
-def _invite_block(account, platform):
+def _invite_block(account, platform, lang="ky"):
     """Ар бир платформа үчүн ылайыктуу чакыруу блогун кайтарат."""
     link = referral_link(account["account_id"], platform)
+    ru = lang == "ru"
     if platform == "telegram":
-        share = _share_link(link)
+        share = _share_link(link, lang)
+        if ru:
+            return (f"👇 <a href=\"{share}\">Отправить друзьям</a>\n\n"
+                    f"Или скопируйте ссылку:\n<code>{link}</code>")
         return (f"👇 <a href=\"{share}\">Досторуңузга жиберүү</a>\n\n"
                 f"Же шилтемени көчүрүп алыңыз:\n<code>{link}</code>")
     # WhatsApp'та HTML жок — түз шилтеме
+    if ru:
+        return f"👇 Отправьте друзьям эту ссылку:\n{link}"
     return f"👇 Досторуңузга ушул шилтемени жибериңиз:\n{link}"
 
 
@@ -385,14 +392,15 @@ def _dispatch(messenger, msg, account, a):
     if a == "menu:passenger":
         free = account.get("free_posts", 0) or 0
         if free <= 0:
-            invite = _invite_block(account, msg.platform)
+            invite = _invite_block(account, msg.platform, "ky")
+            invite_ru = _invite_block(account, msg.platform, "ru")
             _say(messenger, msg, account, L(
                  f"💡 Акысыз посттоңуз бүттү, бирок жаза бересиз!\n\n"
                  f"🎁 1 дос чакырсаңыз — дагы {PASSENGER_NEXT_BONUS} пост.\n\n"
                  f"{invite}",
                  f"💡 Бесплатные посты закончились, но вы можете писать дальше!\n\n"
                  f"🎁 Пригласите 1 друга — ещё {PASSENGER_NEXT_BONUS} пост.\n\n"
-                 f"{invite}"))
+                 f"{invite_ru}"))
         return _say(messenger, msg, account, "Тандаңыз:", passenger_menu_kb())
     if a == "menu:help":
         return help_menu(messenger, msg, account)
@@ -507,7 +515,8 @@ def faq_section(messenger, msg, account, key):
 
 
 def driver_entry(messenger, msg, account):
-    invite = _invite_block(account, msg.platform)
+    invite = _invite_block(account, msg.platform, "ky")
+    invite_ru = _invite_block(account, msg.platform, "ru")
 
     # 1-этап: гейт ачыла элек
     if (account["ref_count"] or 0) < REQUIRED_REFERRALS:
@@ -519,7 +528,7 @@ def driver_entry(messenger, msg, account):
             f"🚫 Чтобы оставить объявление, пригласите {REQUIRED_REFERRALS} друзей.\n"
             f"Текущий прогресс: {account['ref_count'] or 0}/{REQUIRED_REFERRALS}\n\n"
             f"🎁 После открытия вы получите {GATE_BONUS_DAYS} дней бесплатно!\n\n"
-            f"{invite}"), back_kb())
+            f"{invite_ru}"), back_kb())
 
     # 2-этап: гейт ачык, бирок мөөнөт бүткөн
     if not has_access(account):
@@ -535,7 +544,7 @@ def driver_entry(messenger, msg, account):
             f"🎁 Пригласите {REQUIRED_REFERRALS} друзей — {REFERRAL_BONUS_DAYS} дней бесплатно\n"
             f"💳 Или оплатите {PAYMENT_AMOUNT} — {PAYMENT_HOURS} часа\n\n"
             f"{PAYMENT_REQUISITES}\n\n"
-            f"{invite}"), back_kb())
+            f"{invite_ru}"), back_kb())
 
     # 3-этап: баары ачык
     left = days_left(account)
@@ -550,7 +559,8 @@ def driver_entry(messenger, msg, account):
 
 
 def show_vip(messenger, msg, account):
-    invite = _invite_block(account, msg.platform)
+    invite = _invite_block(account, msg.platform, "ky")
+    invite_ru = _invite_block(account, msg.platform, "ru")
     _say(messenger, msg, account, L(
         f"⭐ <b>VIP айдоочу</b>\n\n"
         f"VIP болсоңуз, жарыяңыз издөө тизмесинин эң үстүнөн чыгат!\n\n"
@@ -561,7 +571,7 @@ def show_vip(messenger, msg, account):
         f"С VIP ваше объявление показывается в самом верху списка!\n\n"
         f"💳 Стоимость: {VIP_PRICE}\n{PAYMENT_REQUISITES}\n\n"
         f"🎁 Или пригласите {VIP_REFERRAL_STEP} друзей — бесплатно:\n\n"
-        f"{invite}"), back_kb())
+        f"{invite_ru}"), back_kb())
 
 
 # ============ ЖАРЫЯ БЕРҮҮ ============
@@ -1336,4 +1346,5 @@ def register_referral(messenger, newbie, inviter_id):
                  f"🎁 {days} күн акысыз жарыя бере аласыз.")
         else:
             tell(f"🎁 Дагы {days} күн акысыз кошулду!")
+
 
