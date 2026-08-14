@@ -31,6 +31,22 @@ def create_post(account_id, role, data):
         return post_id
 
 
+def recent_posts_times(account_id, role, hours=24):
+    """Акыркы N сааттагы жарыялардын убакыттары (эскиден жаңыга).
+
+    Өчүрүлгөн жарыялар да эсептелет — болбосо колдонуучу өчүрүп-өчүрүп,
+    чектөөнү айланып өтмөк.
+    """
+    limit = datetime.now() - timedelta(hours=hours)
+    with db() as conn:
+        cur = conn.cursor()
+        cur.execute("""SELECT created_at FROM posts
+                       WHERE account_id = %s AND role = %s AND created_at >= %s
+                       ORDER BY created_at""",
+                    (account_id, role, limit))
+        return [r["created_at"] for r in cur.fetchall()]
+
+
 def my_posts(account_id, role=None):
     """Колдонуучунун активдүү жарыялары."""
     with db() as conn:
@@ -157,3 +173,4 @@ def search_by_hashtag(frm, to):
                        ORDER BY is_vip DESC, created_at DESC""",
                     (f"{frm}%", f"{to}%"))
         return [dict(r) for r in cur.fetchall()]
+
