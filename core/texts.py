@@ -33,6 +33,7 @@ PASSENGER_POST_PRICE = "20 сом"
 LOCAL_DRIVER_POST_PRICE = "20 сом"
 LOCAL_PASSENGER_POST_PRICE = "10 сом"
 PASSENGER_FREE_POSTS = 3
+DRIVER_DAILY_LIMIT = 2        # айдоочу 24 саатта эң көп канча жарыя бере алат
 VIP_PRICE = "100 сом"
 
 PAYMENT_REQUISITES = "Kaspi / MBank: 0700 000 000\nАты-жөнү: Дамира"
@@ -399,5 +400,6 @@ def render(text, lang="ky", platform="telegram"):
     if platform == "whatsapp":
         out = strip_html(out)
     return out
+
 
 
