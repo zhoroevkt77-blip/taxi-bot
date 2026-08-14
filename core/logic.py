@@ -318,6 +318,11 @@ def handle_update(messenger, msg):
                 return hashtag_search(messenger, msg, account, int(parts[1][2:]))
             except ValueError:
                 pass
+        elif len(parts) > 1 and parts[1].startswith("tag_"):
+            frm, _, to = parts[1][4:].partition("_")
+            if frm and to:
+                return _show_hashtag_results(messenger, msg, account, f"#{frm}_{to}", frm, to)
+                
         return _say(messenger, msg, account, WELCOME, main_menu_kb(msg.platform))
 
     # WhatsApp referral: колдонуучу "REF12" деген текст жиберет
