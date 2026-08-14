@@ -15,7 +15,7 @@ Telegram да, WhatsApp да ушул файлды колдонот.
 import os
 import re
 from datetime import datetime, timedelta
-from core import db, posts, admin
+from core import db, posts, admin, channel
 from core.messenger import Keyboard, Button
 from core.geo import REGIONS, DISTRICTS, DISTRICT_OBLASTS
 from core.texts import (render, WELCOME, GUIDE, DRIVER_WARNING,
@@ -27,7 +27,7 @@ from core.texts import (render, WELCOME, GUIDE, DRIVER_WARNING,
                         FAQ_INTRO, FAQ_POST, FAQ_FREE, FAQ_SEARCH,
                         FAQ_CONTACT, FAQ_SAFETY)
 
-LOGIC_VERSION = "v11-show-own-post"
+LOGIC_VERSION = "v13-shared-channel"
 print(f"🧩 core/logic.py жүктөлдү. Версия = {LOGIC_VERSION}")
 
 SESSIONS = {}
@@ -113,20 +113,30 @@ def _digits_only(phone):
     return digits
 
 
-def contact_links(phone):
-    """Каналдагы жарыянын астындагы байланыш баскычтары.
+def contact_links(phone, post_id=None):
+    """Каналдагы жарыянын астындагы баскычтар.
 
     Telegram inline баскычтары http/https/tg шилтемелерин гана кабыл алат,
     ошондуктан 'чалуу' үчүн түз шилтеме жок — экөө тең чатты ачат,
     андан кийин колдонуучу ошол жерден чала алат.
+
+    Үчүнчү баскыч ботту ачып, ошол багыттагы бардык жарыяларды көрсөтөт.
+    (Каналдагы текст хештегин басканда Telegram өзүнүн издөөсүн ачат,
+     ботко жетпейт — ошондуктан баскыч керек.)
     """
     d = _digits_only(phone)
-    if len(d) < 9:
-        return None
-    return [[
-        ("💬 Telegram", f"https://t.me/+{d}"),
-        ("📱 WhatsApp — жазуу же чалуу", f"https://wa.me/{d}"),
-    ]]
+    rows = []
+    if len(d) >= 9:
+        rows.append([
+            ("💬 Telegram", f"https://t.me/+{d}"),
+            ("📱 WhatsApp — жазуу же чалуу", f"https://wa.me/{d}"),
+        ])
+    if post_id:
+        rows.append([
+            ("🔍 Ушул багыттагы бардык жарыялар",
+             f"https://t.me/{BOT_USERNAME}?start=ht{post_id}"),
+        ])
+    return rows or None
 
 
 def contact_lines(phone):
@@ -276,6 +286,12 @@ def handle_update(messenger, msg):
                 inviter_id = int(parts[1][3:])
                 register_referral(messenger, account, inviter_id)
                 account = db.get_account(account["account_id"])
+            except ValueError:
+                pass
+        elif len(parts) > 1 and parts[1].startswith("ht"):
+            # Каналдагы «🔍 Ушул багыттагы бардык жарыялар» баскычы
+            try:
+                return hashtag_search(messenger, msg, account, int(parts[1][2:]))
             except ValueError:
                 pass
         return _say(messenger, msg, account, WELCOME, main_menu_kb(msg.platform))
@@ -657,22 +673,12 @@ def channel_text(d, role, tag):
 
 
 def _publish(messenger, text, links):
-    """Каналга чыгарат. Адаптердин эски версиясы менен да иштейт.
+    """Каналга чыгарат — платформадан көз каранды эмес.
 
-    Эски адаптерде publish_to_channel(text) гана бар — ошондо баскычсыз
-    жарыялайбыз, программа кулабайт.
+    core/channel.py түз Telegram API'ге кайрылат, ошондуктан WhatsApp'тан
+    жазылган айдоочунун жарыясы да ошол эле каналга барат.
     """
-    try:
-        return messenger.publish_to_channel(text, links)
-    except TypeError:
-        try:
-            return messenger.publish_to_channel(text)
-        except Exception as e:
-            print("Каналга жарыялоо катасы:", e)
-            return None
-    except Exception as e:
-        print("Каналга жарыялоо катасы:", e)
-        return None
+    return channel.publish(text, links)
 
 
 def save(messenger, msg, account, st):
@@ -697,7 +703,7 @@ def save(messenger, msg, account, st):
         # Каналга чыгарабыз — платформа өзү билет, core билбейт.
         # Астына байланыш баскычтарын кошобуз.
         msg_id = _publish(messenger, channel_text(d, role, tag),
-                          contact_links(d.get("phone")))
+                          contact_links(d.get("phone"), post_id))
         if msg_id:
             posts.set_channel_msg(post_id, msg_id)
             _say(messenger, msg, account,
