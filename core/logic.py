@@ -566,7 +566,11 @@ def post_types(messenger, msg, account, role):
         Button("Район/шаар аралык", "mode:local"),
         _back_btn(),
     ])
-    _say(messenger, msg, account, "Кайсы багытта жарыя бересиз?", kb)
+    head = ""
+    if left is not None:
+        head = (f"📝 Бул жарыядан кийин бүгүн дагы <b>{max(0, left - 1)} жарыя</b> "
+                f"бере аласыз.\n<i>(суткалык чектөө: {DRIVER_DAILY_LIMIT})</i>\n\n")
+    _say(messenger, msg, account, head + "Кайсы багытта жарыя бересиз?", kb)
 
 
 def ask_route(messenger, msg, account, st):
