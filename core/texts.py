@@ -19,10 +19,10 @@ TEXTS_VERSION = "v-test-0815"
 print(f"📄 core/texts.py жүктөлдү. Версия = {TEXTS_VERSION}")
 # ============ ЖӨНДӨӨЛӨР ============
 REQUIRED_REFERRALS = 3
-GATE_BONUS_DAYS = 10          # биринчи 3 дос үчүн
+GATE_BONUS_DAYS = 3          # биринчи 3 дос үчүн
 REFERRAL_BONUS_STEP = 3
 REFERRAL_BONUS_DAYS = 5       # ар кийинки 3 дос үчүн
-VIP_REFERRAL_STEP = 5
+VIP_REFERRAL_STEP = 3
 VIP_HOURS = 24
 
 PASSENGER_FIRST_BONUS = 3     # биринчи дос үчүн пост саны
@@ -34,10 +34,10 @@ PASSENGER_POST_PRICE = "20 сом"
 LOCAL_DRIVER_POST_PRICE = "20 сом"
 LOCAL_PASSENGER_POST_PRICE = "10 сом"
 PASSENGER_FREE_POSTS = 3
-DRIVER_DAILY_LIMIT = 10        # айдоочу 24 саатта эң көп канча жарыя бере алат
+DRIVER_DAILY_LIMIT = 3     # айдоочу 24 саатта эң көп канча жарыя бере алат
 VIP_PRICE = "100 сом"
 
-PAYMENT_REQUISITES = "Kaspi / MBank: 0700 000 000\nАты-жөнү: Дамира"
+PAYMENT_REQUISITES = "MBank: 0700 000 000\nАты-жөнү: Элисман"
 SUPPORT_CONTACT = "@жазылсын_бул_жерге"
 
 POST_LIFETIME_HOURS = 24
