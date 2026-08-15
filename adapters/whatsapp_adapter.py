@@ -36,8 +36,9 @@ import requests
 from core.messenger import Messenger, IncomingMessage, make_uid
 from core import logic
 
-print(f"🟡 whatsapp_adapter модулу жүктөлдү. PID={os.getpid()}, "
-      f"module={id(sys.modules[__name__])}")
+WA_ADAPTER_VERSION = "v2-photo"
+print(f"🟡 whatsapp_adapter модулу жүктөлдү. Версия = {WA_ADAPTER_VERSION}, "
+      f"PID={os.getpid()}, module={id(sys.modules[__name__])}")
 
 GREEN_ID = os.environ.get("GREEN_API_ID")
 GREEN_TOKEN = os.environ.get("GREEN_API_TOKEN")
@@ -132,6 +133,13 @@ class WhatsAppMessenger(Messenger):
                 else "\n\n0 — 🏠 Башкы меню")
         self.send_text(user_id, text + hint)
 
+    def send_photo(self, user_id, photo, caption=""):
+        """WhatsApp'та сүрөт ачык URL менен гана жиберилет."""
+        _post("sendFileByUrl", {"chatId": _chat_id(user_id),
+                                "urlFile": photo,
+                                "fileName": "photo.jpg",
+                                "caption": caption})
+
     def send_buttons(self, user_id, text, keyboard):
         """Клавиатураны номерленген тизмеге айландырат.
 
@@ -207,19 +215,35 @@ def _handle(body):
     md = body.get("messageData", {})
     tmsg = md.get("typeMessage")
 
+    photo_ref = None
     if tmsg == "textMessage":
         text = md.get("textMessageData", {}).get("textMessage", "")
     elif tmsg == "extendedTextMessage":
         text = md.get("extendedTextMessageData", {}).get("text", "")
+    elif tmsg in ("imageMessage", "documentMessage"):
+        # Төлөм чеги — Green API ачык downloadUrl берет
+        fd = md.get("fileMessageData", {})
+        photo_ref = fd.get("downloadUrl")
+        text = fd.get("caption", "") or ""
     else:
-        return   # сүрөт, аудио ж.б. — азырынча эске алынбайт
+        return   # аудио, видео ж.б. — азырынча эске алынбайт
 
     text = (text or "").strip()
-    if not text:
+    if not text and not photo_ref:
         return
 
     # Телефонду автоматтык ырастап коёбуз (WhatsApp'та ал белгилүү)
     _ensure_phone(uid, phone)
+
+    # Сүрөт келсе — түз логикага беребиз (меню номерлерин карабайбыз)
+    if photo_ref:
+        msg = IncomingMessage(user_id=uid, platform="whatsapp",
+                              photo_id=photo_ref, text=text)
+        try:
+            logic.handle_update(messenger, msg)
+        except Exception as e:
+            print("Логика катасы:", e)
+        return
 
     # "0" — WhatsApp'та универсалдуу "башкы менюга кайтуу".
     # Меню көрүнбөй турган кадамдарда да (аты, баа, комментарий) иштейт.
@@ -340,6 +364,3 @@ def run():
 
 if __name__ == "__main__":
     run()
-
-
-
