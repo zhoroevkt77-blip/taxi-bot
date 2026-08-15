@@ -28,15 +28,16 @@ from core.texts import (render, WELCOME, GUIDE, DRIVER_WARNING,
                         GATE_BONUS_DAYS, REFERRAL_BONUS_DAYS,
                         PASSENGER_FIRST_BONUS, PASSENGER_NEXT_BONUS,
                         PAYMENT_AMOUNT, PAYMENT_HOURS, DRIVER_DAILY_LIMIT,
+                        VIP_HOURS,
                         FAQ_INTRO, FAQ_POST, FAQ_FREE, FAQ_SEARCH,
                         FAQ_CONTACT, FAQ_SAFETY)
 
-LOGIC_VERSION = "v19-payment"
+LOGIC_VERSION = "v21-pay-driver"
 print(f"🧩 core/logic.py жүктөлдү. Версия = {LOGIC_VERSION}")
 
 SESSIONS = {}
 _SEARCH_CACHE = {}
-PAY_WAIT = {}     # user_id -> True (төлөм чеги күтүлүп жатат)
+PAY_WAIT = {}     # user_id -> "access" | "vip" (чек күтүлүүдө)
 NAV = {}          # user_id -> [экран действиелери] — "Артка" үчүн тарых
 BOT_USERNAME = "taxirobot_bot"
 WA_BOT_NUMBER = os.environ.get("WA_BOT_NUMBER", "996227155603")
@@ -264,25 +265,54 @@ def _say(messenger, msg, account, text, keyboard=None):
 
 # ============ ТӨЛӨМ ============
 
-def start_payment(messenger, msg, account):
+PAY_KINDS = {
+    "access": {
+        "ky_title": "💳 <b>Жарыя берүү укугу</b>",
+        "ru_title": "💳 <b>Право размещать объявления</b>",
+        "amount": PAYMENT_AMOUNT,
+        "ky_gives": f"{PAYMENT_HOURS} саат чектөөсүз жарыя",
+        "ru_gives": f"{PAYMENT_HOURS} часа объявлений без ограничений",
+    },
+    "vip": {
+        "ky_title": "⭐ <b>VIP айдоочу</b>",
+        "ru_title": "⭐ <b>VIP-водитель</b>",
+        "amount": VIP_PRICE,
+        "ky_gives": f"{VIP_HOURS} саат тизменин эң үстүндө",
+        "ru_gives": f"{VIP_HOURS} часа в самом верху списка",
+    },
+}
+
+
+def pay_btn(kind):
+    """Ар бир жерге коюлуучу бирдей төлөм баскычы."""
+    return Button("💳 Төлөдүм (чек жиберем)", f"pay:start:{kind}")
+
+
+def start_payment(messenger, msg, account, kind):
     """«💳 Төлөдүм» басылды — реквизиттерди берип, чек күтөбүз."""
-    PAY_WAIT[msg.user_id] = True
+    info = PAY_KINDS.get(kind)
+    if not info:
+        return _say(messenger, msg, account, "❌ Төлөмдүн түрү белгисиз.", back_kb())
+
+    PAY_WAIT[msg.user_id] = kind
     _say(messenger, msg, account, L(
-        f"💳 <b>Төлөм</b>\n\n"
+        f"{info['ky_title']}\n\n"
         f"{PAYMENT_REQUISITES}\n\n"
-        f"Сумма: <b>{PAYMENT_AMOUNT}</b> — {PAYMENT_HOURS} саат\n\n"
+        f"💰 Сумма: <b>{info['amount']}</b>\n"
+        f"🎁 Берет: {info['ky_gives']}\n\n"
         f"📷 Төлөгөндөн кийин чектин скриншотун ушул жерге жибериңиз.\n"
-        f"Админ текшергенден кийин мөөнөтүңүз автоматтык ачылат.",
-        f"💳 <b>Оплата</b>\n\n"
+        f"Админ текшергенден кийин автоматтык ачылат.",
+        f"{info['ru_title']}\n\n"
         f"{PAYMENT_REQUISITES}\n\n"
-        f"Сумма: <b>{PAYMENT_AMOUNT}</b> — {PAYMENT_HOURS} ч.\n\n"
+        f"💰 Сумма: <b>{info['amount']}</b>\n"
+        f"🎁 Даёт: {info['ru_gives']}\n\n"
         f"📷 После оплаты отправьте сюда скриншот чека.\n"
         f"После проверки доступ откроется автоматически."), back_kb())
 
 
-def receive_receipt(messenger, msg, account):
+def receive_receipt(messenger, msg, account, kind):
     """Колдонуучудан келген төлөм чегин админге жиберет."""
-    ok = admin.notify_payment(account, msg.photo_id, msg.platform)
+    ok = admin.notify_payment(account, msg.photo_id, msg.platform, kind)
     if ok:
         _say(messenger, msg, account, L(
             "✅ Чегиңиз админге жиберилди.\n\n"
@@ -355,8 +385,9 @@ def handle_update(messenger, msg):
 
     # ---- Сүрөт келдиби? (төлөм чеги) ----
     if getattr(msg, "photo_id", None):
-        if PAY_WAIT.pop(msg.user_id, None):
-            return receive_receipt(messenger, msg, account)
+        kind = PAY_WAIT.pop(msg.user_id, None)
+        if kind:
+            return receive_receipt(messenger, msg, account, kind)
         return _say(messenger, msg, account, L(
             "📷 Сүрөт алдым, бирок азыр ал керек эмес.",
             "📷 Фото получено, но сейчас оно не требуется."))
@@ -465,16 +496,16 @@ def _dispatch(messenger, msg, account, a):
         if free <= 0:
             invite = _invite_block(account, msg.platform, "ky")
             invite_ru = _invite_block(account, msg.platform, "ru")
-            _say(messenger, msg, account, L(
-                 f"💡 Акысыз посттоңуз бүттү, бирок жаза бересиз!\n\n"
-                 f"🎁 1 дос чакырсаңыз — дагы {PASSENGER_NEXT_BONUS} пост.\n\n"
+            return _say(messenger, msg, account, L(
+                 f"💡 Акысыз жарыяңыз бүттү, бирок улантсаңыз болот!\n\n"
+                 f"🎁 1 дос чакырсаңыз — дагы {PASSENGER_NEXT_BONUS} жарыя\n\n"
                  f"{invite}",
-                 f"💡 Бесплатные посты закончились, но вы можете писать дальше!\n\n"
-                 f"🎁 Пригласите 1 друга — ещё {PASSENGER_NEXT_BONUS} пост.\n\n"
-                 f"{invite_ru}"))
+                 f"💡 Бесплатные объявления закончились, но вы можете продолжить!\n\n"
+                 f"🎁 Пригласите 1 друга — ещё {PASSENGER_NEXT_BONUS} объявл.\n\n"
+                 f"{invite_ru}"), back_kb())
         return _say(messenger, msg, account, "Тандаңыз:", passenger_menu_kb())
-    if a == "pay:start":
-        return start_payment(messenger, msg, account)
+    if a.startswith("pay:start:"):
+        return start_payment(messenger, msg, account, a.split(":")[2])
     if a == "menu:help":
         return help_menu(messenger, msg, account)
     if a == "menu:guide":
@@ -597,11 +628,14 @@ def driver_entry(messenger, msg, account):
             f"🚫 Жарыя берүү үчүн {REQUIRED_REFERRALS} дос чакырышыңыз керек.\n"
             f"Учурдагы прогресс: {account['ref_count'] or 0}/{REQUIRED_REFERRALS}\n\n"
             f"🎁 Ачылганда {GATE_BONUS_DAYS} күн акысыз жарыя бересиз!\n\n"
+            f"💳 Же {PAYMENT_AMOUNT} төлөп, {PAYMENT_HOURS} саатка дароо ачсаңыз болот.\n\n"
             f"{invite}",
             f"🚫 Чтобы оставить объявление, пригласите {REQUIRED_REFERRALS} друзей.\n"
             f"Текущий прогресс: {account['ref_count'] or 0}/{REQUIRED_REFERRALS}\n\n"
             f"🎁 После открытия вы получите {GATE_BONUS_DAYS} дней бесплатно!\n\n"
-            f"{invite_ru}"), back_kb())
+            f"💳 Или оплатите {PAYMENT_AMOUNT} — {PAYMENT_HOURS} часа сразу.\n\n"
+            f"{invite_ru}"),
+            Keyboard.from_flat([pay_btn("access"), _back_btn()]))
 
     # 2-этап: гейт ачык, бирок мөөнөт бүткөн → төлөм же дос чакыруу
     if not has_access(account):
@@ -618,10 +652,7 @@ def driver_entry(messenger, msg, account):
             f"💳 Или оплатите {PAYMENT_AMOUNT} — {PAYMENT_HOURS} часа\n\n"
             f"{PAYMENT_REQUISITES}\n\n"
             f"{invite_ru}"),
-            Keyboard.from_flat([
-                Button("💳 Төлөдүм (чек жиберем)", "pay:start"),
-                _back_btn(),
-            ]))
+            Keyboard.from_flat([pay_btn("access"), _back_btn()]))
 
     # 3-этап: баары ачык
     left = days_left(account)
@@ -648,7 +679,8 @@ def show_vip(messenger, msg, account):
         f"С VIP ваше объявление показывается в самом верху списка!\n\n"
         f"💳 Стоимость: {VIP_PRICE}\n{PAYMENT_REQUISITES}\n\n"
         f"🎁 Или пригласите {VIP_REFERRAL_STEP} друзей — бесплатно:\n\n"
-        f"{invite_ru}"), back_kb())
+        f"{invite_ru}"),
+        Keyboard.from_flat([pay_btn("vip"), _back_btn()]))
 
 
 # ============ ЖАРЫЯ БЕРҮҮ ============
@@ -1424,7 +1456,4 @@ def register_referral(messenger, newbie, inviter_id):
                  f"🎁 {days} күн акысыз жарыя бере аласыз.")
         else:
             tell(f"🎁 Дагы {days} күн акысыз кошулду!")
-
-        
-
 
