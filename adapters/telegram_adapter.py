@@ -23,7 +23,7 @@ BOT_TOKEN = os.environ.get("BOT_TOKEN")
 CHANNEL_ID = os.environ.get("CHANNEL_ID")  # мис. @kanal_aty же -1001234567890
 bot = telebot.TeleBot(BOT_TOKEN, parse_mode="HTML")
 
-TG_ADAPTER_VERSION = "v3-start-params"
+TG_ADAPTER_VERSION = "v4-photo"
 print(f"📨 telegram_adapter жүктөлдү. Версия = {TG_ADAPTER_VERSION}")
 
 # Ылдыйкы клавиатурадагы жазуу → core'дун ички коду
@@ -85,6 +85,11 @@ class TelegramMessenger(Messenger):
         kb.add(types.KeyboardButton("📱 Номеримди бөлүшөм", request_contact=True))
         bot.send_message(chat_id, text, reply_markup=kb)
 
+    def send_photo(self, user_id, photo, caption=""):
+        """photo — Telegram file_id же ачык URL."""
+        chat_id = user_id.split(":", 1)[1]
+        bot.send_photo(chat_id, photo, caption=caption)
+
     def publish_to_channel(self, text, links=None):
         """Каналга жарыялоо эми core/channel.py'де — экөө тең колдонот."""
         from core import channel
@@ -113,6 +118,19 @@ def _contact(m):
                      reply_markup=main_reply_kb(_lang_of(m.from_user.id)))
     msg = IncomingMessage(user_id=make_uid("telegram", m.from_user.id),
                           platform="telegram", text=m.contact.phone_number)
+    logic.handle_update(messenger, msg)
+
+
+@bot.message_handler(content_types=["photo"])
+def _photo(m):
+    """Сүрөт келди — төлөм чеги болушу мүмкүн.
+
+    Эң чоң өлчөмүн алабыз (m.photo[-1]) — админ так көрсүн.
+    """
+    file_id = m.photo[-1].file_id
+    msg = IncomingMessage(user_id=make_uid("telegram", m.from_user.id),
+                          platform="telegram", photo_id=file_id,
+                          text=(m.caption or ""))
     logic.handle_update(messenger, msg)
 
 
@@ -177,5 +195,6 @@ def run():
 
 if __name__ == "__main__":
     run()
+
 
 
