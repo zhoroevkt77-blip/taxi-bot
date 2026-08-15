@@ -15,7 +15,8 @@ HTML белгилери (<b>, <i>) бул жерде сакталат:
 
 import re
 from core.translations import RU, RU_WORDS
-
+TEXTS_VERSION = "v-test-0815"
+print(f"📄 core/texts.py жүктөлдү. Версия = {TEXTS_VERSION}")
 # ============ ЖӨНДӨӨЛӨР ============
 REQUIRED_REFERRALS = 3
 GATE_BONUS_DAYS = 10          # биринчи 3 дос үчүн
