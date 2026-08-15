@@ -437,6 +437,7 @@ def strip_html(text):
     if not text:
         return text
     out = _HTML_TAG_RE.sub("", text)
+  
     return out.replace("&amp;", "&").replace("&lt;", "<").replace("&gt;", ">")
 
 
