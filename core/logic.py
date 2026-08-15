@@ -11,6 +11,10 @@ Telegram да, WhatsApp да ушул файлды колдонот.
     Визард (пост жазуу) өзүнүн wizard_back() логикасы менен иштейт.
 
     WhatsApp'та бул баскыч ар дайым 99 болуп чыгат (adapter аны бөлүп алат).
+
+ТӨЛӨМ:
+    Мөөнөтү бүткөн айдоочу «💳 Төлөдүм» басып, чектин скриншотун
+    жиберет. Чек админге барат, ал ырастаса — мөөнөт автоматтык кошулат.
 """
 import os
 import re
@@ -27,11 +31,12 @@ from core.texts import (render, WELCOME, GUIDE, DRIVER_WARNING,
                         FAQ_INTRO, FAQ_POST, FAQ_FREE, FAQ_SEARCH,
                         FAQ_CONTACT, FAQ_SAFETY)
 
-LOGIC_VERSION = "v18-invite-ru"
+LOGIC_VERSION = "v19-payment"
 print(f"🧩 core/logic.py жүктөлдү. Версия = {LOGIC_VERSION}")
 
 SESSIONS = {}
 _SEARCH_CACHE = {}
+PAY_WAIT = {}     # user_id -> True (төлөм чеги күтүлүп жатат)
 NAV = {}          # user_id -> [экран действиелери] — "Артка" үчүн тарых
 BOT_USERNAME = "taxirobot_bot"
 WA_BOT_NUMBER = os.environ.get("WA_BOT_NUMBER", "996227155603")
@@ -199,6 +204,23 @@ def grant_days(account_id, days):
     return new_until
 
 
+def grant_hours(account_id, hours):
+    """Аккаунтка N саат кошот (төлөм ырасталганда)."""
+    acc = db.get_account(account_id)
+    base = _now()
+    until = acc.get("access_until") if acc else None
+    if until:
+        try:
+            cur = datetime.fromisoformat(str(until))
+            if cur > base:
+                base = cur
+        except (ValueError, TypeError):
+            pass
+    new_until = base + timedelta(hours=hours)
+    db.update_account(account_id, access_until=new_until.isoformat())
+    return new_until
+
+
 def days_left(account):
     """Канча күн калганын кайтарат (бүтсө 0)."""
     until = account.get("access_until")
@@ -238,6 +260,39 @@ def _say(messenger, msg, account, text, keyboard=None):
         messenger.send_prompt(msg.user_id, out)
     else:
         messenger.send_text(msg.user_id, out)
+
+
+# ============ ТӨЛӨМ ============
+
+def start_payment(messenger, msg, account):
+    """«💳 Төлөдүм» басылды — реквизиттерди берип, чек күтөбүз."""
+    PAY_WAIT[msg.user_id] = True
+    _say(messenger, msg, account, L(
+        f"💳 <b>Төлөм</b>\n\n"
+        f"{PAYMENT_REQUISITES}\n\n"
+        f"Сумма: <b>{PAYMENT_AMOUNT}</b> — {PAYMENT_HOURS} саат\n\n"
+        f"📷 Төлөгөндөн кийин чектин скриншотун ушул жерге жибериңиз.\n"
+        f"Админ текшергенден кийин мөөнөтүңүз автоматтык ачылат.",
+        f"💳 <b>Оплата</b>\n\n"
+        f"{PAYMENT_REQUISITES}\n\n"
+        f"Сумма: <b>{PAYMENT_AMOUNT}</b> — {PAYMENT_HOURS} ч.\n\n"
+        f"📷 После оплаты отправьте сюда скриншот чека.\n"
+        f"После проверки доступ откроется автоматически."), back_kb())
+
+
+def receive_receipt(messenger, msg, account):
+    """Колдонуучудан келген төлөм чегин админге жиберет."""
+    ok = admin.notify_payment(account, msg.photo_id, msg.platform)
+    if ok:
+        _say(messenger, msg, account, L(
+            "✅ Чегиңиз админге жиберилди.\n\n"
+            "Текшерилгенден кийин сизге кабар келет.",
+            "✅ Ваш чек отправлен администратору.\n\n"
+            "После проверки вы получите уведомление."))
+    else:
+        _say(messenger, msg, account, L(
+            "⚠️ Чекти жиберүүдө ката кетти. Кайра аракет кылыңыз.",
+            "⚠️ Ошибка при отправке чека. Попробуйте ещё раз."))
 
 
 # ============ КЛАВИАТУРАЛАР ============
@@ -298,12 +353,21 @@ def handle_update(messenger, msg):
     account = db.get_or_create_account(msg.user_id, msg.platform)
     session = SESSIONS.get(msg.user_id)
 
+    # ---- Сүрөт келдиби? (төлөм чеги) ----
+    if getattr(msg, "photo_id", None):
+        if PAY_WAIT.pop(msg.user_id, None):
+            return receive_receipt(messenger, msg, account)
+        return _say(messenger, msg, account, L(
+            "📷 Сүрөт алдым, бирок азыр ал керек эмес.",
+            "📷 Фото получено, но сейчас оно не требуется."))
+
     text = (msg.text or "").strip()
     if text == "/admin" and admin.handle_command(messenger, msg, account, _say):
         return
     if text.startswith("/start") or text in ("старт", "start"):
         SESSIONS.pop(msg.user_id, None)
         NAV.pop(msg.user_id, None)
+        PAY_WAIT.pop(msg.user_id, None)
         parts = text.split()
         if len(parts) > 1 and parts[1].startswith("ref"):
             try:
@@ -322,7 +386,7 @@ def handle_update(messenger, msg):
             frm, _, to = parts[1][4:].partition("_")
             if frm and to:
                 return _show_hashtag_results(messenger, msg, account, f"#{frm}_{to}", frm, to)
-                
+
         return _say(messenger, msg, account, WELCOME, main_menu_kb(msg.platform))
 
     # WhatsApp referral: колдонуучу "REF12" деген текст жиберет
@@ -371,9 +435,11 @@ def _menu_button(messenger, msg, account):
     if a == "menu:home":
         SESSIONS.pop(msg.user_id, None)
         NAV.pop(msg.user_id, None)
+        PAY_WAIT.pop(msg.user_id, None)
         return _say(messenger, msg, account, WELCOME, main_menu_kb(msg.platform))
 
     if a == "wback":
+        PAY_WAIT.pop(msg.user_id, None)
         stack = NAV.get(msg.user_id, [])
         if stack:
             stack.pop()                      # учурдагы экранды алып салабыз
@@ -407,6 +473,8 @@ def _dispatch(messenger, msg, account, a):
                  f"🎁 Пригласите 1 друга — ещё {PASSENGER_NEXT_BONUS} пост.\n\n"
                  f"{invite_ru}"))
         return _say(messenger, msg, account, "Тандаңыз:", passenger_menu_kb())
+    if a == "pay:start":
+        return start_payment(messenger, msg, account)
     if a == "menu:help":
         return help_menu(messenger, msg, account)
     if a == "menu:guide":
@@ -535,7 +603,7 @@ def driver_entry(messenger, msg, account):
             f"🎁 После открытия вы получите {GATE_BONUS_DAYS} дней бесплатно!\n\n"
             f"{invite_ru}"), back_kb())
 
-    # 2-этап: гейт ачык, бирок мөөнөт бүткөн
+    # 2-этап: гейт ачык, бирок мөөнөт бүткөн → төлөм же дос чакыруу
     if not has_access(account):
         return _say(messenger, msg, account, L(
             f"⏳ Акысыз мөөнөтүңүз бүттү.\n\n"
@@ -549,7 +617,11 @@ def driver_entry(messenger, msg, account):
             f"🎁 Пригласите {REQUIRED_REFERRALS} друзей — {REFERRAL_BONUS_DAYS} дней бесплатно\n"
             f"💳 Или оплатите {PAYMENT_AMOUNT} — {PAYMENT_HOURS} часа\n\n"
             f"{PAYMENT_REQUISITES}\n\n"
-            f"{invite_ru}"), back_kb())
+            f"{invite_ru}"),
+            Keyboard.from_flat([
+                Button("💳 Төлөдүм (чек жиберем)", "pay:start"),
+                _back_btn(),
+            ]))
 
     # 3-этап: баары ачык
     left = days_left(account)
@@ -1344,7 +1416,7 @@ def register_referral(messenger, newbie, inviter_id):
     earned = new_count // REQUIRED_REFERRALS      # канча бонус татыктуу
     if earned > granted:
         days = GATE_BONUS_DAYS if granted == 0 else REFERRAL_BONUS_DAYS
-        
+
         grant_days(inviter_id, days)
         db.update_account(inviter_id, gate_bonus=earned)
         if granted == 0:
@@ -1353,5 +1425,6 @@ def register_referral(messenger, newbie, inviter_id):
         else:
             tell(f"🎁 Дагы {days} күн акысыз кошулду!")
 
+        
 
 
