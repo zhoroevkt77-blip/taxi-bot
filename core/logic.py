@@ -32,7 +32,7 @@ from core.texts import (render, WELCOME, GUIDE, DRIVER_WARNING,
                         FAQ_INTRO, FAQ_POST, FAQ_FREE, FAQ_SEARCH,
                         FAQ_CONTACT, FAQ_SAFETY)
 
-LOGIC_VERSION = "v21-pay-driver"
+LOGIC_VERSION = "v22-nolimit"
 print(f"🧩 core/logic.py жүктөлдү. Версия = {LOGIC_VERSION}")
 
 SESSIONS = {}
@@ -686,8 +686,11 @@ def show_vip(messenger, msg, account):
 # ============ ЖАРЫЯ БЕРҮҮ ============
 
 def daily_limit_left(account_id, role):
-    """24 саат ичинде дагы канча жарыя бере алат. (айдоочу үчүн гана)"""
-    if role != "driver":
+    """24 саат ичинде дагы канча жарыя бере алат. (айдоочу үчүн гана)
+
+    DRIVER_DAILY_LIMIT = 0 болсо — чектөө жок, (None, None) кайтарат.
+    """
+    if role != "driver" or not DRIVER_DAILY_LIMIT:
         return None, None
     times = posts.recent_posts_times(account_id, "driver", 24)
     left = DRIVER_DAILY_LIMIT - len(times)
@@ -1456,4 +1459,5 @@ def register_referral(messenger, newbie, inviter_id):
                  f"🎁 {days} күн акысыз жарыя бере аласыз.")
         else:
             tell(f"🎁 Дагы {days} күн акысыз кошулду!")
+
 
