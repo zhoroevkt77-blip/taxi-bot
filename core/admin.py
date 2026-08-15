@@ -109,7 +109,13 @@ def _tell_user(messenger, account_id, text):
             print("Колдонуучуга кабар катасы:", e)
 
 
-def notify_payment(account, photo_ref, platform):
+KIND_LABEL = {
+    "access": "Жарыя берүү укугу",
+    "vip": "VIP айдоочу",
+}
+
+
+def notify_payment(account, photo_ref, platform, kind="access"):
     """Төлөм чегин админге жиберет. True кайтарса — жиберилди."""
     chat_id = _admin_chat_id()
     if not (chat_id and BOT_TOKEN and photo_ref):
@@ -119,15 +125,17 @@ def notify_payment(account, photo_ref, platform):
     acc_id = account["account_id"]
     name = account.get("first_name") or "—"
     phone = account.get("verified_phone") or "—"
+    label = KIND_LABEL.get(kind, kind)
     caption = (f"💳 <b>Төлөм чеги</b>\n\n"
+               f"🎯 Эмне үчүн: <b>{label}</b>\n"
                f"👤 Аккаунт: <code>{acc_id}</code>\n"
                f"🧍 Аты: {name}\n"
                f"📞 {phone}\n"
                f"🌐 Платформа: {platform}")
 
     kb = {"inline_keyboard": [[
-        {"text": "✅ Ырастоо", "callback_data": f"pay:ok:{acc_id}"},
-        {"text": "❌ Четке кагуу", "callback_data": f"pay:no:{acc_id}"},
+        {"text": "✅ Ырастоо", "callback_data": f"pay:ok:{kind}:{acc_id}"},
+        {"text": "❌ Четке кагуу", "callback_data": f"pay:no:{kind}:{acc_id}"},
     ]]}
 
     try:
@@ -150,9 +158,9 @@ def notify_payment(account, photo_ref, platform):
 def _payment_decision(messenger, msg, account, say, a):
     """Админ чекти ырастады же четке какты."""
     parts = a.split(":")
-    if len(parts) != 3:
+    if len(parts) != 4:
         return True
-    _, decision, raw_id = parts
+    _, decision, kind, raw_id = parts
     try:
         acc_id = int(raw_id)
     except ValueError:
@@ -161,23 +169,72 @@ def _payment_decision(messenger, msg, account, say, a):
         say(messenger, msg, account, "❌ Мындай аккаунт жок.")
         return True
 
-    from core.texts import PAYMENT_HOURS
+    label = KIND_LABEL.get(kind, kind)
 
-    if decision == "ok":
-        from core import logic
-        logic.grant_hours(acc_id, PAYMENT_HOURS)
+    if decision != "ok":
         say(messenger, msg, account,
-            f"✅ {acc_id}-аккаунтка {PAYMENT_HOURS} саат кошулду.")
-        _tell_user(messenger, acc_id,
-                   f"✅ Төлөмүңүз ырасталды!\n\n"
-                   f"{PAYMENT_HOURS} саат бою жарыя бере аласыз. Ак жол!")
-    else:
-        say(messenger, msg, account,
-            f"❌ {acc_id}-аккаунттун чеги четке кагылды.")
+            f"❌ {acc_id}-аккаунттун чеги четке кагылды ({label}).")
         _tell_user(messenger, acc_id,
                    "❌ Төлөмүңүз ырасталган жок.\n\n"
                    "Чекти кайра жиберип көрүңүз же админге кайрылыңыз.")
+        return True
+
+    from core import logic
+
+    if kind == "vip":
+        from core.texts import VIP_HOURS
+        ok = _set_vip(acc_id, VIP_HOURS)
+        if ok:
+            say(messenger, msg, account,
+                f"⭐ {acc_id}-аккаунт {VIP_HOURS} саатка VIP болду.")
+            _tell_user(messenger, acc_id,
+                       f"⭐ Төлөмүңүз ырасталды!\n\n"
+                       f"{VIP_HOURS} саат бою жарыяңыз тизменин эң үстүндө турат.")
+        else:
+            say(messenger, msg, account,
+                f"⚠️ VIP коюлган жок — базада VIP талаасы жок окшойт.\n"
+                f"Кол менен коюп коюңуз.")
+        return True
+
+    # kind == "access" (жана башка белгисиз түрлөр)
+    from core.texts import PAYMENT_HOURS
+    logic.grant_hours(acc_id, PAYMENT_HOURS)
+    # Гейт жабык болсо — төлөм аны да ачат
+    acc = db.get_account(acc_id)
+    from core.texts import REQUIRED_REFERRALS
+    if (acc.get("ref_count") or 0) < REQUIRED_REFERRALS:
+        db.update_account(acc_id, ref_count=REQUIRED_REFERRALS)
+    say(messenger, msg, account,
+        f"✅ {acc_id}-аккаунтка {PAYMENT_HOURS} саат кошулду.")
+    _tell_user(messenger, acc_id,
+               f"✅ Төлөмүңүз ырасталды!\n\n"
+               f"{PAYMENT_HOURS} саат бою жарыя бере аласыз. Ак жол!")
     return True
+
+
+def _set_vip(account_id, hours):
+    """Аккаунтка VIP мөөнөтүн коёт (accounts.vip_until).
+
+    Мөөнөт бүтө элек болсо — үстүнө кошот.
+    """
+    from datetime import datetime, timedelta
+    acc = db.get_account(account_id)
+    base = datetime.now()
+    cur = acc.get("vip_until") if acc else None
+    if cur:
+        try:
+            prev = datetime.fromisoformat(str(cur))
+            if prev > base:
+                base = prev
+        except (ValueError, TypeError):
+            pass
+    until = (base + timedelta(hours=hours)).isoformat()
+    try:
+        db.update_account(account_id, vip_until=until)
+        return True
+    except Exception as e:
+        print("VIP коюу катасы:", e)
+        return False
 
 
 # ============ БАСКЫЧТАР ============
@@ -351,5 +408,3 @@ def handle_text(messenger, msg, account, say):
 
     return True
 
-
-    
