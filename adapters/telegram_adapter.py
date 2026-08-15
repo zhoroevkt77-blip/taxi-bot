@@ -23,7 +23,7 @@ BOT_TOKEN = os.environ.get("BOT_TOKEN")
 CHANNEL_ID = os.environ.get("CHANNEL_ID")  # мис. @kanal_aty же -1001234567890
 bot = telebot.TeleBot(BOT_TOKEN, parse_mode="HTML")
 
-TG_ADAPTER_VERSION = "v4-photo"
+TG_ADAPTER_VERSION = "v5-logo"
 print(f"📨 telegram_adapter жүктөлдү. Версия = {TG_ADAPTER_VERSION}")
 
 # Ылдыйкы клавиатурадагы жазуу → core'дун ички коду
@@ -52,6 +52,43 @@ def main_reply_kb(lang="ky"):
         kb.row("📢 Каналыбыз", "🆘 Жардам")
         kb.row("🌐 Тил / Язык")
     return kb
+
+
+# Боттун өз аватары — /start'та салам катары чыгат.
+# Башталышта бир жолу алынып, file_id эсте калат (кайра-кайра сурабайбыз).
+BOT_PHOTO = None
+BOT_TITLE = "<b>ТАКСИ роБОТ</b>"
+
+
+def _load_bot_photo():
+    """Боттун профилиндеги сүрөттүн file_id'син алат.
+
+    Аватар коюлбаса же API уруксат бербесе — None калат,
+    ошондо /start'та мурдагыдай 🚕 эмодзи чыгат.
+    """
+    global BOT_PHOTO
+    try:
+        me = bot.get_me()
+        photos = bot.get_user_profile_photos(me.id, limit=1)
+        if photos and photos.total_count and photos.photos:
+            BOT_PHOTO = photos.photos[0][-1].file_id   # эң чоң өлчөмү
+            print("🖼 Боттун аватары табылды — /start'та ошол чыгат.")
+        else:
+            print("ℹ️ Ботто аватар жок — /start'та 🚕 эмодзи чыгат.")
+    except Exception as e:
+        print("Аватарды алуу катасы:", e)
+
+
+def _send_greeting(chat_id, lang):
+    """/start'тагы салам: логотип + аталыш, же болбосо эмодзи."""
+    kb = main_reply_kb(lang)
+    if BOT_PHOTO:
+        try:
+            bot.send_photo(chat_id, BOT_PHOTO, caption=BOT_TITLE, reply_markup=kb)
+            return
+        except Exception as e:
+            print("Логотип жиберүү катасы:", e)
+    bot.send_message(chat_id, "🚕", reply_markup=kb)
 
 
 def _lang_of(tg_user_id):
@@ -101,9 +138,8 @@ messenger = TelegramMessenger()
 
 @bot.message_handler(commands=["start"])
 def _start(m):
-    # Башкы менюну ылдыйга орнотуп коёбуз
-    bot.send_message(m.chat.id, "🚕",
-                     reply_markup=main_reply_kb(_lang_of(m.from_user.id)))
+    # Башкы менюну ылдыйга орнотуп, логотип менен саламдашабыз
+    _send_greeting(m.chat.id, _lang_of(m.from_user.id))
     # ВАЖНО: m.text'ти толук беребиз — "/start ref12" же "/start ht34"
     # деген параметрлер core'го жетиши керек.
     msg = IncomingMessage(user_id=make_uid("telegram", m.from_user.id),
@@ -155,8 +191,7 @@ def _callback(c):
     # Тил алмашса — ылдыйкы клавиатураны да жаңыртабыз
     if c.data.startswith("setlang:"):
         new_lang = c.data.split(":")[1]
-        bot.send_message(c.message.chat.id, "🚕",
-                         reply_markup=main_reply_kb(new_lang))
+        _send_greeting(c.message.chat.id, new_lang)
     bot.answer_callback_query(c.id)
 
 
@@ -181,6 +216,7 @@ def run():
     from core.db import init_db
     init_db()
     threading.Thread(target=_cleanup_loop, daemon=True).start()
+    _load_bot_photo()
     print("✅ Telegram адаптери башталды.")
 
     # 409 (Conflict) же тармак катасы болсо — процессти өлтүрбөй, кайра аракет
@@ -195,6 +231,4 @@ def run():
 
 if __name__ == "__main__":
     run()
-
-
 
