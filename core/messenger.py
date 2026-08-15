@@ -41,6 +41,7 @@ class IncomingMessage:
     is_button: bool = False
     button_action: str = ""
     contact_phone: str = None
+    photo_id: str = None   # Telegram: file_id | WhatsApp: downloadUrl
 
 
 class Messenger(ABC):
@@ -60,6 +61,14 @@ class Messenger(ABC):
     def ask_phone_contact(self, user_id, text):
         ...
 
+    def send_photo(self, user_id, photo, caption=""):
+        """Сүрөт жиберет.
+
+        photo — Telegram'да file_id, WhatsApp'та ачык URL.
+        Платформа колдобосо — эч нерсе кылбайт.
+        """
+        return None
+
     def publish_to_channel(self, text):
         """
         Жарыяны платформанын жалпы каналына чыгарат.
@@ -74,3 +83,4 @@ def make_uid(platform, raw_id):
     """Ар кайсы платформанын ID'син бирдиктүү форматка келтирет."""
     prefix = {"telegram": "tg", "whatsapp": "wa"}.get(platform, platform)
     return f"{prefix}:{raw_id}"
+
