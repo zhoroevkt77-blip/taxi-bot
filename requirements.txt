@@ -3,3 +3,4 @@ python-dotenv
 Flask
 requests
 psycopg2-binary
+# rebuild 0816
