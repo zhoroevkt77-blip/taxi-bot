@@ -23,6 +23,7 @@ from core import db, posts, admin, channel
 from core.messenger import Keyboard, Button
 from core.geo import REGIONS, DISTRICTS, DISTRICT_OBLASTS
 from core.texts import (render, WELCOME, GUIDE, DRIVER_WARNING,
+                        DRIVER_SAFETY,
                         REQUIRED_REFERRALS, VIP_PRICE,
                         PAYMENT_REQUISITES, VIP_REFERRAL_STEP,
                         GATE_BONUS_DAYS, REFERRAL_BONUS_DAYS,
@@ -32,7 +33,7 @@ from core.texts import (render, WELCOME, GUIDE, DRIVER_WARNING,
                         FAQ_INTRO, FAQ_POST, FAQ_FREE, FAQ_SEARCH,
                         FAQ_CONTACT, FAQ_SAFETY)
 
-LOGIC_VERSION = "v22-nolimit"
+LOGIC_VERSION = "v23-safety"
 print(f"🧩 core/logic.py жүктөлдү. Версия = {LOGIC_VERSION}")
 
 SESSIONS = {}
@@ -57,7 +58,7 @@ STEP_FIELD = {
 # Тарыхка жазылуучу экрандар (баскыч коддорунун башы)
 SCREEN_PREFIXES = (
     "menu:driver", "menu:passenger", "menu:help", "menu:channel", "menu:lang",
-    "menu:faq", "faq:", "menu:guide",
+    "menu:faq", "faq:", "menu:guide", "menu:safety",
     "d_search", "p_search", "d_my", "p_my", "d_vip",
     "sb:", "sr:", "lo:", "lof:", "lot:", "lr:", "ht:",
 )
@@ -510,6 +511,8 @@ def _dispatch(messenger, msg, account, a):
         return help_menu(messenger, msg, account)
     if a == "menu:guide":
         return _say(messenger, msg, account, GUIDE, back_kb())
+    if a == "menu:safety":
+        return _say(messenger, msg, account, DRIVER_SAFETY, back_kb())
     if a == "menu:faq":
         return faq_menu(messenger, msg, account)
     if a.startswith("faq:"):
@@ -581,6 +584,7 @@ def help_menu(messenger, msg, account):
     kb = Keyboard.from_flat([
         Button("📖 Нускама", "menu:guide"),
         Button("❓ Көп берилүүчү суроолорго жооп", "menu:faq"),
+        Button("🛡 Айдоочунун коопсуздугу", "menu:safety"),
         _back_btn(),
     ])
     _say(messenger, msg, account, L(
@@ -944,6 +948,8 @@ def save(messenger, msg, account, st):
          Keyboard.from_flat([Button(f"🔍 {tag}", f"ht:{post_id}"), _back_btn()]))
 
     if role == "driver":
+        # Жолго чыгаар алдында коопсуздукту эстетебиз
+        _say(messenger, msg, account, DRIVER_SAFETY)
         _say(messenger, msg, account, "Тандаңыз:", driver_menu_kb())
     else:
         _say(messenger, msg, account, "Тандаңыз:", passenger_menu_kb())
@@ -1459,5 +1465,3 @@ def register_referral(messenger, newbie, inviter_id):
                  f"🎁 {days} күн акысыз жарыя бере аласыз.")
         else:
             tell(f"🎁 Дагы {days} күн акысыз кошулду!")
-
-
