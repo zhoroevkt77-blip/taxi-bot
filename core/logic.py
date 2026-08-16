@@ -33,7 +33,7 @@ from core.texts import (render, WELCOME, GUIDE, DRIVER_WARNING,
                         FAQ_INTRO, FAQ_POST, FAQ_FREE, FAQ_SEARCH,
                         FAQ_CONTACT, FAQ_SAFETY)
 
-LOGIC_VERSION = "v23-safety"
+LOGIC_VERSION = "v25-clean"
 print(f"🧩 core/logic.py жүктөлдү. Версия = {LOGIC_VERSION}")
 
 SESSIONS = {}
@@ -876,8 +876,14 @@ def hashtag(frm, to):
     return f"#{short(frm)}_{short(to)}"
 
 
-def channel_text(d, role, tag):
-    """Каналга чыгуучу жарыянын тексти."""
+def channel_text(d, role, tag=None):
+    """Каналга чыгуучу жарыянын тексти.
+
+    Хештег КОЛДОНУЛБАЙТ: Telegram аны басканда «Публичные посты»
+    издөөсүн ачат, ал эми жарыялар жеке каналда — эч нерсе табылбайт.
+    Анын ордуна жарыянын астындагы «🔍 Ушул багыттагы бардык жарыялар»
+    баскычы иштейт — ал ботту ачып, эки платформадагы жарыяны тең берет.
+    """
     if role == "driver":
         return (
             f"🚗 <b>АЙДООЧУ</b>\n"
@@ -889,7 +895,7 @@ def channel_text(d, role, tag):
             f"💰 Баасы: {d.get('price')}\n"
             f"📝 {d.get('comment')}\n"
             f"📞 Чалуу: +{_digits_only(d.get('phone'))}\n"
-            f"<i>👆 Чалуу үчүн номерди басып көчүрүңүз</i>\n\n{tag}"
+            f"<i>👆 Чалуу үчүн номерди басып көчүрүңүз</i>"
             )
     return ""
 
@@ -922,12 +928,10 @@ def save(messenger, msg, account, st):
              "👇 <b>Ваше объявление:</b>\n\n"
              + post_card(fresh, "ru") + "\n\n" + contact_lines(fresh["phone"], "ru")))
 
-    tag = hashtag(d.get("from_city"), d.get("to_city"))
-
     if role == "driver":
         # Каналга чыгарабыз — платформа өзү билет, core билбейт.
         # Астына байланыш баскычтарын кошобуз.
-        msg_id = _publish(messenger, channel_text(d, role, tag),
+        msg_id = _publish(messenger, channel_text(d, role),
                           contact_links(d.get("phone"), post_id))
         if msg_id:
             posts.set_channel_msg(post_id, msg_id)
@@ -942,10 +946,13 @@ def save(messenger, msg, account, st):
     # Хештегди БАСКЫЧ кылабыз — Telegram'да текст хештег ботко жетпейт
     other_ky = "айдоочуларды" if role == "passenger" else "жүргүнчүлөрдү"
     other_ru = "водителей" if role == "passenger" else "пассажиров"
+    route = f"{d.get('from_city')} ➡️ {d.get('to_city')}"
     _say(messenger, msg, account, L(
-         f"💡 {tag}\n\nУшул багыттагы {other_ky} көрүү үчүн төмөнкү баскычты басыңыз:",
-         f"💡 {tag}\n\nЧтобы увидеть {other_ru} по этому направлению, нажмите кнопку:"),
-         Keyboard.from_flat([Button(f"🔍 {tag}", f"ht:{post_id}"), _back_btn()]))
+         f"💡 <b>{route}</b>\n\nУшул багыттагы {other_ky} көрүү үчүн "
+         f"төмөнкү баскычты басыңыз:",
+         f"💡 <b>{route}</b>\n\nЧтобы увидеть {other_ru} по этому направлению, "
+         f"нажмите кнопку:"),
+         Keyboard.from_flat([Button(f"🔍 {route}", f"ht:{post_id}"), _back_btn()]))
 
     if role == "driver":
         # Жолго чыгаар алдында коопсуздукту эстетебиз
@@ -1392,8 +1399,11 @@ def _show_hashtag_results(messenger, msg, account, tag, frm, to):
         return s.strip()
 
     rows = posts.search_by_hashtag(short(frm), short(to))
-    _say(messenger, msg, account, L(f"🔎 Издөө: <b>{tag}</b>",
-                                    f"🔎 Поиск: <b>{tag}</b>"))
+    # '#' белгисин колдонбойбуз: Telegram аны шилтеме кылып, басканда
+    # ботко эмес, өзүнүн издөөсүнө алып барат.
+    route = f"{short(frm)} ➡️ {short(to)}"
+    _say(messenger, msg, account, L(f"🔎 Издөө: <b>{route}</b>",
+                                    f"🔎 Поиск: <b>{route}</b>"))
     if not rows:
         return _say(messenger, msg, account, L(
                     "❌ Бул багытта азырынча жарыя жок.",
@@ -1465,3 +1475,4 @@ def register_referral(messenger, newbie, inviter_id):
                  f"🎁 {days} күн акысыз жарыя бере аласыз.")
         else:
             tell(f"🎁 Дагы {days} күн акысыз кошулду!")
+
