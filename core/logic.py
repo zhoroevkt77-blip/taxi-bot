@@ -282,6 +282,13 @@ PAY_KINDS = {
         "ky_gives": f"{VIP_HOURS} саат тизменин эң үстүндө",
         "ru_gives": f"{VIP_HOURS} часа в самом верху списка",
     },
+    "post": {
+        "ky_title": "💳 <b>Жүргүнчүнүн жарыясы</b>",
+        "ru_title": "💳 <b>Объявление пассажира</b>",
+        "amount": PASSENGER_POST_PRICE,
+        "ky_gives": "1 жарыя",
+        "ru_gives": "1 объявление",
+    },
 }
 
 
