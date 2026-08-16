@@ -20,7 +20,7 @@ HTML белгилери (<b>, <i>) бул жерде сакталат:
 import re
 from core.translations import RU, RU_WORDS
 
-TEXTS_VERSION = "v4-safety"
+TEXTS_VERSION = "v5-safety"
 print(f"📄 core/texts.py жүктөлдү. Версия = {TEXTS_VERSION}")
 
 # ============ ЖӨНДӨӨЛӨР ============
@@ -653,7 +653,7 @@ DRIVER_SAFETY = (
     "• <b>Электр зымдарын көзөмөлдөңүз:</b> унаанын электр системасы менен газдан "
     "май агуу жоктугун убагында текшертип туруңуз.\n\n"
 
-    "🚘💨 <b>Жолуңуз ак болсун — үй-бүлөңүз сизди аман-эсен күтүп турат!</b>"
+    "🚘💨 <b>Жолуңуз ак болсун — үй-бүлөңүз сиздин аман-эсендигиңизди күтүп турат!</b>"
 )
 
 DRIVER_SAFETY_RU = (
@@ -989,5 +989,3 @@ def render(text, lang="ky", platform="telegram"):
     if platform == "whatsapp":
         out = strip_html(out)
     return out
-
-
