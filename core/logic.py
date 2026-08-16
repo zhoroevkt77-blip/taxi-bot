@@ -29,6 +29,7 @@ from core.texts import (render, WELCOME, GUIDE, DRIVER_WARNING,
                         GATE_BONUS_DAYS, REFERRAL_BONUS_DAYS,
                         PASSENGER_FIRST_BONUS, PASSENGER_NEXT_BONUS,
                         PAYMENT_AMOUNT, PAYMENT_HOURS, DRIVER_DAILY_LIMIT,
+                        PASSENGER_POST_PRICE,
                         VIP_HOURS,
                         FAQ_INTRO, FAQ_POST, FAQ_FREE, FAQ_SEARCH,
                         FAQ_CONTACT, FAQ_SAFETY)
