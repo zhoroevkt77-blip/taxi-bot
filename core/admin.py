@@ -112,6 +112,7 @@ def _tell_user(messenger, account_id, text):
 KIND_LABEL = {
     "access": "Жарыя берүү укугу",
     "vip": "VIP айдоочу",
+    "post": "Жүргүнчүнүн жарыясы",
 }
 
 
@@ -180,7 +181,17 @@ def _payment_decision(messenger, msg, account, say, a):
         return True
 
     from core import logic
-
+    
+    if kind == "post":
+        acc = db.get_account(acc_id)
+        old = acc.get("free_posts", 0) or 0
+        db.update_account(acc_id, free_posts=old + 1)
+        say(messenger, msg, account,
+            f"✅ {acc_id}-аккаунтка 1 жарыя кошулду. (эми: {old + 1})")
+        _tell_user(messenger, acc_id,
+                   "✅ Төлөмүңүз ырасталды!\n\n"
+                   "Эми 1 жарыя бере аласыз. Ак жол!")
+        return True
     if kind == "vip":
         from core.texts import VIP_HOURS
         ok = _set_vip(acc_id, VIP_HOURS)
