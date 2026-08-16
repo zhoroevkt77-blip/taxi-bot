@@ -507,11 +507,14 @@ def _dispatch(messenger, msg, account, a):
             invite_ru = _invite_block(account, msg.platform, "ru")
             return _say(messenger, msg, account, L(
                  f"💡 Акысыз жарыяңыз бүттү, бирок улантсаңыз болот!\n\n"
-                 f"🎁 1 дос чакырсаңыз — дагы {PASSENGER_NEXT_BONUS} жарыя\n\n"
+                 f"💳 Баасы: {PASSENGER_POST_PRICE}\n{PAYMENT_REQUISITES}\n\n"
+                 f"🎁 Же 1 дос чакырсаңыз — дагы {PASSENGER_NEXT_BONUS} жарыя:\n\n"
                  f"{invite}",
                  f"💡 Бесплатные объявления закончились, но вы можете продолжить!\n\n"
-                 f"🎁 Пригласите 1 друга — ещё {PASSENGER_NEXT_BONUS} объявл.\n\n"
-                 f"{invite_ru}"), back_kb())
+                 f"💳 Стоимость: {PASSENGER_POST_PRICE}\n{PAYMENT_REQUISITES}\n\n"
+                 f"🎁 Или пригласите 1 друга — ещё {PASSENGER_NEXT_BONUS} объявл.:\n\n"
+                 f"{invite_ru}"),
+                 Keyboard.from_flat([pay_btn("post"), _back_btn()]))
         return _say(messenger, msg, account, "Тандаңыз:", passenger_menu_kb())
     if a.startswith("pay:start:"):
         return start_payment(messenger, msg, account, a.split(":")[2])
