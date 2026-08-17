@@ -34,7 +34,7 @@ from core.texts import (render, WELCOME, GUIDE, DRIVER_WARNING,
                         FAQ_INTRO, FAQ_POST, FAQ_FREE, FAQ_SEARCH,
                         FAQ_CONTACT, FAQ_SAFETY)
 
-LOGIC_VERSION = "v26-clean"
+LOGIC_VERSION = "v26-home-btn"
 print(f"🧩 core/logic.py жүктөлдү. Версия = {LOGIC_VERSION}")
 
 SESSIONS = {}
@@ -138,6 +138,8 @@ def contact_links(phone, post_id=None):
     Үчүнчү баскыч ботту ачып, ошол багыттагы бардык жарыяларды көрсөтөт.
     (Каналдагы текст хештегин басканда Telegram өзүнүн издөөсүн ачат,
      ботко жетпейт — ошондуктан баскыч керек.)
+
+    Төртүнчү баскыч ботту ачып, дароо башкы менюну көрсөтөт.
     """
     d = _digits_only(phone)
     rows = []
@@ -151,6 +153,10 @@ def contact_links(phone, post_id=None):
             ("🔍 Ушул багыттагы бардык жарыялар",
              f"https://t.me/{BOT_USERNAME}?start=ht{post_id}"),
         ])
+    # Ботту ачып, башкы менюну көрсөтөт
+    rows.append([
+        ("🏠 Ботту ачуу", f"https://t.me/{BOT_USERNAME}?start=home"),
+    ])
     return rows or None
 
 
@@ -1218,7 +1224,11 @@ def show_my_posts(messenger, msg, account, role):
 
 
 def delete_post(messenger, msg, account, post_id):
+    """Жарыяны өчүрөт — базадан да, каналдан да."""
+    p = posts.get_post(post_id)
     ok = posts.deactivate_post(post_id, account["account_id"])
+    if ok and p and p.get("channel_msg_id"):
+        channel.delete(p["channel_msg_id"])
     _say(messenger, msg, account,
          L("🗑 Жарыя өчүрүлдү." if ok else "❌ Жарыя табылган жок.",
            "🗑 Объявление удалено." if ok else "❌ Объявление не найдено."), back_kb())
@@ -1486,4 +1496,5 @@ def register_referral(messenger, newbie, inviter_id):
                  f"🎁 {days} күн акысыз жарыя бере аласыз.")
         else:
             tell(f"🎁 Дагы {days} күн акысыз кошулду!")
+
 
