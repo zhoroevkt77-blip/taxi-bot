@@ -34,7 +34,7 @@ from core.texts import (render, WELCOME, GUIDE, DRIVER_WARNING,
                         FAQ_INTRO, FAQ_POST, FAQ_FREE, FAQ_SEARCH,
                         FAQ_CONTACT, FAQ_SAFETY)
 
-LOGIC_VERSION = "v26-channel-btn"
+LOGIC_VERSION = "v26-date-month"
 print(f"🧩 core/logic.py жүктөлдү. Версия = {LOGIC_VERSION}")
 
 SESSIONS = {}
@@ -814,12 +814,24 @@ def day_hours():
     return [f"{h:02d}:00" for h in range(start, end + 1)]
 
 
+MONTHS_KY = ["январь", "февраль", "март", "апрель", "май", "июнь",
+             "июль", "август", "сентябрь", "октябрь", "ноябрь", "декабрь"]
+
+
+def date_label(offset):
+    """«Бүгүн · 17-август» / «Эртең · 18-август» — чаташпашы үчүн."""
+    d = datetime.now() + timedelta(days=offset)
+    name = "Бүгүн" if offset == 0 else "Эртең"
+    return f"{name} · {d.day}-{MONTHS_KY[d.month - 1]}"
+
+
 def ask_step(messenger, msg, account, st, step):
     st["step"] = step
     role = st["role"]
 
     if step == "date":
-        kb = Keyboard(rows=[[Button("Бүгүн", "dq:0"), Button("Эртең", "dq:1")],
+        kb = Keyboard(rows=[[Button(date_label(0), "dq:0"),
+                             Button(date_label(1), "dq:1")],
                             [_back_btn()]])
         return _say(messenger, msg, account, "📅 Качан жолго чыгасыз?", kb)
 
@@ -1078,7 +1090,7 @@ def _wizard_button(messenger, msg, account, st):
         return ask_step(messenger, msg, account, st, steps_of(st["role"])[0])
 
     if a.startswith("dq:"):
-        d["date_text"] = ["Бүгүн", "Эртең"][int(a.split(":")[1])]
+        d["date_text"] = date_label(int(a.split(":")[1]))
         return next_step(messenger, msg, account, st, "date")
 
     if a.startswith("tm:"):
@@ -1510,6 +1522,4 @@ def register_referral(messenger, newbie, inviter_id):
                  f"🎁 {days} күн акысыз жарыя бере аласыз.")
         else:
             tell(f"🎁 Дагы {days} күн акысыз кошулду!")
-
-
 
