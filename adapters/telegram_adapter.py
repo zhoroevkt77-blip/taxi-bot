@@ -8,6 +8,10 @@ Telegram update'терди core.messenger.IncomingMessage'ге айландыр�
 Башкы меню (Айдоочумун / Жүргүнчүмүн / Жардам / Тил) — Telegram'дын
 ылдыйкы reply-клавиатурасы. Ал ар дайым көрүнүп турат. Колдонуучу аны
 басканда текст келет, биз аны core тааныган баскыч кодуна которобуз.
+
+URL БАСКЫЧТАРЫ:
+    Button'дун url талаасы толтурулса, ал inline URL баскычы болуп
+    чыгат — басканда ботко кабар келбей, дароо ошол шилтеме ачылат.
 """
 
 import os
@@ -23,7 +27,7 @@ BOT_TOKEN = os.environ.get("BOT_TOKEN")
 CHANNEL_ID = os.environ.get("CHANNEL_ID")  # мис. @kanal_aty же -1001234567890
 bot = telebot.TeleBot(BOT_TOKEN, parse_mode="HTML")
 
-TG_ADAPTER_VERSION = "v5-logo"
+TG_ADAPTER_VERSION = "v6-url-btn"
 print(f"📨 telegram_adapter жүктөлдү. Версия = {TG_ADAPTER_VERSION}")
 
 # Ылдыйкы клавиатурадагы жазуу → core'дун ички коду
@@ -109,11 +113,19 @@ class TelegramMessenger(Messenger):
         bot.send_message(chat_id, text)
 
     def send_buttons(self, user_id, text, keyboard):
+        """Inline баскычтар. url коюлган баскыч түз шилтемени ачат."""
         chat_id = user_id.split(":", 1)[1]
         kb = types.InlineKeyboardMarkup()
         for row in keyboard.rows:
-            kb.row(*[types.InlineKeyboardButton(b.text, callback_data=b.action)
-                     for b in row])
+            btns = []
+            for b in row:
+                url = getattr(b, "url", None)
+                if url:
+                    btns.append(types.InlineKeyboardButton(b.text, url=url))
+                else:
+                    btns.append(types.InlineKeyboardButton(
+                        b.text, callback_data=b.action))
+            kb.row(*btns)
         bot.send_message(chat_id, text, reply_markup=kb)
 
     def ask_phone_contact(self, user_id, text):
@@ -195,27 +207,9 @@ def _callback(c):
     bot.answer_callback_query(c.id)
 
 
-def _cleanup_loop():
-    """Фондо ар саат сайын эскирген жарыяларды өчүрөт."""
-    from core import posts, channel
-    while True:
-        try:
-            expired = posts.cleanup_expired()
-            for p in expired:
-                mid = p.get("channel_msg_id")
-                if mid:
-                    channel.delete(mid)
-            if expired:
-                print(f"Тазаланды: {len(expired)} жарыя")
-        except Exception as e:
-            print("Cleanup катасы:", e)
-        time.sleep(3600)   # ар саат сайын
-
-
 def run():
     from core.db import init_db
     init_db()
-    threading.Thread(target=_cleanup_loop, daemon=True).start()
     _load_bot_photo()
     print("✅ Telegram адаптери башталды.")
 
@@ -231,4 +225,5 @@ def run():
 
 if __name__ == "__main__":
     run()
+
 
