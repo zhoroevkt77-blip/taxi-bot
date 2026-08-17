@@ -34,7 +34,7 @@ from core.texts import (render, WELCOME, GUIDE, DRIVER_WARNING,
                         FAQ_INTRO, FAQ_POST, FAQ_FREE, FAQ_SEARCH,
                         FAQ_CONTACT, FAQ_SAFETY)
 
-LOGIC_VERSION = "v26-home-btn"
+LOGIC_VERSION = "v26-channel-btn"
 print(f"🧩 core/logic.py жүктөлдү. Версия = {LOGIC_VERSION}")
 
 SESSIONS = {}
@@ -535,6 +535,20 @@ def _dispatch(messenger, msg, account, a):
     if a.startswith("faq:"):
         return faq_section(messenger, msg, account, a.split(":")[1])
     if a == "menu:channel":
+        # Telegram'да URL баскычы — басканда дароо каналга өтөт.
+        # WhatsApp'та мындай баскыч жок, ошондуктан шилтеме текст менен.
+        if msg.platform == "telegram":
+            kb = Keyboard.from_flat([
+                Button("📢 Каналга өтүү", "noop", CHANNEL_LINK),
+                _back_btn(),
+            ])
+            return _say(messenger, msg, account, L(
+                "📢 <b>Биздин канал</b>\n\n"
+                "Айдоочулардын жарыялары каналга чыгып турат — "
+                "жазылып койсоңуз, эң жаңыларын биринчи болуп көрөсүз.",
+                "📢 <b>Наш канал</b>\n\n"
+                "Объявления водителей публикуются в канале — подпишитесь, "
+                "и вы первыми увидите самые свежие."), kb)
         return _say(messenger, msg, account,
             f"📢 <b>Биздин канал</b>\n\n"
             f"Айдоочулардын жарыялары каналга чыгып турат — "
@@ -1496,5 +1510,6 @@ def register_referral(messenger, newbie, inviter_id):
                  f"🎁 {days} күн акысыз жарыя бере аласыз.")
         else:
             tell(f"🎁 Дагы {days} күн акысыз кошулду!")
+
 
 
