@@ -34,7 +34,7 @@ from core.texts import (render, WELCOME, GUIDE, DRIVER_WARNING,
                         FAQ_INTRO, FAQ_POST, FAQ_FREE, FAQ_SEARCH,
                         FAQ_CONTACT, FAQ_SAFETY)
 
-LOGIC_VERSION = "v26-date-month"
+LOGIC_VERSION = "v26-safety-hint"
 print(f"🧩 core/logic.py жүктөлдү. Версия = {LOGIC_VERSION}")
 
 SESSIONS = {}
@@ -905,9 +905,20 @@ def next_step(messenger, msg, account, st, current):
 def finish(messenger, msg, account, st):
     if st["role"] == "driver":
         st["step"] = "confirm"
+        _say(messenger, msg, account, DRIVER_WARNING)
         kb = Keyboard.from_flat([Button("✅ Түшүндүм, жарыялаймын", "confirm"),
                                  _back_btn()])
-        _say(messenger, msg, account, DRIVER_WARNING, kb)
+        _say(messenger, msg, account, L(
+            "🚦 <b>Коопсуздук эрежелерин окуп алыңыз!</b>\n\n"
+            "Башкы менюдагы «🆘 Жардам» баскычын басып, андагы "
+            "«🛡 Айдоочунун коопсуздугу» бөлүмүн окуп чыгыңыз.\n\n"
+            "<i>Ал жерде жолдогу коопсуздуктун 6 негизги эрежеси жазылган — "
+            "өз өмүрүңүз жана жүргүнчүлөрдүн өмүрү үчүн маанилүү.</i>",
+            "🚦 <b>Обязательно прочитайте правила безопасности!</b>\n\n"
+            "В главном меню нажмите «🆘 Помощь» и откройте раздел "
+            "«🛡 Безопасность водителя».\n\n"
+            "<i>Там изложены 6 главных правил безопасности в пути — "
+            "это важно для вашей жизни и жизни пассажиров.</i>"), kb)
     else:
         save(messenger, msg, account, st)
 
@@ -998,8 +1009,6 @@ def save(messenger, msg, account, st):
          Keyboard.from_flat([Button(f"🔍 {route}", f"ht:{post_id}"), _back_btn()]))
 
     if role == "driver":
-        # Жолго чыгаар алдында коопсуздукту эстетебиз
-        _say(messenger, msg, account, DRIVER_SAFETY)
         _say(messenger, msg, account, "Тандаңыз:", driver_menu_kb())
     else:
         _say(messenger, msg, account, "Тандаңыз:", passenger_menu_kb())
@@ -1522,4 +1531,5 @@ def register_referral(messenger, newbie, inviter_id):
                  f"🎁 {days} күн акысыз жарыя бере аласыз.")
         else:
             tell(f"🎁 Дагы {days} күн акысыз кошулду!")
+
 
