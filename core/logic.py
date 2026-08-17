@@ -1533,3 +1533,4 @@ def register_referral(messenger, newbie, inviter_id):
             tell(f"🎁 Дагы {days} күн акысыз кошулду!")
 
 
+
