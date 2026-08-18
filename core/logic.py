@@ -34,7 +34,7 @@ from core.texts import (render, WELCOME, GUIDE, DRIVER_WARNING,
                         FAQ_INTRO, FAQ_POST, FAQ_FREE, FAQ_SEARCH,
                         FAQ_CONTACT, FAQ_SAFETY)
 
-LOGIC_VERSION = "v26-safety-hint"
+LOGIC_VERSION = "v27-two-links"
 print(f"🧩 core/logic.py жүктөлдү. Версия = {LOGIC_VERSION}")
 
 SESSIONS = {}
@@ -104,20 +104,36 @@ def _share_link(link, lang="ky"):
 
 
 def _invite_block(account, platform, lang="ky"):
-    """Ар бир платформа үчүн ылайыктуу чакыруу блогун кайтарат."""
-    link = referral_link(account["account_id"], platform)
+    """Чакыруу блогу — ЭКИ шилтеме тең берилет.
+
+    Бот Telegram'да да, WhatsApp'та да иштегендиктен, колдонуучу
+    досуна кайсы мессенджер ыңгайлуу болсо, ошону жибере алат.
+    """
+    acc_id = account["account_id"]
+    tg_link = referral_link(acc_id, "telegram")
+    wa_link = referral_link(acc_id, "whatsapp")
     ru = lang == "ru"
+
     if platform == "telegram":
-        share = _share_link(link, lang)
+        share = _share_link(tg_link, lang)
         if ru:
-            return (f"👇 <a href=\"{share}\">Отправить друзьям</a>\n\n"
-                    f"Или скопируйте ссылку:\n<code>{link}</code>")
-        return (f"👇 <a href=\"{share}\">Досторуңузга жиберүү</a>\n\n"
-                f"Же шилтемени көчүрүп алыңыз:\n<code>{link}</code>")
-    # WhatsApp'та HTML жок — түз шилтеме
+            return (f"👇 <a href=\"{share}\">Отправить друзьям в Telegram</a>\n\n"
+                    f"Или скопируйте нужную ссылку:\n"
+                    f"💬 Telegram:\n<code>{tg_link}</code>\n"
+                    f"📱 WhatsApp:\n<code>{wa_link}</code>")
+        return (f"👇 <a href=\"{share}\">Досторуңузга Telegram аркылуу жиберүү</a>\n\n"
+                f"Же керектүү шилтемени көчүрүп алыңыз:\n"
+                f"💬 Telegram:\n<code>{tg_link}</code>\n"
+                f"📱 WhatsApp:\n<code>{wa_link}</code>")
+
+    # WhatsApp'та HTML жок — түз шилтемелер
     if ru:
-        return f"👇 Отправьте друзьям эту ссылку:\n{link}"
-    return f"👇 Досторуңузга ушул шилтемени жибериңиз:\n{link}"
+        return (f"👇 Отправьте друзьям одну из ссылок:\n\n"
+                f"📱 WhatsApp:\n{wa_link}\n\n"
+                f"💬 Telegram:\n{tg_link}")
+    return (f"👇 Досторуңузга ушул шилтемелердин бирин жибериңиз:\n\n"
+            f"📱 WhatsApp:\n{wa_link}\n\n"
+            f"💬 Telegram:\n{tg_link}")
 
 
 def _digits_only(phone):
@@ -970,7 +986,7 @@ def save(messenger, msg, account, st):
     SESSIONS.pop(msg.user_id, None)
 
     _say(messenger, msg, account, L(
-         "✅ Жарыя чыкты! Платформада 24 саат турат, андан кийин автоматтык өчүрүлөт.",
+         "✅ Жарыя чыкты! Ботто 24 саат турат, андан кийин автоматтык өчүрүлөт.",
          "✅ Объявление опубликовано! Оно будет висеть 24 часа, затем удалится автоматически."))
 
     # Колдонуучу өз жарыясын дароо көрсүн
@@ -994,7 +1010,7 @@ def save(messenger, msg, account, st):
                  "📢 Объявление также опубликовано в канале — пассажиры увидят его там."))
     else:
         _say(messenger, msg, account, L(
-             "🔒 Жүргүнчүнүн жарыясы каналга чыкпайт — аны айдоочулар платформада гана көрөт.",
+             "🔒 Жүргүнчүнүн жарыясы каналга чыкпайт — аны айдоочулар ботто гана көрөт.",
              "🔒 Объявление пассажира в канал не публикуется — его видят водители в боте."))
 
     # Хештегди БАСКЫЧ кылабыз — Telegram'да текст хештег ботко жетпейт
@@ -1531,6 +1547,7 @@ def register_referral(messenger, newbie, inviter_id):
                  f"🎁 {days} күн акысыз жарыя бере аласыз.")
         else:
             tell(f"🎁 Дагы {days} күн акысыз кошулду!")
+
 
 
 
