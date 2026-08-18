@@ -34,7 +34,7 @@ from core.texts import (render, WELCOME, GUIDE, DRIVER_WARNING,
                         FAQ_INTRO, FAQ_POST, FAQ_FREE, FAQ_SEARCH,
                         FAQ_CONTACT, FAQ_SAFETY)
 
-LOGIC_VERSION = "v27-wa-share"
+LOGIC_VERSION = "v27-same-invite"
 print(f"🧩 core/logic.py жүктөлдү. Версия = {LOGIC_VERSION}")
 
 SESSIONS = {}
@@ -104,7 +104,7 @@ def _share_link(link, lang="ky"):
 
 
 def _invite_block(account, platform, lang="ky"):
-    """Чакыруу блогу — ЭКИ шилтеме тең берилет.
+    """Чакыруу блогу — эки платформада тең бирдей көрүнөт.
 
     Бот Telegram'да да, WhatsApp'та да иштегендиктен, колдонуучу
     досуна кайсы мессенджер ыңгайлуу болсо, ошону жибере алат.
@@ -112,22 +112,8 @@ def _invite_block(account, platform, lang="ky"):
     acc_id = account["account_id"]
     tg_link = referral_link(acc_id, "telegram")
     wa_link = referral_link(acc_id, "whatsapp")
-    ru = lang == "ru"
 
-    if platform == "telegram":
-        share = _share_link(tg_link, lang)
-        if ru:
-            return (f"👇 <a href=\"{share}\">Отправить друзьям в Telegram</a>\n\n"
-                    f"Или скопируйте нужную ссылку:\n"
-                    f"💬 Telegram:\n<code>{tg_link}</code>\n"
-                    f"📱 WhatsApp:\n<code>{wa_link}</code>")
-        return (f"👇 <a href=\"{share}\">Досторуңузга Telegram аркылуу жиберүү</a>\n\n"
-                f"Же керектүү шилтемени көчүрүп алыңыз:\n"
-                f"💬 Telegram:\n<code>{tg_link}</code>\n"
-                f"📱 WhatsApp:\n<code>{wa_link}</code>")
-
-    # WhatsApp'та HTML жок — түз шилтемелер
-    if ru:
+    if lang == "ru":
         return (f"👇 Отправьте друзьям одну из ссылок:\n\n"
                 f"📱 WhatsApp:\n{wa_link}\n\n"
                 f"💬 Telegram:\n{tg_link}")
@@ -1565,7 +1551,6 @@ def register_referral(messenger, newbie, inviter_id):
     earned = new_count // REQUIRED_REFERRALS      # канча бонус татыктуу
     if earned > granted:
         days = GATE_BONUS_DAYS if granted == 0 else REFERRAL_BONUS_DAYS
-        
 
         grant_days(inviter_id, days)
         db.update_account(inviter_id, gate_bonus=earned)
