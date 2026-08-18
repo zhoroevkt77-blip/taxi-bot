@@ -34,7 +34,7 @@ from core.texts import (render, WELCOME, GUIDE, DRIVER_WARNING,
                         FAQ_INTRO, FAQ_POST, FAQ_FREE, FAQ_SEARCH,
                         FAQ_CONTACT, FAQ_SAFETY)
 
-LOGIC_VERSION = "v28-dual-search-btn"
+LOGIC_VERSION = "v30-wa-readable-search"
 print(f"🧩 core/logic.py жүктөлдү. Версия = {LOGIC_VERSION}")
 
 SESSIONS = {}
@@ -44,6 +44,10 @@ NAV = {}          # user_id -> [экран действиелери] — "Арт
 BOT_USERNAME = "taxirobot_bot"
 WA_BOT_NUMBER = os.environ.get("WA_BOT_NUMBER", "996227155603")
 CHANNEL_LINK = os.environ.get("CHANNEL_LINK", "https://t.me/taxirobotbot")
+
+# WhatsApp'тагы «издөө» кабарынын башталышы. Каналдагы баскыч ушул
+# сөздөр менен башталган текстти даярдайт, бот аны кайра таанып алат.
+SEARCH_PREFIX = "Издөө:"
 
 REGION_LIST = list(REGIONS.keys())
 
@@ -148,7 +152,7 @@ def _digits_only(phone):
     return digits
 
 
-def contact_links(phone, post_id=None):
+def contact_links(phone, post_id=None, from_city=None, to_city=None):
     """Каналдагы жарыянын астындагы баскычтар.
 
     1-катар — жарыя ээси менен байланыш:
@@ -158,11 +162,17 @@ def contact_links(phone, post_id=None):
     2-катар — ошол багыттагы БАРДЫК жарыяларды издөө. Эки баскыч:
         «🔍 Telegram Ботто издөө»  — Telegram боту ачылып, дароо чыгарат.
         «🔍 WhatsApp Ботто издөө» — WhatsApp боту ачылып, кабар талаасына
-        HT<post_id> коду даяр турат. Колдонуучу «жөнөтүү» басканда,
-        бот ошол багыттагы жарыяларды чыгарат.
+        «Издөө: Манас району ➡️ Бишкек» деген даяр текст турат.
+        Колдонуучу жөн эле жөнөтүү басат — бот дароо жарыяларды чыгарат.
+
+        WhatsApp'та кабарды автоматтык жөнөтүү мүмкүн эмес (платформа
+        уруксат бербейт), ошондуктан текстти адам түшүнгөндөй кылабыз —
+        код эмес, кадимки суроо болуп көрүнөт.
 
     3-катар — ботту ачып, дароо башкы менюну көрсөтөт.
     """
+    from urllib.parse import quote
+
     d = _digits_only(phone)
     rows = []
     if len(d) >= 9:
@@ -175,9 +185,14 @@ def contact_links(phone, post_id=None):
             ("🔍 Telegram Ботто издөө",
              f"https://t.me/{BOT_USERNAME}?start=ht{post_id}"),
         ])
+        # Багыт белгилүү болсо — адамча суроо, болбосо кыска код
+        if from_city and to_city:
+            wa_text = f"{SEARCH_PREFIX} {from_city} ➡️ {to_city}"
+        else:
+            wa_text = f"HT{post_id}"
         rows.append([
             ("🔍 WhatsApp Ботто издөө",
-             f"https://wa.me/{WA_BOT_NUMBER}?text=HT{post_id}"),
+             f"https://wa.me/{WA_BOT_NUMBER}?text={quote(wa_text)}"),
         ])
     # Ботту ачып, башкы менюну көрсөтөт
     rows.append([
@@ -472,9 +487,21 @@ def handle_update(messenger, msg):
             pass
         return _say(messenger, msg, account, WELCOME, main_menu_kb(msg.platform))
 
-    # Каналдагы «🔍 WhatsApp Ботто издөө» баскычы: "HT12" деген текст келет.
-    # Telegram'дын ?start=ht12 сыяктуу мүмкүнчүлүгү WhatsApp'та жок,
-    # ошондуктан шилтеме кабар талаасына код жазып коёт.
+    # Каналдагы «🔍 WhatsApp Ботто издөө» баскычы даярдаган текст:
+    # «Издөө: Манас району ➡️ Бишкек». Колдонуучу жөнөтүү басканда,
+    # бот аны таанып, ошол багыттагы жарыяларды чыгарат.
+    if text.startswith(SEARCH_PREFIX):
+        SESSIONS.pop(msg.user_id, None)
+        NAV.pop(msg.user_id, None)
+        body = text[len(SEARCH_PREFIX):]
+        parts = re.split(r"[➡→>]+\ufe0f?", body)
+        if len(parts) >= 2:
+            frm, to = parts[0].strip(), parts[1].strip()
+            if frm and to:
+                return _show_hashtag_results(messenger, msg, account,
+                                             f"{frm}_{to}", frm, to)
+
+    # Эски формат: «HT85» деген кыска код (багыт белгисиз болгон учурда)
     if re.fullmatch(r"(?i)ht\d+", text):
         SESSIONS.pop(msg.user_id, None)
         NAV.pop(msg.user_id, None)
@@ -1033,7 +1060,8 @@ def save(messenger, msg, account, st):
         # Каналга чыгарабыз — платформа өзү билет, core билбейт.
         # Астына байланыш баскычтарын кошобуз.
         msg_id = _publish(messenger, channel_text(d, role),
-                          contact_links(d.get("phone"), post_id))
+                          contact_links(d.get("phone"), post_id,
+                                        d.get("from_city"), d.get("to_city")))
         if msg_id:
             posts.set_channel_msg(post_id, msg_id)
             _say(messenger, msg, account, L(
@@ -1578,5 +1606,4 @@ def register_referral(messenger, newbie, inviter_id):
                  f"🎁 {days} күн акысыз жарыя бере аласыз.")
         else:
             tell(f"🎁 Дагы {days} күн акысыз кошулду!")
-
 
