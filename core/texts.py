@@ -20,7 +20,7 @@ HTML белгилери (<b>, <i>) бул жерде сакталат:
 import re
 from core.translations import RU, RU_WORDS
 
-TEXTS_VERSION = "v7-bot-word"
+TEXTS_VERSION = "v8-test"
 print(f"📄 core/texts.py жүктөлдү. Версия = {TEXTS_VERSION}")
 
 # ============ ЖӨНДӨӨЛӨР ============
