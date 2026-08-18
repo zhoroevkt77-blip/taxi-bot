@@ -34,7 +34,7 @@ from core.texts import (render, WELCOME, GUIDE, DRIVER_WARNING,
                         FAQ_INTRO, FAQ_POST, FAQ_FREE, FAQ_SEARCH,
                         FAQ_CONTACT, FAQ_SAFETY)
 
-LOGIC_VERSION = "v34-notify-both"
+LOGIC_VERSION = "v35-no-tail-menu"
 print(f"🧩 core/logic.py жүктөлдү. Версия = {LOGIC_VERSION}")
 
 SESSIONS = {}
@@ -1156,11 +1156,10 @@ def save(messenger, msg, account, st):
     _show_hashtag_results(messenger, msg, account, route,
                           d.get("from_city"), d.get("to_city"),
                           only_role=other_role)
-
-    if role == "driver":
-        _say(messenger, msg, account, "Тандаңыз:", driver_menu_kb())
-    else:
-        _say(messenger, msg, account, "Тандаңыз:", passenger_menu_kb())
+    # Ушуну менен бүтөт. Мурда бул жерде дагы бир «Тандаңыз:» менюсу
+    # чыгып, тизменин артынан ашыкча болуп калчу. Telegram'да ылдыйкы
+    # клавиатура ансыз да турат, WhatsApp'та «0 — башкы меню» эскертүүсү
+    # бар, ошондуктан кошумча меню керек эмес.
 
 
 # ============ БАСКЫЧТАР (визард ичинде) ============
@@ -1693,5 +1692,4 @@ def register_referral(messenger, newbie, inviter_id):
                  f"🎁 {days} күн акысыз жарыя бере аласыз.")
         else:
             tell(f"🎁 Дагы {days} күн акысыз кошулду!")
-
 
