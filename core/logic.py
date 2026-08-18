@@ -34,7 +34,7 @@ from core.texts import (render, WELCOME, GUIDE, DRIVER_WARNING,
                         FAQ_INTRO, FAQ_POST, FAQ_FREE, FAQ_SEARCH,
                         FAQ_CONTACT, FAQ_SAFETY)
 
-LOGIC_VERSION = "v27-same-invite"
+LOGIC_VERSION = "v27-no-wa-btn"
 print(f"🧩 core/logic.py жүктөлдү. Версия = {LOGIC_VERSION}")
 
 SESSIONS = {}
@@ -132,12 +132,12 @@ def _wa_share_link(account, lang="ky"):
 
 
 def _share_buttons(account, platform, lang="ky"):
-    """Дос чакыруу баскычтары. Telegram'да WhatsApp'ка да жибере алат."""
-    if platform != "telegram":
-        return []
-    label = ("📱 Отправить через WhatsApp" if lang == "ru"
-             else "📱 WhatsApp аркылуу жиберүү")
-    return [Button(label, "noop", _wa_share_link(account, lang))]
+    """Дос чакыруу баскычтары.
+
+    Азырынча колдонулбайт — шилтемелер тексттин ичинде берилет,
+    ошондуктан кошумча баскыч чаташтырбашы үчүн бош кайтарат.
+    """
+    return []
 
 
 def _digits_only(phone):
