@@ -34,7 +34,7 @@ from core.texts import (render, WELCOME, GUIDE, DRIVER_WARNING,
                         FAQ_INTRO, FAQ_POST, FAQ_FREE, FAQ_SEARCH,
                         FAQ_CONTACT, FAQ_SAFETY)
 
-LOGIC_VERSION = "v35-no-tail-menu"
+LOGIC_VERSION = "v36-quiet-hints"
 print(f"🧩 core/logic.py жүктөлдү. Версия = {LOGIC_VERSION}")
 
 SESSIONS = {}
@@ -288,7 +288,15 @@ def L(ky, ru):
     return ("__L__", ky, ru)
 
 
-def _say(messenger, msg, account, text, keyboard=None):
+def _say(messenger, msg, account, text, keyboard=None, hint=False):
+    """Кабар жиберет.
+
+    hint=True болсо, WhatsApp'та кабардын аягына «0 — Башкы меню»
+    эскертүүсү кошулат. Ал колдонуучудан ЖООП КҮТҮЛГӨН жерде гана
+    керек: визард суроолорунда жана тизме бүткөндөн кийин. Маалымат
+    берүүчү кабарларга (жарыя карточкасы, «жарыя чыкты» ж.б.) кошулбайт —
+    болбосо бир экранда ондогон жолу кайталанып, жүдөтөт.
+    """
     lang = account.get("lang", "ky") if account else "ky"
 
     # Эки тилдүү текст болсо — даяр вариантты алабыз, котормо катмарын аттайбыз
@@ -305,8 +313,8 @@ def _say(messenger, msg, account, text, keyboard=None):
                 for b in row:
                     b.text = render(b.text, lang, messenger.platform_name)
         messenger.send_buttons(msg.user_id, out, keyboard)
-    elif hasattr(messenger, "send_prompt"):
-        # Меню жок кабар — платформа кааласа "0 — башкы меню" эскертүүсүн кошот
+    elif hint and hasattr(messenger, "send_prompt"):
+        # Жооп күтүлгөн кабар — платформа «0 — башкы меню» эскертүүсүн кошот
         messenger.send_prompt(msg.user_id, out)
     else:
         messenger.send_text(msg.user_id, out)
@@ -378,7 +386,7 @@ def receive_receipt(messenger, msg, account, kind):
     else:
         _say(messenger, msg, account, L(
             "⚠️ Чекти жиберүүдө ката кетти. Кайра аракет кылыңыз.",
-            "⚠️ Ошибка при отправке чека. Попробуйте ещё раз."))
+            "⚠️ Ошибка при отправке чека. Попробуйте ещё раз."), hint=True)
 
 
 # ============ КЛАВИАТУРАЛАР ============
@@ -446,7 +454,7 @@ def handle_update(messenger, msg):
             return receive_receipt(messenger, msg, account, kind)
         return _say(messenger, msg, account, L(
             "📷 Сүрөт алдым, бирок азыр ал керек эмес.",
-            "📷 Фото получено, но сейчас оно не требуется."))
+            "📷 Фото получено, но сейчас оно не требуется."), hint=True)
 
     text = (msg.text or "").strip()
     if text == "/admin" and admin.handle_command(messenger, msg, account, _say):
@@ -538,7 +546,7 @@ def handle_update(messenger, msg):
 
     _say(messenger, msg, account, L(
         "Түшүнбөй калдым 🙈 /start деп жазып көрүңүз.",
-        "Не понял 🙈 Попробуйте написать /start."))
+        "Не понял 🙈 Попробуйте написать /start."), hint=True)
 
 
 # ============ МЕНЮ ============
@@ -1342,7 +1350,8 @@ def verify_phone(messenger, msg, account, st, raw):
     phone = normalize_phone(raw)
     if not phone:
         return _say(messenger, msg, account,
-                    "⚠️ Телефон номери туура эмес. Кайра аракет кылыңыз.")
+                    "⚠️ Телефон номери туура эмес. Кайра аракет кылыңыз.",
+                    hint=True)
     existing = db.find_account_by_phone(phone)
     if existing and existing["account_id"] != account["account_id"]:
         db.link_second_platform(existing["account_id"], msg.user_id, msg.platform)
@@ -1692,4 +1701,5 @@ def register_referral(messenger, newbie, inviter_id):
                  f"🎁 {days} күн акысыз жарыя бере аласыз.")
         else:
             tell(f"🎁 Дагы {days} күн акысыз кошулду!")
+
 
