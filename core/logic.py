@@ -34,7 +34,7 @@ from core.texts import (render, WELCOME, GUIDE, DRIVER_WARNING,
                         FAQ_INTRO, FAQ_POST, FAQ_FREE, FAQ_SEARCH,
                         FAQ_CONTACT, FAQ_SAFETY)
 
-LOGIC_VERSION = "v27-no-wa-btn"
+LOGIC_VERSION = "v28-dual-search-btn"
 print(f"🧩 core/logic.py жүктөлдү. Версия = {LOGIC_VERSION}")
 
 SESSIONS = {}
@@ -151,27 +151,33 @@ def _digits_only(phone):
 def contact_links(phone, post_id=None):
     """Каналдагы жарыянын астындагы баскычтар.
 
-    Telegram inline баскычтары http/https/tg шилтемелерин гана кабыл алат,
-    ошондуктан 'чалуу' үчүн түз шилтеме жок — экөө тең чатты ачат,
-    андан кийин колдонуучу ошол жерден чала алат.
+    1-катар — жарыя ээси менен байланыш:
+        «💬 Telegram» жана «📱 WhatsApp» — экөө тең анын чатын ачат,
+        андан кийин колдонуучу ошол жерден жаза же чала алат.
 
-    Үчүнчү баскыч ботту ачып, ошол багыттагы бардык жарыяларды көрсөтөт.
-    (Каналдагы текст хештегин басканда Telegram өзүнүн издөөсүн ачат,
-     ботко жетпейт — ошондуктан баскыч керек.)
+    2-катар — ошол багыттагы БАРДЫК жарыяларды издөө. Эки баскыч:
+        «🔍 Telegram Ботто издөө»  — Telegram боту ачылып, дароо чыгарат.
+        «🔍 WhatsApp Ботто издөө» — WhatsApp боту ачылып, кабар талаасына
+        HT<post_id> коду даяр турат. Колдонуучу «жөнөтүү» басканда,
+        бот ошол багыттагы жарыяларды чыгарат.
 
-    Төртүнчү баскыч ботту ачып, дароо башкы менюну көрсөтөт.
+    3-катар — ботту ачып, дароо башкы менюну көрсөтөт.
     """
     d = _digits_only(phone)
     rows = []
     if len(d) >= 9:
         rows.append([
             ("💬 Telegram", f"https://t.me/+{d}"),
-            ("📱 WhatsApp — жазуу же чалуу", f"https://wa.me/{d}"),
+            ("📱 WhatsApp", f"https://wa.me/{d}"),
         ])
     if post_id:
         rows.append([
-            ("🔍 Ушул багыттагы бардык жарыялар",
+            ("🔍 Telegram Ботто издөө",
              f"https://t.me/{BOT_USERNAME}?start=ht{post_id}"),
+        ])
+        rows.append([
+            ("🔍 WhatsApp Ботто издөө",
+             f"https://wa.me/{WA_BOT_NUMBER}?text=HT{post_id}"),
         ])
     # Ботту ачып, башкы менюну көрсөтөт
     rows.append([
@@ -195,10 +201,10 @@ def contact_lines(phone, lang="ky"):
     if lang == "ru":
         return (f"📞 Позвонить: +{d}\n"
                 f"💬 Telegram: https://t.me/+{d}\n"
-                f"📱 WhatsApp (написать или позвонить): https://wa.me/{d}")
+                f"📱 WhatsApp: https://wa.me/{d}")
     return (f"📞 Чалуу: +{d}\n"
             f"💬 Telegram: https://t.me/+{d}\n"
-            f"📱 WhatsApp (жазуу же чалуу): https://wa.me/{d}")
+            f"📱 WhatsApp: https://wa.me/{d}")
 
 
 def _now():
@@ -443,7 +449,7 @@ def handle_update(messenger, msg):
             except ValueError:
                 pass
         elif len(parts) > 1 and parts[1].startswith("ht"):
-            # Каналдагы «🔍 Ушул багыттагы бардык жарыялар» баскычы
+            # Каналдагы «🔍 Telegram Ботто издөө» баскычы
             try:
                 return hashtag_search(messenger, msg, account, int(parts[1][2:]))
             except ValueError:
@@ -465,6 +471,17 @@ def handle_update(messenger, msg):
         except ValueError:
             pass
         return _say(messenger, msg, account, WELCOME, main_menu_kb(msg.platform))
+
+    # Каналдагы «🔍 WhatsApp Ботто издөө» баскычы: "HT12" деген текст келет.
+    # Telegram'дын ?start=ht12 сыяктуу мүмкүнчүлүгү WhatsApp'та жок,
+    # ошондуктан шилтеме кабар талаасына код жазып коёт.
+    if re.fullmatch(r"(?i)ht\d+", text):
+        SESSIONS.pop(msg.user_id, None)
+        NAV.pop(msg.user_id, None)
+        try:
+            return hashtag_search(messenger, msg, account, int(text[2:]))
+        except ValueError:
+            pass
 
     if session:
         # "🏠 Башкы меню" визарддын ичинен да иштеши керек
@@ -619,10 +636,11 @@ def _dispatch(messenger, msg, account, a):
 
 
 def hashtag_search(messenger, msg, account, post_id):
-    """Жарыянын багыты боюнча издейт (хештег баскычы басылганда).
+    """Жарыянын багыты боюнча издейт (издөө баскычы басылганда).
 
     Telegram'да билдирүүдөгү хештегди басканда, ал ботко жиберилбейт —
     Telegram өзүнүн издөөсүн ачат. Ошондуктан баскыч колдонобуз.
+    WhatsApp'та ошол эле натыйжа "HT<post_id>" коду аркылуу келет.
     """
     p = posts.get_post(post_id)
     if not p:
@@ -963,8 +981,9 @@ def channel_text(d, role, tag=None):
 
     Хештег КОЛДОНУЛБАЙТ: Telegram аны басканда «Публичные посты»
     издөөсүн ачат, ал эми жарыялар жеке каналда — эч нерсе табылбайт.
-    Анын ордуна жарыянын астындагы «🔍 Ушул багыттагы бардык жарыялар»
-    баскычы иштейт — ал ботту ачып, эки платформадагы жарыяны тең берет.
+    Анын ордуна жарыянын астындагы эки издөө баскычы иштейт:
+    «🔍 Telegram Ботто издөө» жана «🔍 WhatsApp Ботто издөө» —
+    экөө тең ошол багыттагы бардык жарыяларды чыгарат.
     """
     if role == "driver":
         return (
@@ -1559,4 +1578,5 @@ def register_referral(messenger, newbie, inviter_id):
                  f"🎁 {days} күн акысыз жарыя бере аласыз.")
         else:
             tell(f"🎁 Дагы {days} күн акысыз кошулду!")
+
 
