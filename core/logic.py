@@ -34,7 +34,7 @@ from core.texts import (render, WELCOME, GUIDE, DRIVER_WARNING,
                         FAQ_INTRO, FAQ_POST, FAQ_FREE, FAQ_SEARCH,
                         FAQ_CONTACT, FAQ_SAFETY)
 
-LOGIC_VERSION = "v30-wa-readable-search"
+LOGIC_VERSION = "v34-notify-both"
 print(f"🧩 core/logic.py жүктөлдү. Версия = {LOGIC_VERSION}")
 
 SESSIONS = {}
@@ -464,9 +464,12 @@ def handle_update(messenger, msg):
             except ValueError:
                 pass
         elif len(parts) > 1 and parts[1].startswith("ht"):
-            # Каналдагы «🔍 Telegram Ботто издөө» баскычы
+            # Каналдагы «🔍 Telegram Ботто издөө» баскычы.
+            # Каналда айдоочулардын жарыясы турат — ошондуктан
+            # айдоочуларды гана чыгарабыз.
             try:
-                return hashtag_search(messenger, msg, account, int(parts[1][2:]))
+                return hashtag_search(messenger, msg, account,
+                                      int(parts[1][2:]), only_role="driver")
             except ValueError:
                 pass
         elif len(parts) > 1 and parts[1].startswith("tag_"):
@@ -489,7 +492,7 @@ def handle_update(messenger, msg):
 
     # Каналдагы «🔍 WhatsApp Ботто издөө» баскычы даярдаган текст:
     # «Издөө: Манас району ➡️ Бишкек». Колдонуучу жөнөтүү басканда,
-    # бот аны таанып, ошол багыттагы жарыяларды чыгарат.
+    # бот аны таанып, ошол багыттагы АЙДООЧУЛАРДЫ чыгарат.
     if text.startswith(SEARCH_PREFIX):
         SESSIONS.pop(msg.user_id, None)
         NAV.pop(msg.user_id, None)
@@ -499,14 +502,16 @@ def handle_update(messenger, msg):
             frm, to = parts[0].strip(), parts[1].strip()
             if frm and to:
                 return _show_hashtag_results(messenger, msg, account,
-                                             f"{frm}_{to}", frm, to)
+                                             f"{frm}_{to}", frm, to,
+                                             only_role="driver")
 
     # Эски формат: «HT85» деген кыска код (багыт белгисиз болгон учурда)
     if re.fullmatch(r"(?i)ht\d+", text):
         SESSIONS.pop(msg.user_id, None)
         NAV.pop(msg.user_id, None)
         try:
-            return hashtag_search(messenger, msg, account, int(text[2:]))
+            return hashtag_search(messenger, msg, account, int(text[2:]),
+                                  only_role="driver")
         except ValueError:
             pass
 
@@ -657,24 +662,41 @@ def _dispatch(messenger, msg, account, a):
     if a.startswith("lr:"):
         return local_results(messenger, msg, account, a)
     if a.startswith("ht:"):
-        return hashtag_search(messenger, msg, account, int(a.split(":")[1]))
+        # «ht:12»    — ошол багыттагы БААРЫ (канал баскычы)
+        # «ht:12:o»  — карама-каршы рол гана (өз жарыяңдан кийинки баскыч)
+        parts = a.split(":")
+        only_other = len(parts) > 2 and parts[2] == "o"
+        return hashtag_search(messenger, msg, account, int(parts[1]),
+                              only_other=only_other)
 
     _say(messenger, msg, account, "Бул баскыч азырынча иштелип чыккан жок.")
 
 
-def hashtag_search(messenger, msg, account, post_id):
+def hashtag_search(messenger, msg, account, post_id, only_other=False,
+                   only_role=None):
     """Жарыянын багыты боюнча издейт (издөө баскычы басылганда).
 
     Telegram'да билдирүүдөгү хештегди басканда, ал ботко жиберилбейт —
     Telegram өзүнүн издөөсүн ачат. Ошондуктан баскыч колдонобуз.
-    WhatsApp'та ошол эле натыйжа "HT<post_id>" коду аркылуу келет.
+
+    only_role — так кайсы рол керек ("driver" же "passenger").
+        Каналдан келгендерге ар дайым "driver" берилет: каналда
+        айдоочулардын жарыясы турат, аны көргөн адам да айдоочу
+        издеп жүрөт. Айдоочулар жүргүнчүнү өз бөлүмүнөн табат.
+
+    only_other=True — карама-каршы рол: айдоочу издесе жүргүнчүлөр,
+        жүргүнчү издесе айдоочулар. Колдонуучу өз жарыясын жазып
+        бүткөндөн кийин колдонулат.
     """
     p = posts.get_post(post_id)
     if not p:
         return _say(messenger, msg, account, "❌ Жарыя табылган жок.", back_kb())
     tag = hashtag(p.get("from_city"), p.get("to_city"))
+    if only_other and not only_role:
+        only_role = "passenger" if p.get("role") == "driver" else "driver"
     _show_hashtag_results(messenger, msg, account, tag,
-                          p.get("from_city"), p.get("to_city"))
+                          p.get("from_city"), p.get("to_city"),
+                          only_role=only_role)
 
 
 def help_menu(messenger, msg, account):
@@ -1037,6 +1059,51 @@ def _publish(messenger, text, links):
     return channel.publish(text, links)
 
 
+def _notify_opposite(author, post_id, d, role):
+    """Жаңы жарыя тууралуу тескери ролдогуларга кабар берет.
+
+    Айдоочу жазса → ошол багытта жарыясы бар ЖҮРГҮНЧҮЛӨРГӨ,
+    жүргүнчү жазса → ошол багытта жарыясы бар АЙДООЧУЛАРГА.
+
+    Кимдин жарыясы активдүү болсо, ошол кабар алат. Жарыя 24 саат
+    жашайт — демек ал бир суткага «жазылып» калгандай болот, мөөнөт
+    бүткөндө кабар өзүнөн-өзү токтойт. Өзүнчө таблица керек эмес.
+
+    Кабарлоо экинчи даражадагы иш: ката чыкса, жарыя берүү агымы
+    бузулбашы керек. Ошондуктан баары try ичинде.
+    """
+    try:
+        from core import notify
+        p = posts.get_post(post_id)
+        if not p:
+            return
+
+        target_role = "passenger" if role == "driver" else "driver"
+        ids = notify.accounts_with_active_posts(
+            target_role, d.get("from_city"), d.get("to_city"),
+            exclude_account_id=author["account_id"])
+        if not ids:
+            return
+
+        route = f"{d.get('from_city')} ➡️ {d.get('to_city')}"
+        ky_head = "🔔 <b>Жаңы айдоочу!</b>" if role == "driver" else "🔔 <b>Жаңы жүргүнчү!</b>"
+        ru_head = "🔔 <b>Новый водитель!</b>" if role == "driver" else "🔔 <b>Новый пассажир!</b>"
+
+        for acc_id in ids:
+            other = db.get_account(acc_id)
+            if not other or other.get("banned"):
+                continue
+            lang = other.get("lang", "ky")
+            head = (ru_head if lang == "ru" else ky_head) + f"\n{route}\n\n"
+            body = post_card(p, lang) + "\n\n" + contact_lines(p["phone"], lang)
+            notify.send(acc_id, head + body)
+
+        who = "жүргүнчүгө" if role == "driver" else "айдоочуга"
+        print(f"🔔 Жаңы {role} жарыясы: {len(ids)} {who} кабарланды.")
+    except Exception as e:
+        print("Кабарлоо катасы:", e)
+
+
 def save(messenger, msg, account, st):
     d = st["data"]
     role = st["role"]
@@ -1072,16 +1139,23 @@ def save(messenger, msg, account, st):
              "🔒 Жүргүнчүнүн жарыясы каналга чыкпайт — аны айдоочулар ботто гана көрөт.",
              "🔒 Объявление пассажира в канал не публикуется — его видят водители в боте."))
 
-    # Хештегди БАСКЫЧ кылабыз — Telegram'да текст хештег ботко жетпейт
-    other_ky = "айдоочуларды" if role == "passenger" else "жүргүнчүлөрдү"
-    other_ru = "водителей" if role == "passenger" else "пассажиров"
+    # Жаңы жарыя — тескери ролдогуларга кабар кетет.
+    # Айдоочу жазса → жүргүнчүлөргө, жүргүнчү жазса → айдоочуларга.
+    _notify_opposite(account, post_id, d, role)
+
+    # Жарыя жазылгандан кийин ошол багыттагы тескери ролдун жарыялары
+    # ДАРОО тизме болуп чыгат — баскыч басып отуруунун кереги жок.
+    # Айдоочу жазса → жүргүнчүлөр, жүргүнчү жазса → айдоочулар.
+    other_role = "passenger" if role == "driver" else "driver"
+    other_ky = "жүргүнчүлөр" if role == "driver" else "айдоочулар"
+    other_ru = "пассажиры" if role == "driver" else "водители"
     route = f"{d.get('from_city')} ➡️ {d.get('to_city')}"
     _say(messenger, msg, account, L(
-         f"💡 <b>{route}</b>\n\nУшул багыттагы {other_ky} көрүү үчүн "
-         f"төмөнкү баскычты басыңыз:",
-         f"💡 <b>{route}</b>\n\nЧтобы увидеть {other_ru} по этому направлению, "
-         f"нажмите кнопку:"),
-         Keyboard.from_flat([Button(f"🔍 {route}", f"ht:{post_id}"), _back_btn()]))
+         f"💡 <b>{route}</b>\n\nУшул багыттагы {other_ky} төмөндө:",
+         f"💡 <b>{route}</b>\n\nПо этому направлению {other_ru}:"))
+    _show_hashtag_results(messenger, msg, account, route,
+                          d.get("from_city"), d.get("to_city"),
+                          only_role=other_role)
 
     if role == "driver":
         _say(messenger, msg, account, "Тандаңыз:", driver_menu_kb())
@@ -1523,19 +1597,32 @@ def _hashtag(messenger, msg, account, text):
     _show_hashtag_results(messenger, msg, account, text, frm, to)
 
 
-def _show_hashtag_results(messenger, msg, account, tag, frm, to):
-    """Багыт боюнча жарыяларды ролго бөлүп көрсөтөт."""
+def _show_hashtag_results(messenger, msg, account, tag, frm, to, only_role=None):
+    """Багыт боюнча жарыяларды ролго бөлүп көрсөтөт.
+
+    only_role берилсе — ошол рол гана чыгат ("driver" же "passenger").
+    """
     def short(s):
         s = re.sub(r"\s*(облусу|шаары|району|\(Раззаков\))\s*", "", s or "")
         return s.strip()
 
     rows = posts.search_by_hashtag(short(frm), short(to))
+    if only_role:
+        rows = [p for p in rows if p["role"] == only_role]
     # '#' белгисин колдонбойбуз: Telegram аны шилтеме кылып, басканда
     # ботко эмес, өзүнүн издөөсүнө алып барат.
     route = f"{short(frm)} ➡️ {short(to)}"
     _say(messenger, msg, account, L(f"🔎 Издөө: <b>{route}</b>",
                                     f"🔎 Поиск: <b>{route}</b>"))
     if not rows:
+        if only_role == "passenger":
+            return _say(messenger, msg, account, L(
+                "❌ Бул багытта азырынча жүргүнчү жок.",
+                "❌ По этому направлению пока нет пассажиров."), back_kb())
+        if only_role == "driver":
+            return _say(messenger, msg, account, L(
+                "❌ Бул багытта азырынча айдоочу жок.",
+                "❌ По этому направлению пока нет водителей."), back_kb())
         return _say(messenger, msg, account, L(
                     "❌ Бул багытта азырынча жарыя жок.",
                     "❌ По этому направлению пока нет объявлений."), back_kb())
@@ -1606,4 +1693,5 @@ def register_referral(messenger, newbie, inviter_id):
                  f"🎁 {days} күн акысыз жарыя бере аласыз.")
         else:
             tell(f"🎁 Дагы {days} күн акысыз кошулду!")
+
 
