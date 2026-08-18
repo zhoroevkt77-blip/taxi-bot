@@ -34,7 +34,7 @@ from core.texts import (render, WELCOME, GUIDE, DRIVER_WARNING,
                         FAQ_INTRO, FAQ_POST, FAQ_FREE, FAQ_SEARCH,
                         FAQ_CONTACT, FAQ_SAFETY)
 
-LOGIC_VERSION = "v27-two-links"
+LOGIC_VERSION = "v27-wa-share"
 print(f"🧩 core/logic.py жүктөлдү. Версия = {LOGIC_VERSION}")
 
 SESSIONS = {}
@@ -134,6 +134,24 @@ def _invite_block(account, platform, lang="ky"):
     return (f"👇 Досторуңузга ушул шилтемелердин бирин жибериңиз:\n\n"
             f"📱 WhatsApp:\n{wa_link}\n\n"
             f"💬 Telegram:\n{tg_link}")
+
+
+def _wa_share_link(account, lang="ky"):
+    """WhatsApp'тын контакт тандоо терезесин ачуучу шилтеме."""
+    from urllib.parse import quote
+    link = referral_link(account["account_id"], "whatsapp")
+    text = ("ТАКСИ роБОТ — самый простой способ найти такси!" if lang == "ru"
+            else "ТАКСИ роБОТ — Бишкекке такси табуунун эң оңой жолу!")
+    return "https://wa.me/?text=" + quote(f"{text}\n{link}")
+
+
+def _share_buttons(account, platform, lang="ky"):
+    """Дос чакыруу баскычтары. Telegram'да WhatsApp'ка да жибере алат."""
+    if platform != "telegram":
+        return []
+    label = ("📱 Отправить через WhatsApp" if lang == "ru"
+             else "📱 WhatsApp аркылуу жиберүү")
+    return [Button(label, "noop", _wa_share_link(account, lang))]
 
 
 def _digits_only(phone):
@@ -536,7 +554,9 @@ def _dispatch(messenger, msg, account, a):
                  f"💳 Стоимость: {PASSENGER_POST_PRICE}\n{PAYMENT_REQUISITES}\n\n"
                  f"🎁 Или пригласите 1 друга — ещё {PASSENGER_NEXT_BONUS} объявл.:\n\n"
                  f"{invite_ru}"),
-                 Keyboard.from_flat([pay_btn("post"), _back_btn()]))
+                 Keyboard.from_flat(_share_buttons(account, msg.platform,
+                                   account.get("lang", "ky"))
+                                   + [pay_btn("post"), _back_btn()]))
         return _say(messenger, msg, account, "Тандаңыз:", passenger_menu_kb())
     if a.startswith("pay:start:"):
         return start_payment(messenger, msg, account, a.split(":")[2])
@@ -686,7 +706,9 @@ def driver_entry(messenger, msg, account):
             f"🎁 После открытия вы получите {GATE_BONUS_DAYS} дней бесплатно!\n\n"
             f"💳 Или оплатите {PAYMENT_AMOUNT} — {PAYMENT_HOURS} часа сразу.\n\n"
             f"{invite_ru}"),
-            Keyboard.from_flat([pay_btn("access"), _back_btn()]))
+            Keyboard.from_flat(_share_buttons(account, msg.platform,
+                              account.get("lang", "ky"))
+                              + [pay_btn("access"), _back_btn()]))
 
     # 2-этап: гейт ачык, бирок мөөнөт бүткөн → төлөм же дос чакыруу
     if not has_access(account):
@@ -703,7 +725,9 @@ def driver_entry(messenger, msg, account):
             f"💳 Или оплатите {PAYMENT_AMOUNT} — {PAYMENT_HOURS} часа\n\n"
             f"{PAYMENT_REQUISITES}\n\n"
             f"{invite_ru}"),
-            Keyboard.from_flat([pay_btn("access"), _back_btn()]))
+            Keyboard.from_flat(_share_buttons(account, msg.platform,
+                              account.get("lang", "ky"))
+                              + [pay_btn("access"), _back_btn()]))
 
     # 3-этап: баары ачык
     left = days_left(account)
@@ -731,7 +755,9 @@ def show_vip(messenger, msg, account):
         f"💳 Стоимость: {VIP_PRICE}\n{PAYMENT_REQUISITES}\n\n"
         f"🎁 Или пригласите {VIP_REFERRAL_STEP} друзей — бесплатно:\n\n"
         f"{invite_ru}"),
-        Keyboard.from_flat([pay_btn("vip"), _back_btn()]))
+        Keyboard.from_flat(_share_buttons(account, msg.platform,
+                          account.get("lang", "ky"))
+                          + [pay_btn("vip"), _back_btn()]))
 
 
 # ============ ЖАРЫЯ БЕРҮҮ ============
@@ -1547,7 +1573,4 @@ def register_referral(messenger, newbie, inviter_id):
                  f"🎁 {days} күн акысыз жарыя бере аласыз.")
         else:
             tell(f"🎁 Дагы {days} күн акысыз кошулду!")
-
-
-
 
