@@ -34,7 +34,7 @@ from core.texts import (render, WELCOME, GUIDE, DRIVER_WARNING,
                         FAQ_INTRO, FAQ_POST, FAQ_FREE, FAQ_SEARCH,
                         FAQ_CONTACT, FAQ_SAFETY)
 
-LOGIC_VERSION = "v36-quiet-hints"
+LOGIC_VERSION = "v37-short-menu"
 print(f"🧩 core/logic.py жүктөлдү. Версия = {LOGIC_VERSION}")
 
 SESSIONS = {}
@@ -48,6 +48,14 @@ CHANNEL_LINK = os.environ.get("CHANNEL_LINK", "https://t.me/taxirobotbot")
 # WhatsApp'тагы «издөө» кабарынын башталышы. Каналдагы баскыч ушул
 # сөздөр менен башталган текстти даярдайт, бот аны кайра таанып алат.
 SEARCH_PREFIX = "Издөө:"
+
+# Башкы менюнун кыска аталышы. Толук WELCOME тексти /start деп КОЛ МЕНЕН
+# жазылганда гана чыгат — ал биринчи таанышуу үчүн. Каналдан ботко
+# өткөндө, тил алмашканда же менюга кайтканда ушул кыска сап чыгат,
+# антпесе узун текст ар жолу кайталанып жүдөтөт.
+MENU_TITLE = ("__L__",
+              "🚕 <b>ТАКСИ роБОТ</b>\n\nТандаңыз:",
+              "🚕 <b>ТАКСИ роБОТ</b>\n\nВыберите:")
 
 REGION_LIST = list(REGIONS.keys())
 
@@ -485,7 +493,10 @@ def handle_update(messenger, msg):
             if frm and to:
                 return _show_hashtag_results(messenger, msg, account, f"#{frm}_{to}", frm, to)
 
-        return _say(messenger, msg, account, WELCOME, main_menu_kb(msg.platform))
+        # Таза "/start" — биринчи таанышуу, толук текст.
+        # "/start home" (каналдан) же башка параметр — кыска аталыш.
+        head = MENU_TITLE if len(parts) > 1 else WELCOME
+        return _say(messenger, msg, account, head, main_menu_kb(msg.platform))
 
     # WhatsApp referral: колдонуучу "REF12" деген текст жиберет
     if re.fullmatch(r"(?i)ref\d+", text):
@@ -496,7 +507,7 @@ def handle_update(messenger, msg):
             account = db.get_account(account["account_id"])
         except ValueError:
             pass
-        return _say(messenger, msg, account, WELCOME, main_menu_kb(msg.platform))
+        return _say(messenger, msg, account, MENU_TITLE, main_menu_kb(msg.platform))
 
     # Каналдагы «🔍 WhatsApp Ботто издөө» баскычы даярдаган текст:
     # «Издөө: Манас району ➡️ Бишкек». Колдонуучу жөнөтүү басканда,
@@ -528,7 +539,7 @@ def handle_update(messenger, msg):
         if msg.is_button and msg.button_action == "menu:home":
             SESSIONS.pop(msg.user_id, None)
             NAV.pop(msg.user_id, None)
-            return _say(messenger, msg, account, WELCOME, main_menu_kb(msg.platform))
+            return _say(messenger, msg, account, MENU_TITLE, main_menu_kb(msg.platform))
         if msg.is_button:
             return _wizard_button(messenger, msg, account, session)
         return _wizard_text(messenger, msg, account, session)
@@ -559,7 +570,7 @@ def _menu_button(messenger, msg, account):
         SESSIONS.pop(msg.user_id, None)
         NAV.pop(msg.user_id, None)
         PAY_WAIT.pop(msg.user_id, None)
-        return _say(messenger, msg, account, WELCOME, main_menu_kb(msg.platform))
+        return _say(messenger, msg, account, MENU_TITLE, main_menu_kb(msg.platform))
 
     if a == "wback":
         PAY_WAIT.pop(msg.user_id, None)
@@ -569,7 +580,7 @@ def _menu_button(messenger, msg, account):
         prev = stack[-1] if stack else None
         if not prev:
             NAV.pop(msg.user_id, None)
-            return _say(messenger, msg, account, WELCOME,
+            return _say(messenger, msg, account, MENU_TITLE,
                         main_menu_kb(msg.platform))
         return _dispatch(messenger, msg, account, prev)
 
@@ -641,7 +652,7 @@ def _dispatch(messenger, msg, account, a):
         db.update_account(account["account_id"], lang=new_lang)
         account = db.get_account(account["account_id"])
         NAV.pop(msg.user_id, None)
-        return _say(messenger, msg, account, WELCOME, main_menu_kb(msg.platform))
+        return _say(messenger, msg, account, MENU_TITLE, main_menu_kb(msg.platform))
     if a == "d_types":
         return post_types(messenger, msg, account, "driver")
     if a == "p_types":
@@ -1701,5 +1712,4 @@ def register_referral(messenger, newbie, inviter_id):
                  f"🎁 {days} күн акысыз жарыя бере аласыз.")
         else:
             tell(f"🎁 Дагы {days} күн акысыз кошулду!")
-
 
