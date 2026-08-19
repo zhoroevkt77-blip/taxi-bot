@@ -24,7 +24,7 @@ HTML белгилери (<b>, <i>) бул жерде сакталат:
 import re
 from core.translations import RU, RU_WORDS
 
-TEXTS_VERSION = "v9-clean-guide"
+TEXTS_VERSION = "v10-notify-guide"
 print(f"📄 core/texts.py жүктөлдү. Версия = {TEXTS_VERSION}")
 
 # ============ ЖӨНДӨӨЛӨР ============
@@ -823,5 +823,4 @@ def render(text, lang="ky", platform="telegram"):
     if platform == "whatsapp":
         out = strip_html(out)
     return out
-
 
