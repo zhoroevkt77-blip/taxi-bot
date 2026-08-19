@@ -34,7 +34,7 @@ from core.texts import (render, WELCOME, GUIDE, DRIVER_WARNING,
                         FAQ_INTRO, FAQ_POST, FAQ_FREE, FAQ_SEARCH,
                         FAQ_CONTACT, FAQ_SAFETY)
 
-LOGIC_VERSION = "v39-fresh"
+LOGIC_VERSION = "v38-no-dup-header"
 print(f"🧩 core/logic.py жүктөлдү. Версия = {LOGIC_VERSION}")
 
 SESSIONS = {}
@@ -976,6 +976,7 @@ def ask_step(messenger, msg, account, st, step):
 
     if step == "people":
         rows = [[Button(str(i), f"ppl:{i}") for i in range(1, 5)],
+                [Button(str(i), f"ppl:{i}") for i in range(5, 8)],
                 [_back_btn()]]
         return _say(messenger, msg, account,
             "👥 Канча киши жолго чыгасыңар?\n\n"
