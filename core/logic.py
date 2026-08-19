@@ -34,7 +34,7 @@ from core.texts import (render, WELCOME, GUIDE, DRIVER_WARNING,
                         FAQ_INTRO, FAQ_POST, FAQ_FREE, FAQ_SEARCH,
                         FAQ_CONTACT, FAQ_SAFETY)
 
-LOGIC_VERSION = "v37-short-menu"
+LOGIC_VERSION = "v38-no-dup-header"
 print(f"🧩 core/logic.py жүктөлдү. Версия = {LOGIC_VERSION}")
 
 SESSIONS = {}
@@ -1174,7 +1174,7 @@ def save(messenger, msg, account, st):
          f"💡 <b>{route}</b>\n\nПо этому направлению {other_ru}:"))
     _show_hashtag_results(messenger, msg, account, route,
                           d.get("from_city"), d.get("to_city"),
-                          only_role=other_role)
+                          only_role=other_role, show_header=False)
     # Ушуну менен бүтөт. Мурда бул жерде дагы бир «Тандаңыз:» менюсу
     # чыгып, тизменин артынан ашыкча болуп калчу. Telegram'да ылдыйкы
     # клавиатура ансыз да турат, WhatsApp'та «0 — башкы меню» эскертүүсү
@@ -1616,10 +1616,15 @@ def _hashtag(messenger, msg, account, text):
     _show_hashtag_results(messenger, msg, account, text, frm, to)
 
 
-def _show_hashtag_results(messenger, msg, account, tag, frm, to, only_role=None):
+def _show_hashtag_results(messenger, msg, account, tag, frm, to, only_role=None,
+                          show_header=True):
     """Багыт боюнча жарыяларды ролго бөлүп көрсөтөт.
 
     only_role берилсе — ошол рол гана чыгат ("driver" же "passenger").
+
+    show_header=False — «🔎 Издөө: ...» деген баш сап чыкпайт. Жарыя
+    жазып бүткөндөн кийин чакырылганда керек: ал жерде багыт өйдө жакта
+    ансыз да жазылып турат, эки баш сап катар турса ашыкча болот.
     """
     def short(s):
         s = re.sub(r"\s*(облусу|шаары|району|\(Раззаков\))\s*", "", s or "")
@@ -1631,8 +1636,9 @@ def _show_hashtag_results(messenger, msg, account, tag, frm, to, only_role=None)
     # '#' белгисин колдонбойбуз: Telegram аны шилтеме кылып, басканда
     # ботко эмес, өзүнүн издөөсүнө алып барат.
     route = f"{short(frm)} ➡️ {short(to)}"
-    _say(messenger, msg, account, L(f"🔎 Издөө: <b>{route}</b>",
-                                    f"🔎 Поиск: <b>{route}</b>"))
+    if show_header:
+        _say(messenger, msg, account, L(f"🔎 Издөө: <b>{route}</b>",
+                                        f"🔎 Поиск: <b>{route}</b>"))
     if not rows:
         if only_role == "passenger":
             return _say(messenger, msg, account, L(
