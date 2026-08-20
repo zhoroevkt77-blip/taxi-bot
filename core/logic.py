@@ -34,7 +34,7 @@ from core.texts import (render, WELCOME, GUIDE, DRIVER_WARNING,
                         FAQ_INTRO, FAQ_POST, FAQ_FREE, FAQ_SEARCH,
                         FAQ_CONTACT, FAQ_SAFETY)
 
-LOGIC_VERSION = "v40-people-7"
+LOGIC_VERSION = "v41-local-label"
 print(f"🧩 core/logic.py жүктөлдү. Версия = {LOGIC_VERSION}")
 
 SESSIONS = {}
@@ -1444,7 +1444,7 @@ def search_menu(messenger, msg, account, target_role):
     kb = Keyboard.from_flat([
         Button("➡️ Бишкекке бараткандар", f"sb:to:{target_role}"),
         Button("⬅️ Бишкектен кайткандар", f"sb:from:{target_role}"),
-        Button("🗺 Район аралык", f"lo:{target_role}"),
+        Button("🗺 Район/шаар аралык", f"lo:{target_role}"),
         _back_btn(),
     ])
     _say(messenger, msg, account, L("Багытты тандаңыз:", "Выберите направление:"), kb)
@@ -1469,7 +1469,7 @@ def local_oblast_from(messenger, msg, account, action):
     btns.append(_back_btn())
 
     _say(messenger, msg, account, L(
-         "🗺 <b>Район аралык</b>\n\nКайсы облустан чыккандарды издейсиз?",
+         "🗺 <b>Район/шаар аралык</b>\n\nКайсы облустан чыккандарды издейсиз?",
          "🗺 <b>Между районами</b>\n\nИз какой области ищете?"),
          Keyboard.from_flat(btns))
 
