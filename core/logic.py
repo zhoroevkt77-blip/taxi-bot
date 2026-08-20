@@ -34,7 +34,7 @@ from core.texts import (render, WELCOME, GUIDE, DRIVER_WARNING,
                         FAQ_INTRO, FAQ_POST, FAQ_FREE, FAQ_SEARCH,
                         FAQ_CONTACT, FAQ_SAFETY)
 
-LOGIC_VERSION = "v41-local-label"
+LOGIC_VERSION = "v42-menu-width"
 print(f"🧩 core/logic.py жүктөлдү. Версия = {LOGIC_VERSION}")
 
 SESSIONS = {}
@@ -611,7 +611,10 @@ def _dispatch(messenger, msg, account, a):
                  Keyboard.from_flat(_share_buttons(account, msg.platform,
                                    account.get("lang", "ky"))
                                    + [pay_btn("post"), _back_btn()]))
-        return _say(messenger, msg, account, "Тандаңыз:", passenger_menu_kb())
+        return _say(messenger, msg, account, L(
+            f"🧳 Акысыз жарыяңыз: дагы {free}\n\nТандаңыз:",
+            f"🧳 Бесплатных объявлений: ещё {free}\n\nВыберите:"),
+            passenger_menu_kb())
     if a.startswith("pay:start:"):
         return start_payment(messenger, msg, account, a.split(":")[2])
     if a == "menu:help":
