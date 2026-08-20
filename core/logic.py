@@ -34,7 +34,7 @@ from core.texts import (render, WELCOME, GUIDE, DRIVER_WARNING,
                         FAQ_INTRO, FAQ_POST, FAQ_FREE, FAQ_SEARCH,
                         FAQ_CONTACT, FAQ_SAFETY)
 
-LOGIC_VERSION = "v42-menu-width"
+LOGIC_VERSION = "v44-tap-to-call"
 print(f"🧩 core/logic.py жүктөлдү. Версия = {LOGIC_VERSION}")
 
 SESSIONS = {}
@@ -190,7 +190,7 @@ def contact_links(phone, post_id=None, from_city=None, to_city=None):
         ])
     if post_id:
         rows.append([
-            ("🔍 Telegram Ботто издөө",
+            ("🔍 Telegram Ботто издөө / Поиск",
              f"https://t.me/{BOT_USERNAME}?start=ht{post_id}"),
         ])
         # Багыт белгилүү болсо — адамча суроо, болбосо кыска код
@@ -199,12 +199,13 @@ def contact_links(phone, post_id=None, from_city=None, to_city=None):
         else:
             wa_text = f"HT{post_id}"
         rows.append([
-            ("🔍 WhatsApp Ботто издөө",
+            ("🔍 WhatsApp Ботто издөө / Поиск",
              f"https://wa.me/{WA_BOT_NUMBER}?text={quote(wa_text)}"),
         ])
     # Ботту ачып, башкы менюну көрсөтөт
     rows.append([
-        ("🏠 Ботту ачуу", f"https://t.me/{BOT_USERNAME}?start=home"),
+        ("🏠 Ботту ачуу / Открыть бот",
+         f"https://t.me/{BOT_USERNAME}?start=home"),
     ])
     return rows or None
 
@@ -1059,16 +1060,15 @@ def channel_text(d, role, tag=None):
     """
     if role == "driver":
         return (
-            f"🚗 <b>АЙДООЧУ</b>\n"
+            f"🚗 <b>АЙДООЧУ / ВОДИТЕЛЬ</b>\n"
             f"🚖 <b>{d.get('from_city')} ➡️ {d.get('to_city')}</b>\n"
-            f"🧍 Аты: {d.get('name')}\n"
-            f"🚘 Унаа: {d.get('car')}\n"
+            f"🧍 Аты / Имя: {d.get('name')}\n"
+            f"🚘 Унаа / Авто: {d.get('car')}\n"
             f"📅 {d.get('date_text')} · ⏰ {d.get('time_text')}\n"
-            f"👥 Бош орун: {d.get('seats')}\n"
-            f"💰 Баасы: {d.get('price')}\n"
+            f"👥 Бош орун / Мест: {d.get('seats')}\n"
+            f"💰 Баасы / Цена: {d.get('price')}\n"
             f"📝 {d.get('comment')}\n"
-            f"📞 Чалуу: +{_digits_only(d.get('phone'))}\n"
-            f"<i>👆 Чалуу үчүн номерди басып көчүрүңүз</i>"
+            f"📞 Чалуу / Позвонить: +{_digits_only(d.get('phone'))}"
             )
     return ""
 
@@ -1722,4 +1722,5 @@ def register_referral(messenger, newbie, inviter_id):
                  f"🎁 {days} күн акысыз жарыя бере аласыз.")
         else:
             tell(f"🎁 Дагы {days} күн акысыз кошулду!")
+
 
