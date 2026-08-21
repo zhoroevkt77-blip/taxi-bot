@@ -12,6 +12,21 @@ Telegram update'терди core.messenger.IncomingMessage'ге айландыр�
 URL БАСКЫЧТАРЫ:
     Button'дун url талаасы толтурулса, ал inline URL баскычы болуп
     чыгат — басканда ботко кабар келбей, дароо ошол шилтеме ачылат.
+
+CONFLICT КАТАСЫ (409):
+    Telegram бир ботко бир гана getUpdates уруксат берет. Эки жерден
+    сураса, экинчисине «Conflict: terminated by other getUpdates
+    request» деген ката берет.
+
+    Эки коргоо коюлган:
+      1. _RUNNING белгиси — run() кокустан эки жолу чакырылса,
+         экинчиси дароо чыгып кетет (whatsapp_adapter'деги сыяктуу).
+      2. remove_webhook() — эгер мурда webhook коюлуп калган болсо,
+         polling'ке өтөрдөн мурун аны алып салабыз.
+
+    Эскертүү: деплой учурунда эски контейнер өчө элегинде жаңысы
+    башталса, бул ката бир-эки жолу чыгып, өзү басылат — ал кадимки
+    көрүнүш жана эч нерсени бузбайт.
 """
 
 import os
@@ -27,8 +42,9 @@ BOT_TOKEN = os.environ.get("BOT_TOKEN")
 CHANNEL_ID = os.environ.get("CHANNEL_ID")  # мис. @kanal_aty же -1001234567890
 bot = telebot.TeleBot(BOT_TOKEN, parse_mode="HTML")
 
-TG_ADAPTER_VERSION = "v6-url-btn"
-print(f"📨 telegram_adapter жүктөлдү. Версия = {TG_ADAPTER_VERSION}")
+TG_ADAPTER_VERSION = "v7-single-poll"
+print(f"📨 telegram_adapter жүктөлдү. Версия = {TG_ADAPTER_VERSION}, "
+      f"PID={os.getpid()}")
 
 # Ылдыйкы клавиатурадагы жазуу → core'дун ички коду
 MAIN_MENU = {
@@ -207,11 +223,44 @@ def _callback(c):
     bot.answer_callback_query(c.id)
 
 
+# Polling бир гана жолу башталышы үчүн коргоо
+_RUNNING = False
+_RUN_LOCK = threading.Lock()
+
+
 def run():
+    """Telegram'дан кабарларды үзгүлтүксүз алып турат.
+
+    Бир процессте бир гана жолу иштейт — _RUNNING аны кепилдейт.
+    """
+    global _RUNNING
+
+    print(f"🔵 TG run() чакырылды. PID={os.getpid()}, "
+          f"thread={threading.current_thread().name}, _RUNNING={_RUNNING}")
+
+    with _RUN_LOCK:
+        if _RUNNING:
+            print("⚠️ Telegram адаптери мурда башталган — экинчи жолу "
+                  "иштетилбейт.")
+            return
+        if not BOT_TOKEN:
+            print("⚠️ BOT_TOKEN коюлган эмес — Telegram өчүк.")
+            return
+        _RUNNING = True
+
     from core.db import init_db
     init_db()
+
+    # Мурда webhook коюлуп калган болсо, аны алып салабыз — болбосо
+    # Telegram polling'ке уруксат бербей, 409 ката берет.
+    try:
+        bot.remove_webhook()
+        print("🧹 Эски webhook тазаланды (болсо).")
+    except Exception as e:
+        print("Webhook тазалоо катасы:", e)
+
     _load_bot_photo()
-    print("✅ Telegram адаптери башталды.")
+    print(f"✅ Telegram адаптери башталды. PID={os.getpid()}")
 
     # 409 (Conflict) же тармак катасы болсо — процессти өлтүрбөй, кайра аракет
     while True:
@@ -225,5 +274,4 @@ def run():
 
 if __name__ == "__main__":
     run()
-
 
