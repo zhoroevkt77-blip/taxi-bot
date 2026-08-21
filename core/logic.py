@@ -34,7 +34,7 @@ from core.texts import (render, WELCOME, GUIDE, DRIVER_WARNING,
                         FAQ_INTRO, FAQ_POST, FAQ_FREE, FAQ_SEARCH,
                         FAQ_CONTACT, FAQ_SAFETY)
 
-LOGIC_VERSION = "v46-phone-strict"
+LOGIC_VERSION = "v47-card-ru"
 print(f"🧩 core/logic.py жүктөлдү. Версия = {LOGIC_VERSION}")
 
 SESSIONS = {}
@@ -1412,8 +1412,21 @@ def normalize_phone(raw):
 # ============ МЕНИН ПОСТОРУМ ============
 
 def post_card(p, lang="ky"):
-    """Жарыя карточкасы. lang='ru' болсо — орусча белгилер."""
+    """Жарыя карточкасы. lang='ru' болсо — орусча белгилер.
+
+    Базада сакталган маанилер ар дайым КЫРГЫЗЧА: колдонуучу «Бүгүн»,
+    «Келишим», «Саат 12:00дө жолго чыгам» деген баскычтарды басканда
+    ошол бойдон жазылат. Ошондуктан орусча карточкада аларды котормо
+    катмарынан өткөрөбүз — болбосо эки тил аралашып чыгат.
+    """
     ru = lang == "ru"
+
+    def v(x):
+        """Базадан келген кыргызча маанини керек болсо которот."""
+        if not ru or x is None:
+            return x
+        return render(str(x), "ru")
+
     vip = " ⭐" if p.get("is_vip") else ""
     if p["role"] == "driver":
         role_tag = "🚗 <b>ВОДИТЕЛЬ</b>" if ru else "🚗 <b>АЙДООЧУ</b>"
@@ -1424,13 +1437,14 @@ def post_card(p, lang="ky"):
              (f"🧍 Имя: {p['name']}" if ru else f"🧍 Аты: {p['name']}")]
     if p["role"] == "driver":
         lines += ([f"🚘 Авто: {p['car']}", f"👥 Свободно мест: {p['seats']}",
-                   f"💰 Цена: {p['price']}"] if ru else
+                   f"💰 Цена: {v(p['price'])}"] if ru else
                   [f"🚘 Унаа: {p['car']}", f"👥 Бош орун: {p['seats']}",
                    f"💰 Баасы: {p['price']}"])
     else:
-        lines += ([f"👥 Кол-во людей: {p['people_count']}", f"🎒 Багаж: {p['baggage']}"] if ru else
+        lines += ([f"👥 Кол-во людей: {v(p['people_count'])}",
+                   f"🎒 Багаж: {v(p['baggage'])}"] if ru else
                   [f"👥 Адам саны: {p['people_count']}", f"🎒 Багаж: {p['baggage']}"])
-    lines += [f"📅 {p['date_text']} · ⏰ {p['time_text']}"]
+    lines += [f"📅 {v(p['date_text'])} · ⏰ {v(p['time_text'])}"]
     if p.get("comment"):
         lines.append(f"📝 {p['comment']}")
     return "\n".join(lines)
