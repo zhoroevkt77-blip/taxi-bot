@@ -34,7 +34,7 @@ from core.texts import (render, WELCOME, GUIDE, DRIVER_WARNING,
                         FAQ_INTRO, FAQ_POST, FAQ_FREE, FAQ_SEARCH,
                         FAQ_CONTACT, FAQ_SAFETY)
 
-LOGIC_VERSION = "v45-phone-hint"
+LOGIC_VERSION = "v46-phone-strict"
 print(f"🧩 core/logic.py жүктөлдү. Версия = {LOGIC_VERSION}")
 
 SESSIONS = {}
@@ -153,7 +153,12 @@ def _share_buttons(account, platform, lang="ky"):
 
 
 def _digits_only(phone):
-    """Номерди эл аралык форматка келтирет: '0555112233' -> '996555112233'."""
+    """Номерди эл аралык форматка келтирет: '0555112233' -> '996555112233'.
+
+    Кыргызстандын номери эмес болсо, сандары кандай болсо ошондой
+    кайтарат — бул жерде текшербейбиз. Текшерүү normalize_phone()
+    аркылуу жарыя жазылып жатканда болот.
+    """
     digits = "".join(ch for ch in str(phone or "") if ch.isdigit())
     if digits.startswith("0") and len(digits) == 10:
         digits = "996" + digits[1:]
@@ -1353,6 +1358,19 @@ def _wizard_text(messenger, msg, account, st):
 
     if step == "await_phone":
         return verify_phone(messenger, msg, account, st, text)
+
+    # Жарыяга жазылуучу номер — КГ форматында гана болушу керек.
+    # Болбосо жарыяга чет өлкө номери түшүп, аны эч ким чала албай калат.
+    if step == "phone":
+        ok = normalize_phone(text)
+        if not ok:
+            return _say(messenger, msg, account, L(
+                "⚠️ Кыргызстандын номерин жазыңыз.\n"
+                "Мисалы: <b>0700123456</b> же <b>996700123456</b>",
+                "⚠️ Укажите номер Кыргызстана.\n"
+                "Например: <b>0700123456</b> или <b>996700123456</b>"),
+                hint=True)
+        text = ok
 
     field = STEP_FIELD.get(step)
     if not field:
