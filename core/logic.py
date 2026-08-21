@@ -34,7 +34,7 @@ from core.texts import (render, WELCOME, GUIDE, DRIVER_WARNING,
                         FAQ_INTRO, FAQ_POST, FAQ_FREE, FAQ_SEARCH,
                         FAQ_CONTACT, FAQ_SAFETY)
 
-LOGIC_VERSION = "v44-tap-to-call"
+LOGIC_VERSION = "v45-phone-hint"
 print(f"🧩 core/logic.py жүктөлдү. Версия = {LOGIC_VERSION}")
 
 SESSIONS = {}
@@ -1364,9 +1364,12 @@ def _wizard_text(messenger, msg, account, st):
 def verify_phone(messenger, msg, account, st, raw):
     phone = normalize_phone(raw)
     if not phone:
-        return _say(messenger, msg, account,
-                    "⚠️ Телефон номери туура эмес. Кайра аракет кылыңыз.",
-                    hint=True)
+        return _say(messenger, msg, account, L(
+            "⚠️ Кыргызстандын номерин жазыңыз.\n"
+            "Мисалы: <b>0700123456</b> же <b>996700123456</b>",
+            "⚠️ Укажите номер Кыргызстана.\n"
+            "Например: <b>0700123456</b> или <b>996700123456</b>"),
+            hint=True)
     existing = db.find_account_by_phone(phone)
     if existing and existing["account_id"] != account["account_id"]:
         db.link_second_platform(existing["account_id"], msg.user_id, msg.platform)
@@ -1722,5 +1725,4 @@ def register_referral(messenger, newbie, inviter_id):
                  f"🎁 {days} күн акысыз жарыя бере аласыз.")
         else:
             tell(f"🎁 Дагы {days} күн акысыз кошулду!")
-
 
