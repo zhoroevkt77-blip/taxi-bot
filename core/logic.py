@@ -34,7 +34,7 @@ from core.texts import (render, WELCOME, GUIDE, DRIVER_WARNING,
                         FAQ_INTRO, FAQ_POST, FAQ_FREE, FAQ_SEARCH,
                         FAQ_CONTACT, FAQ_SAFETY)
 
-LOGIC_VERSION = "v49-wa-start"
+LOGIC_VERSION = "v50-tg-deeplink"
 print(f"🧩 core/logic.py жүктөлдү. Версия = {LOGIC_VERSION}")
 
 SESSIONS = {}
@@ -210,12 +210,14 @@ def contact_links(phone, post_id=None, from_city=None, to_city=None):
     # Ботту ачуу — эки платформа үчүн өзүнчө. Колдонуучу кайсынысын
     # колдонсо, ошону басат: экөө тең ошол эле ботко, ошол эле базага
     # алып барат.
+    # tg:// шилтемеси браузерди аттап, түз Telegram колдонмосун ачат.
+    # (Telegram inline баскычтары http, https жана tg:// кабыл алат.)
     rows.append([
-        ("🏠 Telegram Ботту ачуу",
-         f"https://t.me/{BOT_USERNAME}?start=home"),
+        ("🏠 Telegram Ботту ачуу / Открыть бот",
+         f"tg://resolve?domain={BOT_USERNAME}&start=home"),
     ])
     rows.append([
-        ("🏠 WhatsApp Ботту ачуу",
+        ("🏠 WhatsApp Ботту ачуу / Открыть бот",
          f"https://wa.me/{WA_BOT_NUMBER}?text={quote('/start')}"),
     ])
     return rows or None
