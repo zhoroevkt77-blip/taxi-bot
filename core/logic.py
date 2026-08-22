@@ -34,7 +34,7 @@ from core.texts import (render, WELCOME, GUIDE, DRIVER_WARNING,
                         FAQ_INTRO, FAQ_POST, FAQ_FREE, FAQ_SEARCH,
                         FAQ_CONTACT, FAQ_SAFETY)
 
-LOGIC_VERSION = "v50-tg-deeplink"
+LOGIC_VERSION = "v52-otuu"
 print(f"🧩 core/logic.py жүктөлдү. Версия = {LOGIC_VERSION}")
 
 SESSIONS = {}
@@ -194,17 +194,17 @@ def contact_links(phone, post_id=None, from_city=None, to_city=None):
             ("📱 WhatsApp", f"https://wa.me/{d}"),
         ])
     if post_id:
-        rows.append([
-            ("🔍 Telegram Ботто издөө / Поиск",
-             f"https://t.me/{BOT_USERNAME}?start=ht{post_id}"),
-        ])
         # Багыт белгилүү болсо — адамча суроо, болбосо кыска код
         if from_city and to_city:
             wa_text = f"{SEARCH_PREFIX} {from_city} ➡️ {to_city}"
         else:
             wa_text = f"HT{post_id}"
+        # Эки издөө баскычы БИР КАТАРДА — пост кыскараак көрүнөт.
+        # Аттары кыска: жанындагы 🔍 белгиси эмне кыларын билдирет.
         rows.append([
-            ("🔍 WhatsApp Ботто издөө / Поиск",
+            ("🔍 Telegram издөө",
+             f"https://t.me/{BOT_USERNAME}?start=ht{post_id}"),
+            ("🔍 WhatsApp издөө",
              f"https://wa.me/{WA_BOT_NUMBER}?text={quote(wa_text)}"),
         ])
     # Ботту ачуу — эки платформа үчүн өзүнчө. Колдонуучу кайсынысын
@@ -212,12 +212,11 @@ def contact_links(phone, post_id=None, from_city=None, to_city=None):
     # алып барат.
     # tg:// шилтемеси браузерди аттап, түз Telegram колдонмосун ачат.
     # (Telegram inline баскычтары http, https жана tg:// кабыл алат.)
+    # Ботту ачуу — экөө тең бир катарда
     rows.append([
-        ("🏠 Telegram Ботту ачуу / Открыть бот",
+        ("🏠 Telegram Ботко өтүү",
          f"tg://resolve?domain={BOT_USERNAME}&start=home"),
-    ])
-    rows.append([
-        ("🏠 WhatsApp Ботту ачуу / Открыть бот",
+        ("🏠 WhatsApp Ботко өтүү",
          f"https://wa.me/{WA_BOT_NUMBER}?text={quote('/start')}"),
     ])
     return rows or None
@@ -1765,4 +1764,5 @@ def register_referral(messenger, newbie, inviter_id):
                  f"🎁 {days} күн акысыз жарыя бере аласыз.")
         else:
             tell(f"🎁 Дагы {days} күн акысыз кошулду!")
+
 
