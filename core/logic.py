@@ -34,7 +34,7 @@ from core.texts import (render, WELCOME, GUIDE, DRIVER_WARNING,
                         FAQ_INTRO, FAQ_POST, FAQ_FREE, FAQ_SEARCH,
                         FAQ_CONTACT, FAQ_SAFETY)
 
-LOGIC_VERSION = "v47-card-ru"
+LOGIC_VERSION = "v49-wa-start"
 print(f"🧩 core/logic.py жүктөлдү. Версия = {LOGIC_VERSION}")
 
 SESSIONS = {}
@@ -207,10 +207,16 @@ def contact_links(phone, post_id=None, from_city=None, to_city=None):
             ("🔍 WhatsApp Ботто издөө / Поиск",
              f"https://wa.me/{WA_BOT_NUMBER}?text={quote(wa_text)}"),
         ])
-    # Ботту ачып, башкы менюну көрсөтөт
+    # Ботту ачуу — эки платформа үчүн өзүнчө. Колдонуучу кайсынысын
+    # колдонсо, ошону басат: экөө тең ошол эле ботко, ошол эле базага
+    # алып барат.
     rows.append([
-        ("🏠 Ботту ачуу / Открыть бот",
+        ("🏠 Telegram Ботту ачуу",
          f"https://t.me/{BOT_USERNAME}?start=home"),
+    ])
+    rows.append([
+        ("🏠 WhatsApp Ботту ачуу",
+         f"https://wa.me/{WA_BOT_NUMBER}?text={quote('/start')}"),
     ])
     return rows or None
 
