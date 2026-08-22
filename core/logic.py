@@ -34,7 +34,7 @@ from core.texts import (render, WELCOME, GUIDE, DRIVER_WARNING,
                         FAQ_INTRO, FAQ_POST, FAQ_FREE, FAQ_SEARCH,
                         FAQ_CONTACT, FAQ_SAFETY)
 
-LOGIC_VERSION = "v53-bilingual-rows"
+LOGIC_VERSION = "v54-botko-otuu"
 print(f"🧩 core/logic.py жүктөлдү. Версия = {LOGIC_VERSION}")
 
 SESSIONS = {}
@@ -214,9 +214,9 @@ def contact_links(phone, post_id=None, from_city=None, to_city=None):
     # (Telegram inline баскычтары http, https жана tg:// кабыл алат.)
     # Ботту ачуу — экөө тең бир катарда
     rows.append([
-        ("🏠 Telegram өтүү / Открыть",
+        ("🏠 Telegram Ботко өтүү / Открыть",
          f"tg://resolve?domain={BOT_USERNAME}&start=home"),
-        ("🏠 WhatsApp өтүү / Открыть",
+        ("🏠 WhatsApp Ботко өтүү / Открыть",
          f"https://wa.me/{WA_BOT_NUMBER}?text={quote('/start')}"),
     ])
     return rows or None
