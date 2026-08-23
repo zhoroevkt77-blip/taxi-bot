@@ -42,7 +42,7 @@ BOT_TOKEN = os.environ.get("BOT_TOKEN")
 CHANNEL_ID = os.environ.get("CHANNEL_ID")  # мис. @kanal_aty же -1001234567890
 bot = telebot.TeleBot(BOT_TOKEN, parse_mode="HTML")
 
-TG_ADAPTER_VERSION = "v7-single-poll"
+TG_ADAPTER_VERSION = "v8-tg-channel-label"
 print(f"📨 telegram_adapter жүктөлдү. Версия = {TG_ADAPTER_VERSION}, "
       f"PID={os.getpid()}")
 
@@ -50,13 +50,13 @@ print(f"📨 telegram_adapter жүктөлдү. Версия = {TG_ADAPTER_VERSI
 MAIN_MENU = {
     "🚗 Айдоочумун": "menu:driver",
     "🔍 Жүргүнчүмүн": "menu:passenger",
-    "📢 Каналыбыз": "menu:channel",
+    "📢 Telegram каналыбыз": "menu:channel",
     "🆘 Жардам": "menu:help",
     "🌐 Тил / Язык": "menu:lang",
     # Орусча варианттары да ушул эле коддорго барат
     "🚗 Я водитель": "menu:driver",
     "🔍 Я пассажир": "menu:passenger",
-    "📢 Наш канал": "menu:channel",
+    "📢 Наш Telegram-канал": "menu:channel",
     "🆘 Помощь": "menu:help",
 }
 
@@ -65,11 +65,11 @@ def main_reply_kb(lang="ky"):
     kb = types.ReplyKeyboardMarkup(resize_keyboard=True)
     if lang == "ru":
         kb.row("🚗 Я водитель", "🔍 Я пассажир")
-        kb.row("📢 Наш канал", "🆘 Помощь")
+        kb.row("📢 Наш Telegram-канал", "🆘 Помощь")
         kb.row("🌐 Тил / Язык")
     else:
         kb.row("🚗 Айдоочумун", "🔍 Жүргүнчүмүн")
-        kb.row("📢 Каналыбыз", "🆘 Жардам")
+        kb.row("📢 Telegram каналыбыз", "🆘 Жардам")
         kb.row("🌐 Тил / Язык")
     return kb
 
