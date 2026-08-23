@@ -16,6 +16,9 @@ Telegram каналына жарыялоо — платформадан көз �
 import os
 import requests
 
+CHANNEL_VERSION = "v2-edit"
+print(f"📢 core/channel.py жүктөлдү. Версия = {CHANNEL_VERSION}")
+
 BOT_TOKEN = os.environ.get("BOT_TOKEN")
 CHANNEL_ID = os.environ.get("CHANNEL_ID")   # мис. @taxirobotbot же -1001234567890
 
@@ -60,6 +63,46 @@ def publish(text, links=None):
         return None
 
 
+def edit(message_id, text, links=None):
+    """Каналдагы билдирүүнүн текстин жаңыртат.
+
+    Айдоочу бош орундун санын же убакытты өзгөрткөндө колдонулат —
+    каналдагы жарыя да ошол замат жаңырат, эски маалымат калбайт.
+
+    МААНИЛҮҮ: editMessageText баскычтарды өзү сактабайт. links
+    берилбесе, алар жоголуп калат. Ошондуктан чакырган жерде
+    contact_links() менен аларды кайра куруп берүү керек.
+    """
+    if not BOT_TOKEN or not CHANNEL_ID or not message_id:
+        return False
+
+    payload = {
+        "chat_id": CHANNEL_ID,
+        "message_id": message_id,
+        "text": text,
+        "parse_mode": "HTML",
+        "disable_web_page_preview": True,
+    }
+    markup = _markup(links)
+    if markup:
+        payload["reply_markup"] = markup
+
+    try:
+        r = requests.post(f"{API}/editMessageText", json=payload, timeout=30)
+        data = r.json()
+        if not data.get("ok"):
+            desc = str(data.get("description", ""))
+            # Текст такыр өзгөрбөсө Telegram ката берет — бул ката эмес
+            if "message is not modified" in desc:
+                return True
+            print("Каналды жаңыртуу ишке ашкан жок:", desc)
+            return False
+        return True
+    except Exception as e:
+        print("Каналды жаңыртуу катасы:", e)
+        return False
+
+
 def delete(message_id):
     """Каналдагы билдирүүнү өчүрөт (жарыянын мөөнөтү бүткөндө)."""
     if not BOT_TOKEN or not CHANNEL_ID or not message_id:
@@ -72,3 +115,4 @@ def delete(message_id):
     except Exception as e:
         print("Каналдан өчүрүү катасы:", e)
         return False
+
