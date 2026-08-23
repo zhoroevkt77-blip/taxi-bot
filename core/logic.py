@@ -34,7 +34,7 @@ from core.texts import (render, WELCOME, GUIDE, DRIVER_WARNING,
                         FAQ_INTRO, FAQ_POST, FAQ_FREE, FAQ_SEARCH,
                         FAQ_CONTACT, FAQ_SAFETY)
 
-LOGIC_VERSION = "v55-emblems"
+LOGIC_VERSION = "v57-when-full"
 print(f"🧩 core/logic.py жүктөлдү. Версия = {LOGIC_VERSION}")
 
 SESSIONS = {}
@@ -413,9 +413,9 @@ def receive_receipt(messenger, msg, account, kind):
 # ============ КЛАВИАТУРАЛАР ============
 
 def main_menu_kb(platform="telegram"):
-    # WhatsApp'та "канал" деген сөз чаташтырбаш үчүн так жазабыз
-    channel_label = ("📢 Каналыбыз" if platform == "telegram"
-                     else "📢 Telegram каналыбыз")
+    # Канал Telegram'да гана бар — аны эки платформада тең так жазабыз,
+    # антпесе WhatsApp колдонуучусу "кайсы канал?" деп чаташат.
+    channel_label = "📢 Telegram каналыбыз"
     return Keyboard.from_flat([
         Button("🚗 Айдоочумун", "menu:driver"),
         Button("🔍 Жүргүнчүмүн", "menu:passenger"),
@@ -969,6 +969,10 @@ def ask_step(messenger, msg, account, st, step):
         hours = day_hours()
         rows = [[Button(h, f"tm:{h}") for h in hours[k:k + 4]]
                 for k in range(0, len(hours), 4)]
+        # Айдоочу так убакыт коё албаганда: орун толгондо жолго чыгат.
+        # Бул Кыргызстанда эң кеңири таралган иштөө ыкмасы.
+        if role == "driver":
+            rows.append([Button("🚗 Орун толгондо чыгам", "tm:full")])
         rows.append([_back_btn()])
         return _say(messenger, msg, account,
             "⏰ Саат канчада жолго чыгасыз?\n\n"
@@ -1284,6 +1288,10 @@ def _wizard_button(messenger, msg, account, st):
     if a.startswith("dq:"):
         d["date_text"] = date_label(int(a.split(":")[1]))
         return next_step(messenger, msg, account, st, "date")
+
+    if a == "tm:full":
+        d["time_text"] = "Орун толгондо жолго чыгам"
+        return next_step(messenger, msg, account, st, "time")
 
     if a.startswith("tm:"):
         t = a.split(":", 1)[1]
