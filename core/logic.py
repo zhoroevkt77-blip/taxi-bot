@@ -34,7 +34,7 @@ from core.texts import (render, WELCOME, GUIDE, DRIVER_WARNING,
                         FAQ_INTRO, FAQ_POST, FAQ_FREE, FAQ_SEARCH,
                         FAQ_CONTACT, FAQ_SAFETY)
 
-LOGIC_VERSION = "v54-botko-otuu"
+LOGIC_VERSION = "v55-emblems"
 print(f"🧩 core/logic.py жүктөлдү. Версия = {LOGIC_VERSION}")
 
 SESSIONS = {}
@@ -190,8 +190,8 @@ def contact_links(phone, post_id=None, from_city=None, to_city=None):
     rows = []
     if len(d) >= 9:
         rows.append([
-            ("💬 Telegram", f"https://t.me/+{d}"),
-            ("📱 WhatsApp", f"https://wa.me/{d}"),
+            ("✈️ Telegram", f"https://t.me/+{d}"),
+            ("🟢 WhatsApp", f"https://wa.me/{d}"),
         ])
     if post_id:
         # Багыт белгилүү болсо — адамча суроо, болбосо кыска код
@@ -202,9 +202,9 @@ def contact_links(phone, post_id=None, from_city=None, to_city=None):
         # Эки издөө баскычы БИР КАТАРДА — пост кыскараак көрүнөт.
         # Аттары кыска: жанындагы 🔍 белгиси эмне кыларын билдирет.
         rows.append([
-            ("🔍 Telegram издөө / Поиск",
+            ("✈️ Издөө / Поиск",
              f"https://t.me/{BOT_USERNAME}?start=ht{post_id}"),
-            ("🔍 WhatsApp издөө / Поиск",
+            ("🟢 Издөө / Поиск",
              f"https://wa.me/{WA_BOT_NUMBER}?text={quote(wa_text)}"),
         ])
     # Ботту ачуу — эки платформа үчүн өзүнчө. Колдонуучу кайсынысын
@@ -214,9 +214,9 @@ def contact_links(phone, post_id=None, from_city=None, to_city=None):
     # (Telegram inline баскычтары http, https жана tg:// кабыл алат.)
     # Ботту ачуу — экөө тең бир катарда
     rows.append([
-        ("🏠 Telegram Ботко өтүү / Открыть",
+        ("✈️ Ботко өтүү / Бот",
          f"tg://resolve?domain={BOT_USERNAME}&start=home"),
-        ("🏠 WhatsApp Ботко өтүү / Открыть",
+        ("🟢 Ботко өтүү / Бот",
          f"https://wa.me/{WA_BOT_NUMBER}?text={quote('/start')}"),
     ])
     return rows or None
