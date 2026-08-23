@@ -34,7 +34,7 @@ from core.texts import (render, WELCOME, GUIDE, DRIVER_WARNING,
                         FAQ_INTRO, FAQ_POST, FAQ_FREE, FAQ_SEARCH,
                         FAQ_CONTACT, FAQ_SAFETY)
 
-LOGIC_VERSION = "v58-edit-post"
+LOGIC_VERSION = "v60-final"
 print(f"🧩 core/logic.py жүктөлдү. Версия = {LOGIC_VERSION}")
 
 SESSIONS = {}
@@ -214,9 +214,9 @@ def contact_links(phone, post_id=None, from_city=None, to_city=None):
     # (Telegram inline баскычтары http, https жана tg:// кабыл алат.)
     # Ботту ачуу — экөө тең бир катарда
     rows.append([
-        ("✈️ Ботко өтүү / Бот",
+        ("✈️ Ботко өтүү",
          f"tg://resolve?domain={BOT_USERNAME}&start=home"),
-        ("🟢 Ботко өтүү / Бот",
+        ("🟢 Ботко өтүү",
          f"https://wa.me/{WA_BOT_NUMBER}?text={quote('/start')}"),
     ])
     return rows or None
@@ -685,7 +685,10 @@ def _dispatch(messenger, msg, account, a):
     if a.startswith("del:"):
         return delete_post(messenger, msg, account, int(a.split(":")[1]))
     if a.startswith("sd:"):
-        return seat_down(messenger, msg, account, int(a.split(":")[1]))
+        return ask_new_seats(messenger, msg, account, int(a.split(":")[1]))
+    if a.startswith("sset:"):
+        _, pid, val = a.split(":", 2)
+        return set_new_seats(messenger, msg, account, int(pid), int(val))
     if a.startswith("tw:"):
         return ask_new_time(messenger, msg, account, int(a.split(":")[1]))
     if a.startswith("tset:"):
@@ -1485,7 +1488,7 @@ def show_my_posts(messenger, msg, account, role):
         if role == "driver":
             # Айдоочу орун толгон сайын санды азайта алат жана
             # убакытты өзгөртө алат — жарыяны кайра жазуунун кереги жок.
-            btns.append(Button("➖ Орун", f"sd:{p['id']}"))
+            btns.append(Button("👥 Бош орун", f"sd:{p['id']}"))
             btns.append(Button("⏰ Убакыт", f"tw:{p['id']}"))
         btns.append(Button("❌ Өчүрүү", f"del:{p['id']}"))
         kb = Keyboard.from_flat(btns)
@@ -1535,41 +1538,55 @@ def _refresh_channel(post_id):
         print("Каналды жаңыртуу катасы:", e)
 
 
-def seat_down(messenger, msg, account, post_id):
-    """«➖ Орун» — бош орундун саны бирге азаят.
+def ask_new_seats(messenger, msg, account, post_id):
+    """«👥 Бош орун» — калган орундун санын тандоо.
 
-    Акыркы орун толгондо жарыя автоматтык өчөт: орун калбаган
-    жарыянын каналда туруусунун мааниси жок.
+    Бир эмес, бир нече жүргүнчү бирден табылышы мүмкүн. Ошондуктан
+    санды бирден азайтпай, калган санды түз тандатабыз.
     """
     p = posts.get_post(post_id)
     if not p or p["account_id"] != account["account_id"]:
         return _say(messenger, msg, account, L(
             "❌ Жарыя табылган жок.", "❌ Объявление не найдено."), back_kb())
 
-    try:
-        seats = int(str(p.get("seats") or "0").strip())
-    except ValueError:
-        seats = 0
+    rows = [[Button(str(i), f"sset:{post_id}:{i}") for i in range(0, 4)],
+            [Button(str(i), f"sset:{post_id}:{i}") for i in range(4, 8)],
+            [_back_btn()]]
+    _say(messenger, msg, account, L(
+        "👥 Азыр канча бош орун калды?\n\n"
+        "<i>0 тандасаңыз — унаа толду, жарыя жабылат.</i>",
+        "👥 Сколько свободных мест осталось?\n\n"
+        "<i>Если выбрать 0 — машина заполнена, объявление закроется.</i>"),
+        Keyboard(rows=rows))
 
-    if seats <= 1:
-        # Акыркы орун да толду — жарыяны жабабыз
+
+def set_new_seats(messenger, msg, account, post_id, left):
+    """Тандалган санды сактайт. 0 болсо — жарыя жабылат."""
+    p = posts.get_post(post_id)
+    if not p or p["account_id"] != account["account_id"]:
+        return _say(messenger, msg, account, L(
+            "❌ Жарыя табылган жок.", "❌ Объявление не найдено."), back_kb())
+
+    if left <= 0:
+        # Унаа толду — жарыянын каналда туруусунун мааниси жок
         posts.deactivate_post(post_id, account["account_id"])
         if p.get("channel_msg_id"):
             channel.delete(p["channel_msg_id"])
         return _say(messenger, msg, account, L(
             "🚗 Унааңыз толду — жарыя жабылды.\n"
-            "Жаңы сапарга кайра жарыя бере аласыз.",
+            "Жаңы сапарга кайра жарыя бере аласыз.\n\n"
+            "🤲 Ак жол каалайбыз!",
             "🚗 Машина заполнена — объявление закрыто.\n"
-            "Для новой поездки можно дать объявление снова."), back_kb())
+            "Для новой поездки можно дать объявление снова.\n\n"
+            "🤲 Счастливого пути!"), back_kb())
 
-    left = seats - 1
     _update_post_field(post_id, account["account_id"], seats=str(left))
     _refresh_channel(post_id)
+    fresh = posts.get_post(post_id)
     _say(messenger, msg, account, L(
-        f"✅ Бош орун: <b>{left}</b>\n\n"
-        f"Дагы толсо — «➖ Орун» баскычын кайра басыңыз.",
-        f"✅ Свободных мест: <b>{left}</b>\n\n"
-        f"Если заполнится ещё — нажмите «➖ Место» снова."), back_kb())
+        f"✅ Бош орун: <b>{left}</b>\n\n" + post_card(fresh, "ky"),
+        f"✅ Свободных мест: <b>{left}</b>\n\n" + post_card(fresh, "ru")),
+        back_kb())
 
 
 def ask_new_time(messenger, msg, account, post_id):
