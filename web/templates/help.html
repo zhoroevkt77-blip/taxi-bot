@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+
+{% block title %}{{ t('Жардам', 'Помощь') }} — ТАКСИ роБОТ{% endblock %}
+
+{% block content %}
+
+<div class="page-head">
+  <h1>{{ t('Жардам', 'Помощь') }}</h1>
+  <p class="lead">
+    {{ t('Керектүү бөлүмдү басып, ичин ачыңыз.',
+         'Нажмите на нужный раздел, чтобы открыть.') }}
+  </p>
+</div>
+
+{% for title, body in blocks %}
+  <details class="acc">
+    <summary>{{ title }}</summary>
+    <div class="acc-body">{{ body|safe }}</div>
+  </details>
+{% endfor %}
+
+{% if not blocks %}
+  <div class="empty">
+    <div class="big">❓</div>
+    <div>{{ t('Текст жүктөлгөн жок.', 'Текст не загрузился.') }}</div>
+  </div>
+{% endif %}
+
+{% endblock %}
