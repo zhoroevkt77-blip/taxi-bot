@@ -4,28 +4,34 @@ web/app.py
 ==========
 ТАКСИ роБОТ — сайт бөлүгү.
 
+Түзүлүшү ТАП! сайтындай: башкы тилке → издөө сабы → категория
+карточкалары → облус чиптери → жарыялар. Түстөрү такси: кара, сары.
+
 Эмне кылат: базадагы АКТИВДҮҮ жарыяларды көрсөтөт. Жарыя жазуу
 ботто калат — сайттан жазуу үчүн телефон ырастоо, спамдан коргоо,
-сессия керек болмок, ал өзүнчө чоң иш.
+сессия керек болмок.
 
-Маалымат булагы — ошол эле PostgreSQL база. Сайт эч нерсе түзбөйт,
-жаңыртпайт: болгонун окуп, көрсөтөт гана. Ошондуктан ботко эч
-кандай тобокелдик жок.
+Маалымат булагы — ошол эле PostgreSQL база. Сайт эч нерсе жазбайт,
+өзгөртпөйт: окуп, көрсөтөт гана.
 
 Беттер:
-    /                 — багыттардын тизмеси, ар биринде канча жарыя бар
-    /route?from=&to=  — ошол багыттагы айдоочулар
-    /?lang=ru         — тил алмаштыруу (кука менен эсте калат)
+    /                        — багыттар (категория + облус чыпкасы)
+    /?cat=to|from|local      — категория
+    /?obl=Ош облусу          — облус боюнча чыпка
+    /?q=Ош                   — издөө
+    /route?from=&to=         — ошол багыттагы айдоочулар
 """
 
 import os
+import traceback
+from urllib.parse import quote
 from flask import Flask, render_template, request, make_response
 
 from core.db import db
 from core import posts
 from core.texts import render as tr_render
 
-WEB_VERSION = "v1"
+WEB_VERSION = "v3-tap-style"
 print(f"🌐 web/app.py жүктөлдү. Версия = {WEB_VERSION}")
 
 BOT_USERNAME = os.environ.get("BOT_USERNAME", "taxirobot_bot")
@@ -35,10 +41,39 @@ CHANNEL_LINK = os.environ.get("CHANNEL_LINK", "https://t.me/taxirobotbot")
 app = Flask(__name__)
 
 
+# ============ ШААР → ОБЛУС ТАБЛИЦАСЫ ============
+# core/geo.py'деги эки сөздүктөн бир жолу курулат: шаардын атынан
+# облусун табуу үчүн. Ошондо бетте «Ош облусу · 5» деген чиптерди
+# көрсөтө алабыз.
+
+def _build_city_oblast():
+    table = {}
+    try:
+        from core.geo import REGIONS, DISTRICTS
+        for oblast, cities in REGIONS.items():
+            for c in cities:
+                table[c] = oblast
+        for oblast, cities in DISTRICTS.items():
+            for c in cities:
+                table.setdefault(c, oblast)
+    except Exception as e:
+        print("[web] geo жүктөө катасы:", e)
+    return table
+
+
+CITY_OBLAST = _build_city_oblast()
+
+
+def _oblast_of(row):
+    """Багыттын облусу — Бишкек эмес шаардын облусу."""
+    frm, to = row["from_city"], row["to_city"]
+    city = to if frm == "Бишкек" else frm
+    return CITY_OBLAST.get(city) or CITY_OBLAST.get(to) or "Башка"
+
+
 # ============ ЖАРДАМЧЫЛАР ============
 
 def _lang():
-    """Тил: URL'ден келсе — ошону алабыз, болбосо кукадан."""
     q = request.args.get("lang")
     if q in ("ky", "ru"):
         return q
@@ -46,16 +81,11 @@ def _lang():
 
 
 def _t(ky, ru):
-    """Эки тилдүү кыска текст."""
     return ru if _lang() == "ru" else ky
 
 
 def _v(x):
-    """Базадагы кыргызча маанини керек болсо орусчага которот.
-
-    Күн, убакыт, баа базага кыргызча жазылат («Бүгүн», «Келишим»),
-    ошондуктан орусча бетте аларды котормо катмарынан өткөрөбүз.
-    """
+    """Базадагы кыргызча маанини керек болсо орусчага которот."""
     if x is None:
         return ""
     if _lang() != "ru":
@@ -64,7 +94,6 @@ def _v(x):
 
 
 def _digits(phone):
-    """'0555112233' -> '996555112233'"""
     d = "".join(ch for ch in str(phone or "") if ch.isdigit())
     if d.startswith("0") and len(d) == 10:
         d = "996" + d[1:]
@@ -72,11 +101,7 @@ def _digits(phone):
 
 
 def driver_routes():
-    """Активдүү айдоочу жарыялары бар багыттар жана алардын саны.
-
-    Бир суроо менен баарын алабыз — Бишкекке, Бишкектен жана
-    район аралык маршруттардын баары бир тизмеде.
-    """
+    """Активдүү айдоочу жарыялары бар багыттар жана алардын саны."""
     try:
         with db() as conn:
             cur = conn.cursor()
@@ -93,21 +118,15 @@ def driver_routes():
         return []
 
 
-def _grouped(rows):
-    """Багыттарды үч топко бөлөт — бетте окууга оңой болушу үчүн."""
-    to_bishkek, from_bishkek, local = [], [], []
-    for r in rows:
-        if r["to_city"] == "Бишкек":
-            to_bishkek.append(r)
-        elif r["from_city"] == "Бишкек":
-            from_bishkek.append(r)
-        else:
-            local.append(r)
-    return to_bishkek, from_bishkek, local
+def _category_of(r):
+    if r["to_city"] == "Бишкек":
+        return "to"
+    if r["from_city"] == "Бишкек":
+        return "from"
+    return "local"
 
 
 def _card(p):
-    """Жарыяны бетке ыңгайлуу түргө келтирет."""
     d = _digits(p.get("phone"))
     return {
         "name": p.get("name") or "",
@@ -117,8 +136,6 @@ def _card(p):
         "seats": p.get("seats") or "",
         "price": _v(p.get("price")),
         "comment": p.get("comment") or "",
-        "from_city": p.get("from_city") or "",
-        "to_city": p.get("to_city") or "",
         "is_vip": bool(p.get("is_vip")),
         "phone": f"+{d}" if d else "",
         "tel_url": f"tel:+{d}" if d else "",
@@ -127,11 +144,23 @@ def _card(p):
     }
 
 
+def _lang_url(target):
+    """Учурдагы бетти башка тилде ачуучу шилтеме.
+
+    Чыпкалар (cat, obl, q) сакталып калат — тил алмашканда
+    колдонуучу баштан баштабашы үчүн.
+    """
+    args = {k: v for k, v in request.args.items() if k != "lang"}
+    args["lang"] = target
+    qs = "&".join(f"{k}={quote(str(v))}" for k, v in args.items())
+    return f"{request.path}?{qs}"
+
+
 def _base_ctx():
-    """Ар бир бетке керектүү жалпы маалымат."""
-    lang = _lang()
     return {
-        "lang": lang,
+        "lang": _lang(),
+        "lang_ky_url": _lang_url("ky"),
+        "lang_ru_url": _lang_url("ru"),
         "t": _t,
         "bot_url": f"https://t.me/{BOT_USERNAME}?start=home",
         "wa_bot_url": f"https://wa.me/{WA_BOT_NUMBER}?text=/start",
@@ -140,7 +169,6 @@ def _base_ctx():
 
 
 def _with_lang(resp):
-    """Тил URL'ден келсе — кукага сактайбыз (бир жыл)."""
     q = request.args.get("lang")
     if q in ("ky", "ru"):
         resp.set_cookie("lang", q, max_age=365 * 24 * 3600)
@@ -151,14 +179,47 @@ def _with_lang(resp):
 
 @app.route("/")
 def index():
+    cat = request.args.get("cat") or "all"
+    obl = (request.args.get("obl") or "").strip()
+    q = (request.args.get("q") or "").strip()
+
     rows = driver_routes()
-    to_bishkek, from_bishkek, local = _grouped(rows)
-    total = sum(r["n"] for r in rows)
+    for r in rows:
+        r["cat"] = _category_of(r)
+        r["obl"] = _oblast_of(r)
+
+    # Категориялардын саны — карточкаларда көрсөтүү үчүн
+    cat_counts = {"all": sum(r["n"] for r in rows), "to": 0, "from": 0, "local": 0}
+    for r in rows:
+        cat_counts[r["cat"]] += r["n"]
+
+    # 1) Категория боюнча чыпкалайбыз
+    sel = rows if cat == "all" else [r for r in rows if r["cat"] == cat]
+
+    # 2) Облус чиптери ушул категориянын ичинен курулат
+    obl_counts = {}
+    for r in sel:
+        obl_counts[r["obl"]] = obl_counts.get(r["obl"], 0) + r["n"]
+    oblasts = sorted(obl_counts.items(), key=lambda kv: (-kv[1], kv[0]))
+
+    # 3) Облус тандалса — ошону гана калтырабыз
+    if obl:
+        sel = [r for r in sel if r["obl"] == obl]
+
+    # 4) Издөө
+    if q:
+        low = q.lower()
+        sel = [r for r in sel
+               if low in r["from_city"].lower() or low in r["to_city"].lower()]
+
     html = render_template("index.html",
-                           to_bishkek=to_bishkek,
-                           from_bishkek=from_bishkek,
-                           local=local,
-                           total=total,
+                           routes=sel,
+                           cat=cat,
+                           cat_counts=cat_counts,
+                           oblasts=oblasts,
+                           obl=obl,
+                           q=q,
+                           total=sum(r["n"] for r in sel),
                            **_base_ctx())
     return _with_lang(make_response(html))
 
@@ -167,34 +228,39 @@ def index():
 def route():
     frm = (request.args.get("from") or "").strip()
     to = (request.args.get("to") or "").strip()
-    if not frm or not to:
-        html = render_template("route.html", frm="", to="", cards=[],
-                               **_base_ctx())
-        return _with_lang(make_response(html))
-
-    try:
-        rows = posts.search_posts("driver", from_city=frm, to_city=to)
-    except Exception as e:
-        print("[web] издөө катасы:", e)
-        rows = []
-
-    cards = [_card(p) for p in rows]
+    cards = []
+    if frm and to:
+        try:
+            cards = [_card(p) for p in
+                     posts.search_posts("driver", from_city=frm, to_city=to)]
+        except Exception as e:
+            print("[web] издөө катасы:", e)
     html = render_template("route.html", frm=frm, to=to, cards=cards,
                            **_base_ctx())
     return _with_lang(make_response(html))
 
 
+@app.errorhandler(500)
+@app.errorhandler(Exception)
+def _oops(e):
+    """Ката чыкса — логго толук жазабыз, колдонуучуга жөнөкөй бет."""
+    print("=" * 60)
+    print("[web] КАТА:", request.path)
+    traceback.print_exc()
+    print("=" * 60)
+    return ("<h2 style='font-family:sans-serif'>Кечиресиз, ката кетти</h2>"
+            "<p style='font-family:sans-serif'>Бир аздан кийин кайра "
+            "аракет кылыңыз.</p>"), 500
+
+
 @app.route("/healthz")
 def healthz():
-    """Railway жана мониторинг үчүн — сайт тирүүбү?"""
     return "ok", 200
 
 
 def run(host="0.0.0.0", port=None):
-    """Сайтты иштетет. main.py'ден өзүнчө потокто чакырылат."""
     port = port or int(os.environ.get("PORT", 8080))
     print(f"🌐 Сайт башталды. http://{host}:{port}")
-    # threaded=True — бир нече колдонуучу бир убакта кире алат
     app.run(host=host, port=port, threaded=True, use_reloader=False)
 
 
