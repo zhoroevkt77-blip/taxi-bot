@@ -31,7 +31,7 @@ from core.db import db
 from core import posts
 from core.texts import render as tr_render
 
-WEB_VERSION = "v3-tap-style"
+WEB_VERSION = "v5-pages"
 print(f"🌐 web/app.py жүктөлдү. Версия = {WEB_VERSION}")
 
 BOT_USERNAME = os.environ.get("BOT_USERNAME", "taxirobot_bot")
@@ -163,6 +163,7 @@ def _base_ctx():
         "lang_ru_url": _lang_url("ru"),
         "t": _t,
         "bot_url": f"https://t.me/{BOT_USERNAME}?start=home",
+        "help_url": f"https://t.me/{BOT_USERNAME}?start=home",
         "wa_bot_url": f"https://wa.me/{WA_BOT_NUMBER}?text=/start",
         "channel_url": CHANNEL_LINK,
     }
@@ -240,6 +241,48 @@ def route():
     return _with_lang(make_response(html))
 
 
+@app.route("/post")
+def post_page():
+    """«➕ Жарыя берүү» — эки ботко өтүү."""
+    html = render_template("post.html", **_base_ctx())
+    return _with_lang(make_response(html))
+
+
+@app.route("/help")
+def help_page():
+    """«❓ Жардам» — боттогу нускаманын ошол эле тексти.
+
+    Тексттер core/texts.py'ден алынат: бир жерде оңдосок, ботто да,
+    сайтта да бирдей жаңырат.
+    """
+    lang = _lang()
+    try:
+        from core.texts import (GUIDE, FAQ_POST, FAQ_FREE, FAQ_SEARCH,
+                                FAQ_CONTACT, FAQ_SAFETY, DRIVER_SAFETY)
+        blocks = [
+            (_t("📖 Нускама", "📖 Инструкция"), tr_render(GUIDE, lang)),
+            (_t("📝 Жарыя жөнүндө", "📝 Об объявлении"), tr_render(FAQ_POST, lang)),
+            (_t("🎁 Акысыз мүмкүнчүлүк", "🎁 Бесплатный доступ"), tr_render(FAQ_FREE, lang)),
+            (_t("🔍 Издөө", "🔍 Поиск"), tr_render(FAQ_SEARCH, lang)),
+            (_t("📞 Байланыш", "📞 Связь"), tr_render(FAQ_CONTACT, lang)),
+            (_t("🛡 Коопсуздук", "🛡 Безопасность"), tr_render(FAQ_SAFETY, lang)),
+            (_t("🚦 Айдоочунун коопсуздугу", "🚦 Безопасность водителя"),
+             tr_render(DRIVER_SAFETY, lang)),
+        ]
+    except Exception as e:
+        print("[web] жардам текстин алуу катасы:", e)
+        blocks = []
+    html = render_template("help.html", blocks=blocks, **_base_ctx())
+    return _with_lang(make_response(html))
+
+
+@app.route("/me")
+def me_page():
+    """«👤 Кабинет» — тил, шилтемелер, платформа тууралуу."""
+    html = render_template("me.html", **_base_ctx())
+    return _with_lang(make_response(html))
+
+
 @app.errorhandler(500)
 @app.errorhandler(Exception)
 def _oops(e):
@@ -266,3 +309,4 @@ def run(host="0.0.0.0", port=None):
 
 if __name__ == "__main__":
     run()
+
