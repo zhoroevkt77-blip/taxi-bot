@@ -1,55 +1,80 @@
 {% extends "base.html" %}
-{% set qs = "" %}
 
 {% block title %}{{ t('Такси жарыялары', 'Объявления такси') }} — ТАКСИ роБОТ{% endblock %}
 
+{% block cats %}
+{# Категория карточкалары — ТАП!теги «Баары / Соода-сатык» катарындай #}
+<div class="cats">
+  <a class="cat {{ 'on' if cat == 'all' else '' }}" href="/?cat=all&lang={{ lang }}">
+    <div class="ico">🚕</div>
+    <div class="nm">{{ t('Баары', 'Все') }}
+      <span class="n">{{ cat_counts.all }}</span></div>
+  </a>
+  <a class="cat {{ 'on' if cat == 'to' else '' }}" href="/?cat=to&lang={{ lang }}">
+    <div class="ico">➡️</div>
+    <div class="nm">{{ t('Бишкекке бараткандар', 'Едут в Бишкек') }}
+      <span class="n">{{ cat_counts.to }}</span></div>
+  </a>
+  <a class="cat {{ 'on' if cat == 'from' else '' }}" href="/?cat=from&lang={{ lang }}">
+    <div class="ico">⬅️</div>
+    <div class="nm">{{ t('Бишкектен кайткандар', 'Едут из Бишкека') }}
+      <span class="n">{{ cat_counts.from }}</span></div>
+  </a>
+  <a class="cat {{ 'on' if cat == 'local' else '' }}" href="/?cat=local&lang={{ lang }}">
+    <div class="ico">🗺</div>
+    <div class="nm">{{ t('Район/шаар аралык', 'Между районами') }}
+      <span class="n">{{ cat_counts.local }}</span></div>
+  </a>
+</div>
+{% endblock %}
+
 {% block content %}
 
-<h1>{{ t('Айдоочулардын жарыялары', 'Объявления водителей') }}</h1>
-<div class="sub">
-  {% if total %}
-    {{ t('Учурда', 'Сейчас') }} <b>{{ total }}</b>
-    {{ t('активдүү жарыя', 'активных объявлений') }} ·
-    {{ t('ар бири 24 саат турат', 'каждое висит 24 часа') }}
-  {% else %}
-    {{ t('Азырынча жарыя жок', 'Пока нет объявлений') }}
-  {% endif %}
+<div class="head">
+  <h2>
+    {% if cat == 'to' %}{{ t('Бишкекке бараткандар', 'Едут в Бишкек') }}
+    {% elif cat == 'from' %}{{ t('Бишкектен кайткандар', 'Едут из Бишкека') }}
+    {% elif cat == 'local' %}{{ t('Район/шаар аралык', 'Между районами') }}
+    {% else %}{{ t('Бардык багыттар', 'Все направления') }}{% endif %}
+  </h2>
+  <span class="all">{{ total }} {{ t('жарыя', 'объявл.') }}</span>
 </div>
 
-{% macro route_list(rows) %}
-  {% for r in rows %}
-    <a class="route" href="/route?from={{ r.from_city|urlencode }}&to={{ r.to_city|urlencode }}">
-      <span class="path">{{ r.from_city }}<span class="arrow">→</span>{{ r.to_city }}</span>
-      <span class="count">{{ r.n }}</span>
+{% if oblasts %}
+<div class="chips">
+  <a class="chip {{ 'on' if not obl else '' }}"
+     href="/?cat={{ cat }}&lang={{ lang }}">{{ t('Баары', 'Все') }}</a>
+  {% for name, n in oblasts %}
+    <a class="chip {{ 'on' if obl == name else '' }}"
+       href="/?cat={{ cat }}&obl={{ name|urlencode }}&lang={{ lang }}">
+      {{ name }}<span class="n">{{ n }}</span>
     </a>
   {% endfor %}
-{% endmacro %}
-
-{% if to_bishkek %}
-  <h2>➡️ {{ t('Бишкекке', 'В Бишкек') }}</h2>
-  {{ route_list(to_bishkek) }}
+</div>
 {% endif %}
 
-{% if from_bishkek %}
-  <h2>⬅️ {{ t('Бишкектен', 'Из Бишкека') }}</h2>
-  {{ route_list(from_bishkek) }}
-{% endif %}
+{% for r in routes %}
+  <a class="route" href="/route?from={{ r.from_city|urlencode }}&to={{ r.to_city|urlencode }}&lang={{ lang }}">
+    <span class="path">{{ r.from_city }}<span class="arrow">→</span>{{ r.to_city }}</span>
+    <span class="count">{{ r.n }}</span>
+  </a>
+{% endfor %}
 
-{% if local %}
-  <h2>🗺 {{ t('Район/шаар аралык', 'Между районами и городами') }}</h2>
-  {{ route_list(local) }}
-{% endif %}
-
-{% if not total %}
+{% if not routes %}
   <div class="empty">
     <div class="big">🚕</div>
-    <div>{{ t('Азырынча айдоочулардын жарыясы жок.',
-              'Пока нет объявлений водителей.') }}</div>
+    {% if q %}
+      <div>{{ t('«%s» боюнча эч нерсе табылган жок.'|format(q),
+                'По запросу «%s» ничего не найдено.'|format(q)) }}</div>
+    {% else %}
+      <div>{{ t('Бул бөлүмдө азырынча жарыя жок.',
+                'В этом разделе пока нет объявлений.') }}</div>
+    {% endif %}
     <div style="margin-top:8px">
-      {{ t('Бир аздан кийин кайра карап көрүңүз.',
-           'Загляните чуть позже.') }}
+      {{ t('Бир аздан кийин кайра карап көрүңүз.', 'Загляните чуть позже.') }}
     </div>
   </div>
 {% endif %}
 
 {% endblock %}
+
