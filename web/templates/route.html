@@ -1,5 +1,4 @@
 {% extends "base.html" %}
-{% set qs = "from=" ~ (frm|urlencode) ~ "&to=" ~ (to|urlencode) ~ "&" %}
 
 {% block title %}{{ frm }} → {{ to }} — ТАКСИ роБОТ{% endblock %}
 
@@ -7,20 +6,17 @@
 
 <a class="back" href="/?lang={{ lang }}">← {{ t('Бардык багыттар', 'Все направления') }}</a>
 
-<h1>{{ frm }} <span style="color:#e0a800">→</span> {{ to }}</h1>
-<div class="sub">
-  {% if cards %}
-    {{ cards|length }} {{ t('айдоочу', 'водителей') }}
-  {% else %}
-    {{ t('Айдоочу табылган жок', 'Водители не найдены') }}
-  {% endif %}
+<div class="head" style="padding-left:0;padding-right:0;padding-top:0">
+  <h2>{{ frm }} <span style="color:#c99b00">→</span> {{ to }}</h2>
+  <span class="all">
+    {% if cards %}{{ cards|length }} {{ t('айдоочу', 'водителей') }}
+    {% else %}0{% endif %}
+  </span>
 </div>
 
 {% for c in cards %}
   <div class="post {{ 'vip' if c.is_vip else '' }}">
-    {% if c.is_vip %}
-      <div class="vip-tag">⭐ VIP</div>
-    {% endif %}
+    {% if c.is_vip %}<div class="vip-tag">⭐ VIP</div>{% endif %}
 
     <div class="who">{{ c.name }}</div>
     {% if c.car %}<div class="car">🚘 {{ c.car }}</div>{% endif %}
@@ -29,15 +25,13 @@
       <div><span class="k">📅</span> {{ c.date }} · {{ c.time }}</div>
       <div>
         <span class="k">{{ t('Бош орун', 'Мест') }}:</span> {{ c.seats }}
-        <span style="color:#c9c9c9"> · </span>
+        <span style="color:#cfcfcf"> · </span>
         <span class="k">{{ t('Баасы', 'Цена') }}:</span>
         <span class="price">{{ c.price }}</span>
       </div>
     </div>
 
-    {% if c.comment %}
-      <div class="note">📝 {{ c.comment }}</div>
-    {% endif %}
+    {% if c.comment %}<div class="note">📝 {{ c.comment }}</div>{% endif %}
 
     {% if c.phone %}
       <div class="contacts">
@@ -62,3 +56,4 @@
 {% endif %}
 
 {% endblock %}
+
