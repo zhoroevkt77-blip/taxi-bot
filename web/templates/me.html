@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+
+{% block title %}{{ t('Кабинет', 'Кабинет') }} — ТАКСИ роБОТ{% endblock %}
+
+{% block content %}
+
+<div class="page-head">
+  <h1>{{ t('Кабинет', 'Кабинет') }}</h1>
+</div>
+
+<a class="row-item" href="{{ lang_ru_url if lang == 'ky' else lang_ky_url }}">
+  <span class="ico">🌐</span>
+  <span class="nm">{{ t('Тил: Кыргызча', 'Язык: Русский') }}</span>
+  <span class="chev">›</span>
+</a>
+
+<a class="row-item" href="{{ bot_url }}">
+  <span class="ico">📋</span>
+  <span class="nm">{{ t('Менин жарыяларым', 'Мои объявления') }}</span>
+  <span class="chev">›</span>
+</a>
+
+<a class="row-item" href="/post?lang={{ lang }}">
+  <span class="ico">📢</span>
+  <span class="nm">{{ t('Жарыя берүү', 'Дать объявление') }}</span>
+  <span class="chev">›</span>
+</a>
+
+<a class="row-item" href="{{ channel_url }}">
+  <span class="ico">📣</span>
+  <span class="nm">{{ t('Каналга жазылуу', 'Подписаться на канал') }}</span>
+  <span class="chev">›</span>
+</a>
+
+<a class="row-item" href="/help?lang={{ lang }}">
+  <span class="ico">❓</span>
+  <span class="nm">{{ t('Жардам', 'Помощь') }}</span>
+  <span class="chev">›</span>
+</a>
+
+<div class="info-card">
+  {{ t('ТАКСИ роБОТ — Кыргызстандын такси платформасы. Telegram\'да, WhatsApp\'та жана ушул сайтта иштейт — база бир эле.',
+       'ТАКСИ роБОТ — платформа поиска такси по Кыргызстану. Работает в Telegram, WhatsApp и на этом сайте — база одна.') }}
+</div>
+
+{% endblock %}
