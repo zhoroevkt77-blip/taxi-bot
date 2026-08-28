@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% set qs = "" %}
+
+{% block title %}{{ t('Такси жарыялары', 'Объявления такси') }} — ТАКСИ роБОТ{% endblock %}
+
+{% block content %}
+
+<h1>{{ t('Айдоочулардын жарыялары', 'Объявления водителей') }}</h1>
+<div class="sub">
+  {% if total %}
+    {{ t('Учурда', 'Сейчас') }} <b>{{ total }}</b>
+    {{ t('активдүү жарыя', 'активных объявлений') }} ·
+    {{ t('ар бири 24 саат турат', 'каждое висит 24 часа') }}
+  {% else %}
+    {{ t('Азырынча жарыя жок', 'Пока нет объявлений') }}
+  {% endif %}
+</div>
+
+{% macro route_list(rows) %}
+  {% for r in rows %}
+    <a class="route" href="/route?from={{ r.from_city|urlencode }}&to={{ r.to_city|urlencode }}">
+      <span class="path">{{ r.from_city }}<span class="arrow">→</span>{{ r.to_city }}</span>
+      <span class="count">{{ r.n }}</span>
+    </a>
+  {% endfor %}
+{% endmacro %}
+
+{% if to_bishkek %}
+  <h2>➡️ {{ t('Бишкекке', 'В Бишкек') }}</h2>
+  {{ route_list(to_bishkek) }}
+{% endif %}
+
+{% if from_bishkek %}
+  <h2>⬅️ {{ t('Бишкектен', 'Из Бишкека') }}</h2>
+  {{ route_list(from_bishkek) }}
+{% endif %}
+
+{% if local %}
+  <h2>🗺 {{ t('Район/шаар аралык', 'Между районами и городами') }}</h2>
+  {{ route_list(local) }}
+{% endif %}
+
+{% if not total %}
+  <div class="empty">
+    <div class="big">🚕</div>
+    <div>{{ t('Азырынча айдоочулардын жарыясы жок.',
+              'Пока нет объявлений водителей.') }}</div>
+    <div style="margin-top:8px">
+      {{ t('Бир аздан кийин кайра карап көрүңүз.',
+           'Загляните чуть позже.') }}
+    </div>
+  </div>
+{% endif %}
+
+{% endblock %}
