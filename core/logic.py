@@ -15,6 +15,10 @@ Telegram да, WhatsApp да ушул файлды колдонот.
 ТӨЛӨМ:
     Мөөнөтү бүткөн айдоочу «💳 Төлөдүм» басып, чектин скриншотун
     жиберет. Чек админге барат, ал ырастаса — мөөнөт автоматтык кошулат.
+
+САЙТ:
+    Башкы менюдагы «🌐 Сайт» баскычы жарыяларды браузерден көрсөтөт.
+    Дареги texts.py'деги SITE_URL'ден алынат.
 """
 import os
 import re
@@ -34,7 +38,18 @@ from core.texts import (render, WELCOME, GUIDE, DRIVER_WARNING,
                         FAQ_INTRO, FAQ_POST, FAQ_FREE, FAQ_SEARCH,
                         FAQ_CONTACT, FAQ_SAFETY)
 
-LOGIC_VERSION = "v60-final"
+# Сайттын дареги жана «🌐 Сайт» бөлүмүнүн тексти.
+# texts.py эски версия болуп калса да бот кулабашы үчүн — коргоо менен.
+try:
+    from core.texts import SITE_URL, SITE_INFO
+except ImportError:
+    SITE_URL = os.environ.get(
+        "SITE_URL", "https://taxi-bot-production-fdb5.up.railway.app")
+    SITE_INFO = None
+
+SITE_SHORT = SITE_URL.replace("https://", "").replace("http://", "").rstrip("/")
+
+LOGIC_VERSION = "v61-site"
 print(f"🧩 core/logic.py жүктөлдү. Версия = {LOGIC_VERSION}")
 
 SESSIONS = {}
@@ -71,6 +86,7 @@ STEP_FIELD = {
 # Тарыхка жазылуучу экрандар (баскыч коддорунун башы)
 SCREEN_PREFIXES = (
     "menu:driver", "menu:passenger", "menu:help", "menu:channel", "menu:lang",
+    "menu:site",
     "menu:faq", "faq:", "menu:guide", "menu:safety",
     "d_search", "p_search", "d_my", "p_my", "d_vip",
     "sb:", "sr:", "lo:", "lof:", "lot:", "lr:", "ht:",
@@ -420,6 +436,7 @@ def main_menu_kb(platform="telegram"):
         Button("🚗 Айдоочумун", "menu:driver"),
         Button("🔍 Жүргүнчүмүн", "menu:passenger"),
         Button(channel_label, "menu:channel"),
+        Button("🌐 Сайт", "menu:site"),
         Button("🆘 Жардам", "menu:help"),
         Button("🌐 Тил / Язык", "menu:lang"),
     ])
@@ -632,6 +649,8 @@ def _dispatch(messenger, msg, account, a):
         return start_payment(messenger, msg, account, a.split(":")[2])
     if a == "menu:help":
         return help_menu(messenger, msg, account)
+    if a == "menu:site":
+        return show_site(messenger, msg, account)
     if a == "menu:guide":
         return _say(messenger, msg, account, GUIDE, back_kb())
     if a == "menu:safety":
@@ -717,6 +736,53 @@ def _dispatch(messenger, msg, account, a):
     _say(messenger, msg, account, "Бул баскыч азырынча иштелип чыккан жок.")
 
 
+def show_site(messenger, msg, account):
+    """🌐 Сайт — жарыяларды браузерден көрүү.
+
+    Telegram'да басылуучу URL баскычы чыгат. WhatsApp мындай баскычты
+    колдобойт, ошондуктан ал жерде шилтеме текст менен берилет —
+    WhatsApp аны өзү басылуучу кылат.
+    """
+    body = SITE_INFO or L(
+        f"🌐 <b>ТАКСИ роБОТ — сайтыбыз</b>\n\n"
+        f"<b>{SITE_SHORT}</b>\n\n"
+        f"Браузерден ачыла берет — каттоонун кереги жок.\n\n"
+        f"Сайтта бардык активдүү айдоочулар багыт боюнча тизме менен "
+        f"чыгат: облус боюнча чыпкалайсыз, шаар издейсиз, кыргызча же "
+        f"орусчага которосуз. Ар бир жарыяда чалуу, WhatsApp жана "
+        f"Telegram баскычтары даяр турат.\n\n"
+        f"⚠️ Сайт жарыяларды <b>көрсөтөт гана</b> — жарыя берүү ботто "
+        f"калат.\n\n"
+        f"💡 Шилтемени досторуңузга жибериңиз: алар ботту орнотпой эле "
+        f"айдоочуларды таба алат.",
+        f"🌐 <b>ТАКСИ роБОТ — наш сайт</b>\n\n"
+        f"<b>{SITE_SHORT}</b>\n\n"
+        f"Открывается в браузере — регистрация не нужна.\n\n"
+        f"На сайте все активные водители выводятся списком по "
+        f"направлениям: можно отфильтровать по области, найти город, "
+        f"переключить язык. У каждого объявления готовы кнопки звонка, "
+        f"WhatsApp и Telegram.\n\n"
+        f"⚠️ Сайт <b>только показывает</b> объявления — публикация "
+        f"остаётся в боте.\n\n"
+        f"💡 Отправьте ссылку друзьям: они найдут водителя, даже не "
+        f"устанавливая бот.")
+
+    if msg.platform == "telegram":
+        kb = Keyboard.from_flat([
+            Button("🌐 Сайтты ачуу", "noop", SITE_URL),
+            _back_btn(),
+        ])
+        return _say(messenger, msg, account, body, kb)
+
+    # WhatsApp: баскыч жок — шилтемени тексттин аягына кошобуз
+    if isinstance(body, tuple):
+        body = ("__L__",
+                body[1] + f"\n\n{SITE_URL}",
+                body[2] + f"\n\n{SITE_URL}")
+        return _say(messenger, msg, account, body, back_kb())
+    _say(messenger, msg, account, body, back_kb())
+
+
 def hashtag_search(messenger, msg, account, post_id, only_other=False,
                    only_role=None):
     """Жарыянын багыты боюнча издейт (издөө баскычы басылганда).
@@ -745,11 +811,12 @@ def hashtag_search(messenger, msg, account, post_id, only_other=False,
 
 
 def help_menu(messenger, msg, account):
-    """🆘 Жардам — эки бөлүм: нускама жана суроо-жооптор."""
+    """🆘 Жардам — нускама, суроо-жооптор, коопсуздук жана сайт."""
     kb = Keyboard.from_flat([
         Button("📖 Нускама", "menu:guide"),
         Button("❓ Көп берилүүчү суроолорго жооп", "menu:faq"),
         Button("🛡 Айдоочунун коопсуздугу", "menu:safety"),
+        Button("🌐 Сайт", "menu:site"),
         _back_btn(),
     ])
     _say(messenger, msg, account, L(
