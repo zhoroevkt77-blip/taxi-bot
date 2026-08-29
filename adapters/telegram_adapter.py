@@ -5,9 +5,14 @@ adapters/telegram_adapter.py
 Telegram update'терди core.messenger.IncomingMessage'ге айландырат.
 Эч бир бизнес-эреже бул жерде жазылбайт — баары core/logic.py'де.
 
-Башкы меню (Айдоочумун / Жүргүнчүмүн / Жардам / Тил) — Telegram'дын
-ылдыйкы reply-клавиатурасы. Ал ар дайым көрүнүп турат. Колдонуучу аны
-басканда текст келет, биз аны core тааныган баскыч кодуна которобуз.
+Башкы меню (Айдоочумун / Жүргүнчүмүн / Канал / Сайт / Жардам / Тил) —
+Telegram'дын ылдыйкы reply-клавиатурасы. Ал ар дайым көрүнүп турат.
+Колдонуучу аны басканда текст келет, биз аны core тааныган баскыч
+кодуна которобуз.
+
+ЭСКЕРТҮҮ: бул клавиатура core/logic.py'деги main_menu_kb() менен
+ДАЛ КЕЛИШИ керек. Ал жерге жаңы баскыч кошсоңуз, бул жерге да
+кошуңуз — болбосо ылдыйкы меню эски бойдон калат.
 
 URL БАСКЫЧТАРЫ:
     Button'дун url талаасы толтурулса, ал inline URL баскычы болуп
@@ -42,7 +47,7 @@ BOT_TOKEN = os.environ.get("BOT_TOKEN")
 CHANNEL_ID = os.environ.get("CHANNEL_ID")  # мис. @kanal_aty же -1001234567890
 bot = telebot.TeleBot(BOT_TOKEN, parse_mode="HTML")
 
-TG_ADAPTER_VERSION = "v8-tg-channel-label"
+TG_ADAPTER_VERSION = "v9-site-button"
 print(f"📨 telegram_adapter жүктөлдү. Версия = {TG_ADAPTER_VERSION}, "
       f"PID={os.getpid()}")
 
@@ -51,6 +56,7 @@ MAIN_MENU = {
     "🚗 Айдоочумун": "menu:driver",
     "🔍 Жүргүнчүмүн": "menu:passenger",
     "📢 Telegram каналыбыз": "menu:channel",
+    "🌐 Сайт": "menu:site",
     "🆘 Жардам": "menu:help",
     "🌐 Тил / Язык": "menu:lang",
     # Орусча варианттары да ушул эле коддорго барат
@@ -62,15 +68,20 @@ MAIN_MENU = {
 
 
 def main_reply_kb(lang="ky"):
+    """Ылдыйкы туруктуу меню.
+
+    Тартиби core/logic.py'деги main_menu_kb() менен бирдей болушу керек.
+    «🌐 Сайт» эки тилде тең бирдей жазылат — кыска жана түшүнүктүү.
+    """
     kb = types.ReplyKeyboardMarkup(resize_keyboard=True)
     if lang == "ru":
         kb.row("🚗 Я водитель", "🔍 Я пассажир")
-        kb.row("📢 Наш Telegram-канал", "🆘 Помощь")
-        kb.row("🌐 Тил / Язык")
+        kb.row("📢 Наш Telegram-канал", "🌐 Сайт")
+        kb.row("🆘 Помощь", "🌐 Тил / Язык")
     else:
         kb.row("🚗 Айдоочумун", "🔍 Жүргүнчүмүн")
-        kb.row("📢 Telegram каналыбыз", "🆘 Жардам")
-        kb.row("🌐 Тил / Язык")
+        kb.row("📢 Telegram каналыбыз", "🌐 Сайт")
+        kb.row("🆘 Жардам", "🌐 Тил / Язык")
     return kb
 
 
