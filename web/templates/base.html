@@ -9,7 +9,7 @@
 <style>
   /* ============================================================
      ТАКСИ роБОТ — сайттын стили
-     WEB_VERSION = v7-brand-btn
+     WEB_VERSION = v8-fit-topbar
      Түстөр: кара (тилке), сары (акцент), ак (карточкалар).
      ============================================================ */
   :root {
@@ -40,47 +40,70 @@
     color: var(--ink);
     -webkit-text-size-adjust: 100%;
     -webkit-font-smoothing: antialiased;
+    overflow-x: hidden;   /* бет туурасынан жылбасын */
   }
   a { text-decoration: none; color: inherit; }
 
   /* ---- Башкы тилке ---- */
   .top {
     background: linear-gradient(160deg, #22222a 0%, var(--black) 70%);
-    padding: 14px 16px 18px;
+    padding: 14px 14px 18px;
     border-radius: 0 0 20px 20px;
+    max-width: 640px; margin: 0 auto;
   }
-  .top-row { display: flex; align-items: center; gap: 10px; }
+
+  /* Катардагы элементтер тар экранда кысылып, батып турушу керек */
+  .top-row {
+    display: flex; align-items: center; gap: 8px;
+    min-width: 0; flex-wrap: nowrap;
+  }
+
+  /* Логотип кысылбайт, бирок өзү да орун талап кылбайт */
   .logo {
-    font-size: 20px; font-weight: 900; color: #fff;
+    flex: 0 0 auto;
+    font-size: 19px; font-weight: 900; color: #fff;
     letter-spacing: -.3px; line-height: 1.05;
+    display: flex; align-items: center; gap: 6px;
   }
-  .logo .car { display: block; font-size: 22px; line-height: 1; margin-bottom: 2px; }
+  .logo .car { font-size: 20px; line-height: 1; }
   .logo b { color: var(--yellow); }
 
-  /* Деплой белгиси — жаңы версия чыкканын текшерүү үчүн */
+  /* Деплой белгиси — логотиптин жанында, эң кичине орунда */
   .ver {
-    font-size: 10px; font-weight: 800; color: var(--yellow);
-    background: rgba(255,198,26,.16); border-radius: 8px;
-    padding: 3px 7px; letter-spacing: .5px; align-self: flex-start;
+    flex: 0 0 auto;
+    font-size: 9.5px; font-weight: 800; color: var(--yellow);
+    background: rgba(255,198,26,.16); border-radius: 7px;
+    padding: 2px 5px; letter-spacing: .4px;
   }
 
+  /* Аймак тегерекчеси — орун жетпесе ушул кысылат */
   .chip-region {
+    flex: 0 1 auto; min-width: 0;
     background: rgba(255,255,255,.11);
-    color: #f0f0f4; font-size: 13.5px; font-weight: 600;
-    padding: 8px 15px; border-radius: 22px; white-space: nowrap;
+    color: #f0f0f4; font-size: 12.5px; font-weight: 600;
+    padding: 7px 12px; border-radius: 22px;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
     backdrop-filter: blur(6px);
   }
-  .chip-region .dot { color: var(--yellow); margin-right: 6px; font-size: 15px; }
+  .chip-region .dot { color: var(--yellow); margin-right: 5px; font-size: 14px; }
+
+  /* Тил которгуч — эч качан кысылбайт, кесилбейт */
   .lang {
-    margin-left: auto; display: flex;
+    flex: 0 0 auto; margin-left: auto; display: flex;
     background: rgba(255,255,255,.11); border-radius: 22px; padding: 3px;
   }
   .lang a {
-    padding: 6px 13px; border-radius: 18px;
-    font-size: 12.5px; font-weight: 800; color: #a9a9b4;
+    padding: 6px 11px; border-radius: 18px;
+    font-size: 12px; font-weight: 800; color: #a9a9b4;
     letter-spacing: .4px; transition: all .18s;
   }
   .lang a.on { background: #fff; color: var(--black); box-shadow: 0 1px 4px rgba(0,0,0,.2); }
+
+  /* Абдан тар экрандарда аймак тегерекчесин жашырабыз —
+     логотип менен тил которгуч дайыма толук көрүнсүн */
+  @media (max-width: 360px) {
+    .chip-region { display: none; }
+  }
 
   /* ---- Издөө сабы ---- */
   form.search {
@@ -94,9 +117,10 @@
   }
   form.search input::placeholder { color: var(--grey-2); }
   form.search button {
+    flex: 0 0 auto;
     border: 0; background: var(--black); color: #fff;
     font-family: inherit; font-size: 14.5px; font-weight: 800;
-    padding: 12px 24px; border-radius: 24px; cursor: pointer;
+    padding: 12px 22px; border-radius: 24px; cursor: pointer;
     transition: transform .12s;
   }
   form.search button:active { transform: scale(.96); }
@@ -159,6 +183,7 @@
   }
   .head .all {
     margin-left: auto; font-size: 13.5px; font-weight: 700; color: var(--grey);
+    white-space: nowrap; padding-left: 10px;
   }
 
   /* ---- Облус чиптери ---- */
@@ -198,17 +223,19 @@
   .route .path {
     font-weight: 800; font-size: 16px; letter-spacing: -.2px;
     display: flex; align-items: center; gap: 9px;
+    min-width: 0;
   }
   .route .arrow {
     color: var(--yellow-2); font-size: 17px; font-weight: 900;
+    flex: 0 0 auto;
   }
   .count {
-    margin-left: auto;
+    flex: 0 0 auto; margin-left: auto;
     background: linear-gradient(135deg, var(--yellow) 0%, var(--yellow-2) 100%);
     color: var(--black); font-weight: 900; font-size: 14px;
     min-width: 34px; height: 34px; border-radius: 17px;
     display: flex; align-items: center; justify-content: center;
-    padding: 0 11px;
+    padding: 0 11px; margin-left: 10px;
     box-shadow: 0 2px 8px rgba(255,183,3,.4);
   }
 
@@ -238,7 +265,6 @@
   }
 
   /* ---- Байланыш баскычтары (ТАП!тикиндей) ---- */
-  /* Номер баскычтардын үстүндө, чоң жана көрүнүктүү */
   .phone-num {
     text-align: center; margin: 17px 0 11px;
     font-size: 21px; font-weight: 900; letter-spacing: -.4px;
@@ -247,14 +273,16 @@
 
   .contacts { display: flex; gap: 9px; }
   .btn {
-    flex: 1; border: 0; border-radius: 14px;
+    flex: 1 1 0; min-width: 0;
+    border: 0; border-radius: 14px;
     padding: 12px 4px 11px;
     display: flex; flex-direction: column;
     align-items: center; justify-content: center; gap: 6px;
-    font-size: 13.5px; font-weight: 800; letter-spacing: -.2px;
+    font-size: 13px; font-weight: 800; letter-spacing: -.2px;
     color: #fff; transition: transform .12s, filter .12s;
   }
-  .btn svg { width: 23px; height: 23px; display: block; }
+  .btn span { white-space: nowrap; }
+  .btn svg { width: 23px; height: 23px; display: block; flex: 0 0 auto; }
   .btn:active { transform: scale(.95); filter: brightness(.94); }
 
   /* Чалуу — биздин сары түс, ичи кара */
@@ -309,6 +337,7 @@
   }
   .row-item:active { transform: scale(.985); }
   .row-item .ico {
+    flex: 0 0 auto;
     font-size: 19px; width: 40px; height: 40px; border-radius: 13px;
     background: var(--bg); display: flex; align-items: center; justify-content: center;
   }
@@ -357,10 +386,11 @@
     max-width: 640px; margin: 0 auto; z-index: 20;
   }
   .tab {
-    flex: 1; display: flex; flex-direction: column;
+    flex: 1 1 0; min-width: 0;
+    display: flex; flex-direction: column;
     align-items: center; gap: 4px;
-    color: var(--grey-2); font-size: 10.5px; font-weight: 700;
-    padding: 3px 2px; letter-spacing: -.1px;
+    color: var(--grey-2); font-size: 10px; font-weight: 700;
+    padding: 3px 1px; letter-spacing: -.1px; text-align: center;
     transition: color .16s;
   }
   .tab .i { font-size: 21px; line-height: 1; transition: transform .16s; }
@@ -382,7 +412,7 @@
 <div class="top">
   <div class="top-row">
     <div class="logo"><span class="car">🚕</span>ТАКСИ<b>роБОТ</b></div>
-    <span class="ver">v7</span>
+    <span class="ver">v8</span>
     <div class="chip-region"><span class="dot">•</span>{{ t('Кыргызстан', 'Кыргызстан') }}</div>
     <div class="lang">
       <a href="{{ lang_ky_url }}" class="{{ 'on' if lang == 'ky' else '' }}">KG</a>
