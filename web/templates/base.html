@@ -19,7 +19,7 @@
 <style>
   /* ============================================================
      ТАКСИ роБОТ — сайттын стили
-     WEB_VERSION = v14-install-bar
+     WEB_VERSION = v17-smart-search
      Түстөр: кара (тилке), сары (акцент), ак (карточкалар).
      ============================================================ */
   :root {
@@ -411,6 +411,17 @@
     color: var(--grey); font-size: 15px; font-weight: 700;
   }
 
+  /* ---- Издөө сунуштары ---- */
+  .sug { margin-top: 22px; }
+  .sug-t {
+    font-size: 14px; font-weight: 700; color: var(--ink);
+    margin-bottom: 11px;
+  }
+  .sug-list {
+    display: flex; flex-wrap: wrap; gap: 8px; justify-content: center;
+  }
+  .sug-list .chip { box-shadow: var(--shadow); }
+
   /* ---- Орнотуу тилкеси ----
      Ылдыйкы менюнун үстүндө чыгат. Орнотулгандан кийин же
      колдонуучу жапкандан кийин кайра көрүнбөйт. */
@@ -508,7 +519,7 @@
 <div class="top">
   <div class="top-row">
     <div class="logo"><span class="car">🚕</span>ТАКСИ<b>роБОТ</b></div>
-    <span class="ver">v14</span>
+    <span class="ver">v17</span>
     <div class="chip-region"><span class="dot">•</span>{{ t('Кыргызстан', 'Кыргызстан') }}</div>
     <div class="lang">
       <a href="{{ lang_ky_url }}" class="{{ 'on' if lang == 'ky' else '' }}">KG</a>
