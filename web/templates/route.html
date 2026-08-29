@@ -19,7 +19,6 @@
 
     {% if c.is_vip %}
       <div class="vip-tag">
-        {# Жылдыз — VIP белгиси #}
         <svg viewBox="0 0 24 24" fill="currentColor" width="12" height="12">
           <path d="M12 2.6l2.9 5.9 6.5.95-4.7 4.58 1.11 6.47L12 17.45 6.19 20.5l1.11-6.47-4.7-4.58 6.5-.95z"/>
         </svg>
@@ -27,62 +26,117 @@
       </div>
     {% endif %}
 
-    <div class="who">{{ c.name }}</div>
-
-    {% if c.car %}
-      <div class="car">
-        {# Унаа #}
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"
-             stroke-linecap="round" stroke-linejoin="round">
-          <path d="M3 16.5v-4l1.9-4.6A1.5 1.5 0 0 1 6.3 7h11.4a1.5 1.5 0 0 1 1.4.9L21 12.5v4"/>
-          <path d="M3 16.5h18"/>
-          <circle cx="7.3" cy="16.8" r="1.6"/>
-          <circle cx="16.7" cy="16.8" r="1.6"/>
-        </svg>
-        <span>{{ c.car }}</span>
-      </div>
-    {% endif %}
-
     <div class="rows">
+
+      {# ---- Аты ---- #}
       <div class="row-line">
-        {# Календарь #}
         <svg class="k-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor"
              stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
-          <rect x="3.5" y="5" width="17" height="16" rx="2.5"/>
-          <path d="M3.5 10h17M8 3v4M16 3v4"/>
+          <circle cx="12" cy="8" r="3.6"/>
+          <path d="M4.5 20.5a7.5 7.5 0 0 1 15 0"/>
         </svg>
-        <span>{{ c.date }} · {{ c.time }}</span>
+        <div class="rw">
+          <span class="k">{{ t('Аты', 'Имя') }}</span>
+          <span class="v big">{{ c.name }}</span>
+        </div>
       </div>
 
-      <div class="row-line">
-        {# Орундук #}
-        <svg class="k-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-             stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
-          <circle cx="9" cy="7.5" r="3.2"/>
-          <path d="M3 20.5a6 6 0 0 1 12 0"/>
-          <path d="M17 11.5a3 3 0 0 0 0-6"/>
-          <path d="M18 20.5a6 6 0 0 0-2.4-4.8"/>
-        </svg>
-        <span>
-          <span class="k">{{ t('Бош орун', 'Мест') }}:</span> {{ c.seats }}
-          <span style="color:#cfcfcf"> · </span>
-          <span class="k">{{ t('Баасы', 'Цена') }}:</span>
-          <span class="price">{{ c.price }}</span>
-        </span>
-      </div>
+      {# ---- Машина ---- #}
+      {% if c.car %}
+        <div class="row-line">
+          <svg class="k-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+               stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M3 16.5v-4l1.9-4.6A1.5 1.5 0 0 1 6.3 7h11.4a1.5 1.5 0 0 1 1.4.9L21 12.5v4"/>
+            <path d="M3 16.5h18"/>
+            <circle cx="7.3" cy="16.8" r="1.6"/>
+            <circle cx="16.7" cy="16.8" r="1.6"/>
+          </svg>
+          <div class="rw">
+            <span class="k">{{ t('Машина', 'Машина') }}</span>
+            <span class="v">{{ c.car }}</span>
+          </div>
+        </div>
+      {% endif %}
+
+      {# ---- Күнү ---- #}
+      {% if c.date %}
+        <div class="row-line">
+          <svg class="k-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+               stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="3.5" y="5" width="17" height="16" rx="2.5"/>
+            <path d="M3.5 10h17M8 3v4M16 3v4"/>
+          </svg>
+          <div class="rw">
+            <span class="k">{{ t('Күнү', 'Дата') }}</span>
+            <span class="v">{{ c.date }}</span>
+          </div>
+        </div>
+      {% endif %}
+
+      {# ---- Саат ---- #}
+      {% if c.time %}
+        <div class="row-line">
+          <svg class="k-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+               stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="8.5"/>
+            <path d="M12 7.2V12l3.2 2.2"/>
+          </svg>
+          <div class="rw">
+            <span class="k">{{ t('Саат', 'Время') }}</span>
+            <span class="v">{{ c.time }}</span>
+          </div>
+        </div>
+      {% endif %}
+
+      {# ---- Бош орун ---- #}
+      {% if c.seats %}
+        <div class="row-line">
+          <svg class="k-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+               stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="9" cy="7.5" r="3.2"/>
+            <path d="M2.8 20.5a6.2 6.2 0 0 1 12.4 0"/>
+            <path d="M16.6 11.4a3 3 0 0 0 0-5.9"/>
+            <path d="M18.2 20.5a6.2 6.2 0 0 0-2.5-4.9"/>
+          </svg>
+          <div class="rw">
+            <span class="k">{{ t('Бош орун', 'Свободных мест') }}</span>
+            <span class="v">{{ c.seats }}</span>
+          </div>
+        </div>
+      {% endif %}
+
+      {# ---- Жол кире акы ---- #}
+      {% if c.price %}
+        <div class="row-line">
+          <svg class="k-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+               stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="2.8" y="6" width="18.4" height="12" rx="2.5"/>
+            <circle cx="12" cy="12" r="2.6"/>
+            <path d="M6.4 12h.01M17.6 12h.01"/>
+          </svg>
+          <div class="rw">
+            <span class="k">{{ t('Жол кире акы', 'Стоимость проезда') }}</span>
+            <span class="v price">{{ c.price }}</span>
+          </div>
+        </div>
+      {% endif %}
+
+      {# ---- Комментарий ---- #}
+      {% if c.comment %}
+        <div class="row-line">
+          <svg class="k-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+               stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 11.5a8.4 8.4 0 0 1-9 8.4 9 9 0 0 1-3.6-.7L3 21l1.8-5a8.2 8.2 0 0 1-.8-3.5
+                     8.4 8.4 0 0 1 8.5-8.4A8.4 8.4 0 0 1 21 11.5z"/>
+          </svg>
+          <div class="rw">
+            <span class="k">{{ t('Комментарий', 'Комментарий') }}</span>
+            <span class="v">{{ c.comment }}</span>
+          </div>
+        </div>
+      {% endif %}
+
     </div>
-
-    {% if c.comment %}
-      <div class="note">
-        {# Кыстарма — комментарий #}
-        <svg class="k-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-             stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M21 11.5a8.4 8.4 0 0 1-9 8.4 9 9 0 0 1-3.6-.7L3 21l1.8-5a8.2 8.2 0 0 1-.8-3.5
-                   8.4 8.4 0 0 1 8.5-8.4A8.4 8.4 0 0 1 21 11.5z"/>
-        </svg>
-        <span>{{ c.comment }}</span>
-      </div>
-    {% endif %}
 
     {% if c.phone %}
       <div class="phone-num">{{ c.phone }}</div>
@@ -123,7 +177,6 @@
 {% if not cards %}
   <div class="empty">
     <div class="big">
-      {# Чоң издөө белгиси #}
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"
            stroke-linecap="round" width="52" height="52">
         <circle cx="10.5" cy="10.5" r="7"/>
