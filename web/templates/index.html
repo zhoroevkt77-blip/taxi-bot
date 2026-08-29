@@ -3,16 +3,28 @@
 {% block title %}{{ t('Такси жарыялары', 'Объявления такси') }} — ТАКСИ роБОТ{% endblock %}
 
 {% block cats %}
-{# Категория карточкалары — ТАП!теги «Баары / Соода-сатык» катарындай #}
+{# Категория карточкалары. «Баары» — сүрөт, калгандары — SVG белгилер. #}
 <div class="cats">
+
   <a class="cat {{ 'on' if cat == 'all' else '' }}" href="/?cat=all&lang={{ lang }}">
     <div class="ico photo">
-      <img src="/static/IMG_20260829_061218_497.jpg" alt=""
-           onerror="this.parentNode.textContent='🚕'">
+      {# Түбүндөгү SVG такси: сүрөт ачылбаса ушул көрүнөт #}
+      <svg class="fallback" viewBox="0 0 24 24" fill="none"
+           stroke="#16161a" stroke-width="2"
+           stroke-linecap="round" stroke-linejoin="round">
+        <path d="M3 17v-4l2-5h14l2 5v4"/>
+        <path d="M3 17h18"/>
+        <circle cx="7.5" cy="17.5" r="1.7"/>
+        <circle cx="16.5" cy="17.5" r="1.7"/>
+        <path d="M9 4h6"/>
+      </svg>
+      <img src="/static/IMG_20260829_061218_497.jpg?v=6" alt=""
+           onerror="this.style.display='none'">
     </div>
     <div class="nm">{{ t('Баары', 'Все') }}
       <span class="n num">{{ cat_counts.all }}</span></div>
   </a>
+
   <a class="cat {{ 'on' if cat == 'to' else '' }}" href="/?cat=to&lang={{ lang }}">
     <div class="ico">
       <svg viewBox="0 0 24 24" width="26" height="26" fill="none"
@@ -24,6 +36,7 @@
     <div class="nm">{{ t('Бишкекке бараткандар', 'Едут в Бишкек') }}
       <span class="n num">{{ cat_counts.to }}</span></div>
   </a>
+
   <a class="cat {{ 'on' if cat == 'from' else '' }}" href="/?cat=from&lang={{ lang }}">
     <div class="ico">
       <svg viewBox="0 0 24 24" width="26" height="26" fill="none"
@@ -35,6 +48,7 @@
     <div class="nm">{{ t('Бишкектен кайткандар', 'Едут из Бишкека') }}
       <span class="n num">{{ cat_counts.from }}</span></div>
   </a>
+
   <a class="cat {{ 'on' if cat == 'local' else '' }}" href="/?cat=local&lang={{ lang }}">
     <div class="ico">
       <svg viewBox="0 0 24 24" width="26" height="26" fill="none"
@@ -47,6 +61,7 @@
     <div class="nm">{{ t('Район/шаар аралык', 'Между районами') }}
       <span class="n num">{{ cat_counts.local }}</span></div>
   </a>
+
 </div>
 {% endblock %}
 
@@ -77,14 +92,50 @@
 
 {% for r in routes %}
   <a class="route" href="/route?from={{ r.from_city|urlencode }}&to={{ r.to_city|urlencode }}&lang={{ lang }}">
-    <span class="path">{{ r.from_city }}<span class="arrow">→</span>{{ r.to_city }}</span>
-    <span class="count num">{{ r.n }}</span>
+
+    {# Багыт кайсы категорияга тиешелүү экени — карточканын үстүндө #}
+    <span class="cat-tag {{ r.cat }}">
+      {% if r.cat == 'to' %}
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8"
+             stroke-linecap="round" stroke-linejoin="round">
+          <path d="M4 12h15"/><path d="M13 6l6 6-6 6"/>
+        </svg>
+        {{ t('Бишкекке бараткандар', 'Едут в Бишкек') }}
+      {% elif r.cat == 'from' %}
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8"
+             stroke-linecap="round" stroke-linejoin="round">
+          <path d="M20 12H5"/><path d="M11 6l-6 6 6 6"/>
+        </svg>
+        {{ t('Бишкектен кайткандар', 'Едут из Бишкека') }}
+      {% else %}
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"
+             stroke-linecap="round" stroke-linejoin="round">
+          <path d="M9 4L3 6.5v13L9 17l6 3 6-2.5v-13L15 7 9 4z"/>
+          <path d="M9 4v13M15 7v13"/>
+        </svg>
+        {{ t('Район/шаар аралык', 'Между районами') }}
+      {% endif %}
+    </span>
+
+    <span class="route-main">
+      <span class="path">{{ r.from_city }}<span class="arrow">→</span>{{ r.to_city }}</span>
+      <span class="count num">{{ r.n }}</span>
+    </span>
+
   </a>
 {% endfor %}
 
 {% if not routes %}
   <div class="empty">
-    <div class="big">🚕</div>
+    <div class="big">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"
+           stroke-linecap="round" width="52" height="52">
+        <path d="M3 17v-4l2-5h14l2 5v4"/>
+        <path d="M3 17h18"/>
+        <circle cx="7.5" cy="17.5" r="1.7"/>
+        <circle cx="16.5" cy="17.5" r="1.7"/>
+      </svg>
+    </div>
     {% if q %}
       <div>{{ t('«%s» боюнча эч нерсе табылган жок.'|format(q),
                 'По запросу «%s» ничего не найдено.'|format(q)) }}</div>
