@@ -174,11 +174,15 @@ def _with_lang(resp):
     if q in ("ky", "ru"):
         resp.set_cookie("lang", q, max_age=365 * 24 * 3600)
     return resp
-def _with_lang(resp):
-    q = request.args.get("lang")
-    if q in ("ky", "ru"):
-        resp.set_cookie("lang", q, max_age=365 * 24 * 3600)
-    return resp          ← 176-сап, ушундан кийин
+
+
+@app.after_request
+def _no_cache(resp):
+    """HTML беттерин браузер кештебесин — жаңы версия дароо көрүнсүн."""
+    if resp.mimetype == "text/html":
+        resp.headers["Cache-Control"] = "no-store, max-age=0"
+    return resp
+
 
 # ============ БЕТТЕР ============
 
@@ -313,4 +317,3 @@ def run(host="0.0.0.0", port=None):
 
 if __name__ == "__main__":
     run()
-
