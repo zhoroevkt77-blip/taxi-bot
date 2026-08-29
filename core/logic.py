@@ -36,7 +36,7 @@ from core.texts import (render, WELCOME, GUIDE, DRIVER_WARNING,
                         PASSENGER_POST_PRICE,
                         VIP_HOURS,
                         FAQ_INTRO, FAQ_POST, FAQ_FREE, FAQ_SEARCH,
-                        FAQ_CONTACT, FAQ_SAFETY)
+                        FAQ_PAY, FAQ_CONTACT, FAQ_SAFETY)
 
 # Сайттын дареги жана «🌐 Сайт» бөлүмүнүн тексти.
 # texts.py эски версия болуп калса да бот кулабашы үчүн — коргоо менен.
@@ -49,7 +49,7 @@ except ImportError:
 
 SITE_SHORT = SITE_URL.replace("https://", "").replace("http://", "").rstrip("/")
 
-LOGIC_VERSION = "v61-site"
+LOGIC_VERSION = "v62-payment-faq"
 print(f"🧩 core/logic.py жүктөлдү. Версия = {LOGIC_VERSION}")
 
 SESSIONS = {}
@@ -830,6 +830,7 @@ def faq_menu(messenger, msg, account):
         Button("📝 Жарыя жөнүндө", "faq:post"),
         Button("🎁 Акысыз мүмкүнчүлүк", "faq:free"),
         Button("🔍 Издөө", "faq:search"),
+        Button("💳 Төлөм жана баалар", "faq:pay"),
         Button("📞 Байланыш", "faq:contact"),
         Button("🛡 Коопсуздук", "faq:safety"),
         _back_btn(),
@@ -841,6 +842,7 @@ FAQ_SECTIONS = {
     "post": FAQ_POST,
     "free": FAQ_FREE,
     "search": FAQ_SEARCH,
+    "pay": FAQ_PAY,
     "contact": FAQ_CONTACT,
     "safety": FAQ_SAFETY,
 }
