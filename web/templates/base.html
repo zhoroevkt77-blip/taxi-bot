@@ -9,7 +9,7 @@
 <style>
   /* ============================================================
      ТАКСИ роБОТ — сайттын стили
-     WEB_VERSION = v10-svg-cards
+     WEB_VERSION = v12-cat-tag
      Түстөр: кара (тилке), сары (акцент), ак (карточкалар).
      ============================================================ */
   :root {
@@ -197,13 +197,30 @@
 
   /* ---- Багыт карточкасы ---- */
   .route {
-    display: flex; align-items: center;
+    display: flex; flex-direction: column; align-items: stretch; gap: 9px;
     background: #fff; border-radius: 16px;
-    padding: 17px 16px; margin-bottom: 10px;
+    padding: 14px 16px 16px; margin-bottom: 10px;
     box-shadow: var(--shadow);
     transition: transform .14s, box-shadow .14s;
   }
   .route:active { transform: scale(.985); box-shadow: var(--shadow-lg); }
+
+  /* Багыттын категориясы — карточканын үстүндөгү кичине жазуу */
+  .cat-tag {
+    align-self: flex-start;
+    display: inline-flex; align-items: center; gap: 5px;
+    font-size: 11px; font-weight: 800; letter-spacing: .1px;
+    padding: 4px 10px; border-radius: 9px;
+    background: var(--bg); color: var(--grey);
+  }
+  .cat-tag svg { width: 13px; height: 13px; flex: 0 0 auto; }
+  /* Ар бир категориянын өз түсү */
+  .cat-tag.to    { background: #eaf4ff; color: #1f6fb2; }
+  .cat-tag.from  { background: #fdf0e8; color: #b5642c; }
+  .cat-tag.local { background: #eef7ee; color: #3d7a41; }
+
+  .route-main { display: flex; align-items: center; }
+
   .route .path {
     font-weight: 800; font-size: 16px; letter-spacing: -.2px;
     display: flex; align-items: center; gap: 9px; min-width: 0;
@@ -231,49 +248,47 @@
     box-shadow: 0 4px 16px rgba(255,183,3,.22);
   }
 
-  /* VIP тамгасы — жылдыз SVG менен катар турат */
   .vip-tag {
     display: inline-flex; align-items: center; gap: 5px;
     background: linear-gradient(135deg, var(--yellow) 0%, var(--yellow-2) 100%);
     font-size: 11px; font-weight: 900; letter-spacing: .4px;
-    padding: 5px 11px; border-radius: 11px; margin-bottom: 10px;
+    padding: 5px 11px; border-radius: 11px; margin-bottom: 12px;
     color: var(--black);
   }
   .vip-tag svg { display: block; flex: 0 0 auto; }
 
-  .post .who { font-size: 18px; font-weight: 900; letter-spacing: -.3px; margin-bottom: 5px; }
-
-  /* Унаа сабы — белги менен текст катар */
-  .post .car {
-    color: var(--grey); font-size: 14px; font-weight: 600; margin-bottom: 13px;
-    display: flex; align-items: center; gap: 7px;
-  }
-  .post .car svg { width: 18px; height: 18px; flex: 0 0 auto; }
-
-  /* Маалымат саптары — ар биринин алдында боз белги */
+  /* ---- Аталышы бар маалымат саптары ----
+     Ар бир сап: капкара белги + үстүндө боз аталыш + астында кара маани */
   .rows { font-size: 15px; }
   .rows .row-line {
-    display: flex; align-items: flex-start; gap: 9px;
-    margin-bottom: 7px; line-height: 1.5;
+    display: flex; align-items: flex-start; gap: 11px;
+    padding: 9px 0;
+    border-bottom: 1px solid var(--line);
   }
-  .rows .row-line:last-child { margin-bottom: 0; }
-  .rows .k-ico {
-    width: 17px; height: 17px; flex: 0 0 auto;
-    margin-top: 3px; color: var(--grey-2);
-  }
-  .rows .k { color: var(--grey); font-weight: 600; }
-  .price { font-weight: 900; color: var(--ink); }
+  .rows .row-line:last-child { border-bottom: 0; padding-bottom: 2px; }
+  .rows .row-line:first-child { padding-top: 0; }
 
-  /* Комментарий кутучасы */
-  .note {
-    margin-top: 12px; padding: 11px 13px; background: var(--bg);
-    border-radius: 11px; font-size: 14px; color: #55555f; line-height: 1.5;
-    display: flex; align-items: flex-start; gap: 9px;
+  /* Белги — капкара, бозомтук эмес */
+  .rows .k-ico {
+    width: 19px; height: 19px; flex: 0 0 auto;
+    margin-top: 2px; color: var(--black);
   }
-  .note .k-ico {
-    width: 17px; height: 17px; flex: 0 0 auto;
-    margin-top: 2px; color: var(--grey-2);
+
+  .rows .rw {
+    display: flex; flex-direction: column; gap: 1px; min-width: 0;
   }
+  /* Аталыш — кичине, боз */
+  .rows .k {
+    font-size: 12px; font-weight: 700; color: var(--grey);
+    letter-spacing: .1px;
+  }
+  /* Маани — кара, ачык окулат */
+  .rows .v {
+    font-size: 15px; font-weight: 700; color: var(--ink);
+    line-height: 1.4; word-break: break-word;
+  }
+  .rows .v.big { font-size: 18px; font-weight: 900; letter-spacing: -.3px; }
+  .rows .v.price { font-weight: 900; }
 
   /* ---- Байланыш баскычтары ---- */
   .phone-num {
@@ -348,7 +363,7 @@
     font-size: 19px; width: 40px; height: 40px; border-radius: 13px;
     background: var(--bg); display: flex; align-items: center; justify-content: center;
   }
-  .row-item .ico svg { width: 19px; height: 19px; color: var(--ink); }
+  .row-item .ico svg { width: 19px; height: 19px; color: var(--black); }
   .row-item .nm { font-weight: 700; font-size: 15.5px; letter-spacing: -.2px; }
   .row-item .chev { margin-left: auto; color: var(--grey-2); font-size: 24px; font-weight: 300; }
 
@@ -400,7 +415,7 @@
     flex: 1 1 0; min-width: 0;
     display: flex; flex-direction: column;
     align-items: center; gap: 5px;
-    color: var(--grey-2); font-size: 10px; font-weight: 700;
+    color: var(--grey); font-size: 10px; font-weight: 700;
     padding: 3px 1px; letter-spacing: -.1px; text-align: center;
     transition: color .16s;
   }
@@ -409,11 +424,11 @@
     transition: transform .16s;
   }
   .tab .i svg { width: 23px; height: 23px; display: block; }
-  .tab.on { color: var(--ink); font-weight: 800; }
+  .tab.on { color: var(--black); font-weight: 800; }
   .tab.on .i { transform: translateY(-1px); }
   .tab.on .i svg { stroke-width: 2.3; }
 
-  .tab.add { color: var(--ink); font-weight: 800; }
+  .tab.add { color: var(--black); font-weight: 800; }
   .tab.add .i {
     background: linear-gradient(135deg, var(--yellow) 0%, var(--yellow-2) 100%);
     width: 46px; height: 46px; border-radius: 50%;
@@ -429,7 +444,7 @@
 <div class="top">
   <div class="top-row">
     <div class="logo"><span class="car">🚕</span>ТАКСИ<b>роБОТ</b></div>
-    <span class="ver">v10</span>
+    <span class="ver">v12</span>
     <div class="chip-region"><span class="dot">•</span>{{ t('Кыргызстан', 'Кыргызстан') }}</div>
     <div class="lang">
       <a href="{{ lang_ky_url }}" class="{{ 'on' if lang == 'ky' else '' }}">KG</a>
