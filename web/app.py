@@ -1,3 +1,4 @@
+
 # -*- coding: utf-8 -*-
 """
 web/app.py
@@ -25,13 +26,14 @@ web/app.py
 import os
 import traceback
 from urllib.parse import quote
-from flask import Flask, render_template, request, make_response
+from flask import (Flask, render_template, request, make_response,
+                   send_from_directory)
 
 from core.db import db
 from core import posts
 from core.texts import render as tr_render
 
-WEB_VERSION = "v6-photo-card"
+WEB_VERSION = "v13-pwa"
 print(f"🌐 web/app.py жүктөлдү. Версия = {WEB_VERSION}")
 
 BOT_USERNAME = os.environ.get("BOT_USERNAME", "taxirobot_bot")
@@ -302,6 +304,30 @@ def _oops(e):
     return ("<h2 style='font-family:sans-serif'>Кечиресиз, ката кетти</h2>"
             "<p style='font-family:sans-serif'>Бир аздан кийин кайра "
             "аракет кылыңыз.</p>"), 500
+
+
+# ============ PWA (телефонго орнотуу) ============
+# Эки файл тең web/static/ ичинде жатат, бирок сайттын ТҮБҮНӨН
+# берилиши керек: service worker өз папкасынан жогорку беттерди
+# башкара албайт. Ошондуктан өзүнчө жол жазабыз.
+
+@app.route("/manifest.json")
+def manifest():
+    """Тиркеменин аты, түсү, иконкалары."""
+    return send_from_directory(app.static_folder, "manifest.json",
+                               mimetype="application/manifest+json")
+
+
+@app.route("/sw.js")
+def service_worker():
+    """Кештөө жана «интернет жок» бети."""
+    resp = make_response(send_from_directory(
+        app.static_folder, "sw.js", mimetype="application/javascript"))
+    # Түбүнөн берилгенин браузерге ырастайбыз
+    resp.headers["Service-Worker-Allowed"] = "/"
+    # Жаңы версия дароо жетсин
+    resp.headers["Cache-Control"] = "no-cache"
+    return resp
 
 
 @app.route("/healthz")
