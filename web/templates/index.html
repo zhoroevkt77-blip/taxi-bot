@@ -6,24 +6,46 @@
 {# Категория карточкалары — ТАП!теги «Баары / Соода-сатык» катарындай #}
 <div class="cats">
   <a class="cat {{ 'on' if cat == 'all' else '' }}" href="/?cat=all&lang={{ lang }}">
-    <div class="ico">🚕</div>
+    <div class="ico photo">
+      <img src="/static/IMG_20260829_061218_497.jpg" alt=""
+           onerror="this.parentNode.textContent='🚕'">
+    </div>
     <div class="nm">{{ t('Баары', 'Все') }}
-      <span class="n">{{ cat_counts.all }}</span></div>
+      <span class="n num">{{ cat_counts.all }}</span></div>
   </a>
   <a class="cat {{ 'on' if cat == 'to' else '' }}" href="/?cat=to&lang={{ lang }}">
-    <div class="ico">➡️</div>
+    <div class="ico">
+      <svg viewBox="0 0 24 24" width="26" height="26" fill="none"
+           stroke="#16161a" stroke-width="2.6"
+           stroke-linecap="round" stroke-linejoin="round">
+        <path d="M4 12h15"/><path d="M13 6l6 6-6 6"/>
+      </svg>
+    </div>
     <div class="nm">{{ t('Бишкекке бараткандар', 'Едут в Бишкек') }}
-      <span class="n">{{ cat_counts.to }}</span></div>
+      <span class="n num">{{ cat_counts.to }}</span></div>
   </a>
   <a class="cat {{ 'on' if cat == 'from' else '' }}" href="/?cat=from&lang={{ lang }}">
-    <div class="ico">⬅️</div>
+    <div class="ico">
+      <svg viewBox="0 0 24 24" width="26" height="26" fill="none"
+           stroke="#16161a" stroke-width="2.6"
+           stroke-linecap="round" stroke-linejoin="round">
+        <path d="M20 12H5"/><path d="M11 6l-6 6 6 6"/>
+      </svg>
+    </div>
     <div class="nm">{{ t('Бишкектен кайткандар', 'Едут из Бишкека') }}
-      <span class="n">{{ cat_counts.from }}</span></div>
+      <span class="n num">{{ cat_counts.from }}</span></div>
   </a>
   <a class="cat {{ 'on' if cat == 'local' else '' }}" href="/?cat=local&lang={{ lang }}">
-    <div class="ico">🗺</div>
+    <div class="ico">
+      <svg viewBox="0 0 24 24" width="26" height="26" fill="none"
+           stroke="#16161a" stroke-width="2.4"
+           stroke-linecap="round" stroke-linejoin="round">
+        <path d="M9 4L3 6.5v13L9 17l6 3 6-2.5v-13L15 7 9 4z"/>
+        <path d="M9 4v13M15 7v13"/>
+      </svg>
+    </div>
     <div class="nm">{{ t('Район/шаар аралык', 'Между районами') }}
-      <span class="n">{{ cat_counts.local }}</span></div>
+      <span class="n num">{{ cat_counts.local }}</span></div>
   </a>
 </div>
 {% endblock %}
@@ -37,7 +59,7 @@
     {% elif cat == 'local' %}{{ t('Район/шаар аралык', 'Между районами') }}
     {% else %}{{ t('Бардык багыттар', 'Все направления') }}{% endif %}
   </h2>
-  <span class="all">{{ total }} {{ t('жарыя', 'объявл.') }}</span>
+  <span class="all num">{{ total }} {{ t('жарыя', 'объявл.') }}</span>
 </div>
 
 {% if oblasts %}
@@ -47,7 +69,7 @@
   {% for name, n in oblasts %}
     <a class="chip {{ 'on' if obl == name else '' }}"
        href="/?cat={{ cat }}&obl={{ name|urlencode }}&lang={{ lang }}">
-      {{ name }}<span class="n">{{ n }}</span>
+      {{ name }}<span class="n num">{{ n }}</span>
     </a>
   {% endfor %}
 </div>
@@ -56,7 +78,7 @@
 {% for r in routes %}
   <a class="route" href="/route?from={{ r.from_city|urlencode }}&to={{ r.to_city|urlencode }}&lang={{ lang }}">
     <span class="path">{{ r.from_city }}<span class="arrow">→</span>{{ r.to_city }}</span>
-    <span class="count">{{ r.n }}</span>
+    <span class="count num">{{ r.n }}</span>
   </a>
 {% endfor %}
 
