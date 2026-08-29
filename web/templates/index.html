@@ -139,6 +139,18 @@
     {% if q %}
       <div>{{ t('«%s» боюнча эч нерсе табылган жок.'|format(q),
                 'По запросу «%s» ничего не найдено.'|format(q)) }}</div>
+
+      {% if suggest %}
+        <div class="sug">
+          <div class="sug-t">{{ t('Мүмкүн сиз ушуну издедиңизби?',
+                                  'Возможно, вы искали это?') }}</div>
+          <div class="sug-list">
+            {% for s in suggest %}
+              <a class="chip" href="/?cat={{ cat }}&q={{ s|urlencode }}&lang={{ lang }}">{{ s }}</a>
+            {% endfor %}
+          </div>
+        </div>
+      {% endif %}
     {% else %}
       <div>{{ t('Бул бөлүмдө азырынча жарыя жок.',
                 'В этом разделе пока нет объявлений.') }}</div>
