@@ -19,7 +19,7 @@
 <style>
   /* ============================================================
      ТАКСИ роБОТ — сайттын стили
-     WEB_VERSION = v19-ebony
+     WEB_VERSION = v20-clean-top
      Түстөр: кара (тилке), сары (акцент), ак (карточкалар).
      ============================================================ */
   :root {
@@ -86,6 +86,9 @@
     background: rgba(255,198,26,.22); border-radius: 7px;
     padding: 2px 5px; letter-spacing: .4px;
   }
+  /* Аймак тегерекчеси.
+     ⏸ АЗЫР КОЛДОНУЛБАЙТ — жогорку катарда орун жетпей калгандыктан
+     алынып салынды. Кийин керек болсо, .top-row ичине кайра кошуңуз. */
   .chip-region {
     flex: 0 1 auto; min-width: 0;
     background: #f1f1f4;
@@ -106,10 +109,6 @@
   .lang a.on {
     background: var(--black); color: #fff;
     box-shadow: 0 2px 8px rgba(20,20,30,.28);
-  }
-
-  @media (max-width: 360px) {
-    .chip-region { display: none; }
   }
 
   /* ---- Издөө сабы ---- */
@@ -537,8 +536,7 @@
 <div class="top">
   <div class="top-row">
     <div class="logo"><img class="car" src="/static/icon-192.png" alt="">ТАКСИ<b>роБОТ</b></div>
-    <span class="ver">v19</span>
-    <div class="chip-region"><span class="dot">•</span>{{ t('Кыргызстан', 'Кыргызстан') }}</div>
+    <span class="ver">v20</span>
     <div class="lang">
       <a href="{{ lang_ky_url }}" class="{{ 'on' if lang == 'ky' else '' }}">KG</a>
       <a href="{{ lang_ru_url }}" class="{{ 'on' if lang == 'ru' else '' }}">RU</a>
