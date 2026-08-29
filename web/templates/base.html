@@ -19,7 +19,7 @@
 <style>
   /* ============================================================
      ТАКСИ роБОТ — сайттын стили
-     WEB_VERSION = v13-pwa
+     WEB_VERSION = v14-install-bar
      Түстөр: кара (тилке), сары (акцент), ак (карточкалар).
      ============================================================ */
   :root {
@@ -411,6 +411,60 @@
     color: var(--grey); font-size: 15px; font-weight: 700;
   }
 
+  /* ---- Орнотуу тилкеси ----
+     Ылдыйкы менюнун үстүндө чыгат. Орнотулгандан кийин же
+     колдонуучу жапкандан кийин кайра көрүнбөйт. */
+  .install-bar {
+    position: fixed; left: 0; right: 0; bottom: 0;
+    max-width: 640px; margin: 0 auto; z-index: 30;
+    background: var(--black); color: #fff;
+    display: none; align-items: center; gap: 12px;
+    padding: 13px 14px calc(13px + env(safe-area-inset-bottom));
+    box-shadow: 0 -4px 20px rgba(0,0,0,.25);
+  }
+  .install-bar.on { display: flex; }
+  .install-bar .ib-ico {
+    flex: 0 0 auto; width: 40px; height: 40px; border-radius: 12px;
+    overflow: hidden; background: #fff;
+  }
+  .install-bar .ib-ico img { width: 100%; height: 100%; display: block; }
+  .install-bar .ib-txt { flex: 1 1 auto; min-width: 0; }
+  .install-bar .ib-t {
+    font-size: 14px; font-weight: 800; letter-spacing: -.2px;
+    line-height: 1.25;
+  }
+  .install-bar .ib-s {
+    font-size: 11.5px; color: #a9a9b4; margin-top: 2px; line-height: 1.3;
+  }
+  .install-bar .ib-go {
+    flex: 0 0 auto; border: 0; font-family: inherit;
+    background: linear-gradient(135deg, var(--yellow) 0%, var(--yellow-2) 100%);
+    color: var(--black); font-size: 13.5px; font-weight: 800;
+    padding: 11px 17px; border-radius: 12px;
+  }
+  .install-bar .ib-x {
+    flex: 0 0 auto; background: none; border: 0; color: #7a7a86;
+    font-size: 22px; line-height: 1; padding: 4px 2px 4px 4px;
+    font-family: inherit;
+  }
+
+  /* iPhone үчүн кыска нускама */
+  .ios-tip {
+    position: fixed; left: 12px; right: 12px; bottom: 84px;
+    max-width: 420px; margin: 0 auto; z-index: 31;
+    background: var(--black); color: #fff; border-radius: 16px;
+    padding: 16px 17px; display: none;
+    box-shadow: 0 8px 28px rgba(0,0,0,.3);
+  }
+  .ios-tip.on { display: block; }
+  .ios-tip b { color: var(--yellow); }
+  .ios-tip p { margin: 0; font-size: 13.5px; line-height: 1.55; }
+  .ios-tip button {
+    margin-top: 12px; width: 100%; border: 0; font-family: inherit;
+    background: rgba(255,255,255,.12); color: #fff;
+    font-size: 13.5px; font-weight: 700; padding: 10px; border-radius: 11px;
+  }
+
   /* ---- Ылдыйкы тилке ---- */
   .tabbar {
     position: fixed; left: 0; right: 0; bottom: 0;
@@ -454,7 +508,7 @@
 <div class="top">
   <div class="top-row">
     <div class="logo"><span class="car">🚕</span>ТАКСИ<b>роБОТ</b></div>
-    <span class="ver">v13</span>
+    <span class="ver">v14</span>
     <div class="chip-region"><span class="dot">•</span>{{ t('Кыргызстан', 'Кыргызстан') }}</div>
     <div class="lang">
       <a href="{{ lang_ky_url }}" class="{{ 'on' if lang == 'ky' else '' }}">KG</a>
@@ -531,17 +585,112 @@
 
 </nav>
 
+<!-- Орнотуу сунушу (Android/Chrome) -->
+<div class="install-bar" id="installBar">
+  <div class="ib-ico"><img src="/static/icon-192.png" alt=""></div>
+  <div class="ib-txt">
+    <div class="ib-t">{{ t('Телефонуңузга орнотуңуз', 'Установите на телефон') }}</div>
+    <div class="ib-s">{{ t('Тез ачылат, интернетти аз жейт',
+                           'Открывается быстрее, экономит трафик') }}</div>
+  </div>
+  <button class="ib-go" id="installGo">{{ t('Орнотуу', 'Установить') }}</button>
+  <button class="ib-x" id="installNo" aria-label="жабуу">&times;</button>
+</div>
+
+<!-- iPhone үчүн кыска нускама -->
+<div class="ios-tip" id="iosTip">
+  <p>
+    {{ t('Экраныңызга кошуу үчүн: ылдыйдагы', 'Чтобы добавить на экран: нажмите') }}
+    <b>{{ t('Бөлүшүү', 'Поделиться') }}</b>
+    {{ t('баскычын басып,', 'внизу, затем') }}
+    <b>{{ t('«Башкы экранга кошуу»', '«На экран Домой»') }}</b>
+    {{ t('дегенди тандаңыз.', '') }}
+  </p>
+  <button id="iosClose">{{ t('Түшүндүм', 'Понятно') }}</button>
+</div>
+
 <script>
-  // Service worker'ди катталтабыз — сайт телефонго орнотулуучу болот.
+  // ---- Service worker ----
   // Ката чыкса үн чыгарбайбыз: сайт ансыз да кадимкидей иштейт.
   if ("serviceWorker" in navigator) {
     window.addEventListener("load", function () {
       navigator.serviceWorker.register("/sw.js").catch(function () {});
     });
   }
+
+  // ---- Орнотуу сунушу ----
+  (function () {
+    var KEY = "tr_install_hidden_until";   // качанга чейин жашыруу
+    var bar = document.getElementById("installBar");
+    var tip = document.getElementById("iosTip");
+    if (!bar) return;
+
+    // Тиркеме катары ачылып турса — сунуштун кереги жок
+    var installed = window.matchMedia("(display-mode: standalone)").matches
+                    || window.navigator.standalone === true;
+    if (installed) return;
+
+    // Колдонуучу жакында «жок» дегенби?
+    var hidden = false;
+    try {
+      var until = localStorage.getItem(KEY);
+      hidden = until && Date.now() < parseInt(until, 10);
+    } catch (e) {}
+    if (hidden) return;
+
+    function hideFor(days) {
+      bar.classList.remove("on");
+      if (tip) tip.classList.remove("on");
+      try {
+        localStorage.setItem(KEY, String(Date.now() + days * 864e5));
+      } catch (e) {}
+    }
+
+    // ---- Android / Chrome: браузер өзү уруксат берет ----
+    var deferred = null;
+    window.addEventListener("beforeinstallprompt", function (e) {
+      e.preventDefault();
+      deferred = e;
+      bar.classList.add("on");
+    });
+
+    document.getElementById("installGo").addEventListener("click", function () {
+      if (deferred) {
+        deferred.prompt();
+        deferred.userChoice.then(function () {
+          deferred = null;
+          hideFor(30);
+        });
+      } else if (tip) {
+        // iPhone: Safari автоматтык орното албайт — нускама чыгарабыз
+        tip.classList.add("on");
+      }
+    });
+
+    document.getElementById("installNo").addEventListener("click", function () {
+      hideFor(14);      // «жок» десе — эки жума тынч
+    });
+
+    if (tip) {
+      document.getElementById("iosClose").addEventListener("click", function () {
+        hideFor(30);
+      });
+    }
+
+    // Орнотулуп бүттү — тилкени биротоло жабабыз
+    window.addEventListener("appinstalled", function () { hideFor(3650); });
+
+    // ---- iPhone / Safari ----
+    // beforeinstallprompt колдобойт, ошондуктан өзүбүз аныктайбыз
+    var ua = navigator.userAgent;
+    var isIOS = /iPad|iPhone|iPod/.test(ua) && !window.MSStream;
+    var isSafari = /Safari/.test(ua) && !/CriOS|FxiOS|EdgiOS/.test(ua);
+    if (isIOS && isSafari) {
+      setTimeout(function () { bar.classList.add("on"); }, 2500);
+    }
+  })();
 </script>
 
 </body>
 </html>
-
 
