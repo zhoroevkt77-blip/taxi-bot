@@ -32,7 +32,7 @@ from core.db import db
 from core import posts
 from core.texts import render as tr_render
 
-WEB_VERSION = "v16-payment"
+WEB_VERSION = "v17-smart-search"
 print(f"🌐 web/app.py жүктөлдү. Версия = {WEB_VERSION}")
 
 BOT_USERNAME = os.environ.get("BOT_USERNAME", "taxirobot_bot")
@@ -63,6 +63,80 @@ def _build_city_oblast():
 
 
 CITY_OBLAST = _build_city_oblast()
+
+
+# ============ ИЗДӨӨНҮ ЖӨНӨКӨЙЛӨТҮҮ ============
+# Колдонуучу «Жети Огуз», «жети-өгүз», «ЖЕТИӨГҮЗ» деп ар кандай
+# жазат. Экөөнү тең бирдей эрежеден өткөрүп, анан салыштырабыз.
+
+# Кыргызча өзгөчө тамгалар → жөнөкөй варианты.
+# Көпчүлүк адамдын клавиатурасында ө, ү, ң жок.
+_FOLD = str.maketrans({
+    "ө": "о", "Ө": "о", "ү": "у", "Ү": "у",
+    "ң": "н", "Ң": "н", "ё": "е", "Ё": "е",
+    "һ": "х", "Һ": "х",
+})
+
+# Аталыштын куйругу — издөөдө маани бербейт
+_TAILS = re.compile(
+    r"\s*(шаары|шаар|району|район|облусу|облус|айылы|айыл|"
+    r"город|городе|район[аеу]?|область|области)\s*", re.I)
+
+
+def norm(s):
+    """Издөө үчүн текстти бирдей түргө келтирет.
+
+        «Жети-Өгүз району» → «жетиогуз»
+        «жети огуз»        → «жетиогуз»
+        «ЖЕТИӨГҮЗ»         → «жетиогуз»
+    """
+    if not s:
+        return ""
+    s = str(s).lower().translate(_FOLD)
+    s = _TAILS.sub(" ", s)
+    # тамга менен сандан башкасын алып салабыз (дефис, боштук, чекит)
+    return "".join(ch for ch in s if ch.isalnum())
+
+
+def _close(a, b, max_diff=1):
+    """Эки сөз бири-бирине жакынбы? (тамга ката кечирүү)
+
+    «бишкик» → «бишкек» табылсын үчүн. Бир тамга айырма кечирилет,
+    узун сөздөрдө экөө.
+    """
+    if not a or not b:
+        return False
+    if abs(len(a) - len(b)) > max_diff:
+        return False
+    # Levenshtein — кыска сөздөр үчүн жөнөкөй эсеп жетиштүү
+    prev = list(range(len(b) + 1))
+    for i, ca in enumerate(a, 1):
+        cur = [i]
+        for j, cb in enumerate(b, 1):
+            cur.append(min(prev[j] + 1, cur[j - 1] + 1,
+                           prev[j - 1] + (ca != cb)))
+        prev = cur
+    return prev[-1] <= max_diff
+
+
+def _matches(q, *fields):
+    """Сурам ушул талаалардын бирине дал келеби?
+
+    Үч деңгээл: ичинде барбы → башталабы → тамга катасы менен жакынбы.
+    """
+    nq = norm(q)
+    if not nq:
+        return True
+    for f in fields:
+        nf = norm(f)
+        if not nf:
+            continue
+        if nq in nf:
+            return True
+        # Узун сурамда тамга катасын кечиребиз
+        if len(nq) >= 4 and _close(nq, nf, 2 if len(nq) > 6 else 1):
+            return True
+    return False
 
 
 def _oblast_of(row):
@@ -216,11 +290,25 @@ def index():
     if obl:
         sel = [r for r in sel if r["obl"] == obl]
 
-    # 4) Издөө
+    # 4) Издөө — жазылышына карабай табылсын
+    suggest = []
     if q:
-        low = q.lower()
-        sel = [r for r in sel
-               if low in r["from_city"].lower() or low in r["to_city"].lower()]
+        found = [r for r in sel if _matches(q, r["from_city"], r["to_city"])]
+        if not found:
+            # Эч нерсе табылбады — бүт тизмеден жакын аталыштарды
+            # чогултуп, «мүмкүн ушуну издедиңизби?» деп сунуштайбыз
+            nq = norm(q)
+            seen = set()
+            for r in rows:
+                for city in (r["from_city"], r["to_city"]):
+                    nc = norm(city)
+                    if city in seen or not nc:
+                        continue
+                    if nq[:3] and nc.startswith(nq[:3]) or _close(nq, nc, 2):
+                        seen.add(city)
+                        suggest.append(city)
+            suggest = suggest[:6]
+        sel = found
 
     html = render_template("index.html",
                            routes=sel,
@@ -229,6 +317,7 @@ def index():
                            oblasts=oblasts,
                            obl=obl,
                            q=q,
+                           suggest=suggest,
                            total=sum(r["n"] for r in sel),
                            **_base_ctx())
     return _with_lang(make_response(html))
