@@ -9,7 +9,7 @@
 <style>
   /* ============================================================
      ТАКСИ роБОТ — сайттын стили
-     WEB_VERSION = v8-fit-topbar
+     WEB_VERSION = v9-svg-tabbar
      Түстөр: кара (тилке), сары (акцент), ак (карточкалар).
      ============================================================ */
   :root {
@@ -58,7 +58,6 @@
     min-width: 0; flex-wrap: nowrap;
   }
 
-  /* Логотип кысылбайт, бирок өзү да орун талап кылбайт */
   .logo {
     flex: 0 0 auto;
     font-size: 19px; font-weight: 900; color: #fff;
@@ -99,8 +98,7 @@
   }
   .lang a.on { background: #fff; color: var(--black); box-shadow: 0 1px 4px rgba(0,0,0,.2); }
 
-  /* Абдан тар экрандарда аймак тегерекчесин жашырабыз —
-     логотип менен тил которгуч дайыма толук көрүнсүн */
+  /* Абдан тар экрандарда аймак тегерекчесин жашырабыз */
   @media (max-width: 360px) {
     .chip-region { display: none; }
   }
@@ -155,8 +153,7 @@
     margin-bottom: 10px; overflow: hidden;
   }
 
-  /* «Баары» карточкасы: SVG такси — түбүндө, сүрөт — үстүндө.
-     Сүрөт ачылбаса, астындагы SVG көрүнөт (эмодж эмес). */
+  /* «Баары» карточкасы: SVG такси — түбүндө, сүрөт — үстүндө. */
   .cat .ico.photo { background: var(--bg); padding: 0; position: relative; }
   .cat .ico.photo .fallback { width: 30px; height: 30px; display: block; }
   .cat .ico.photo img {
@@ -230,12 +227,12 @@
     flex: 0 0 auto;
   }
   .count {
-    flex: 0 0 auto; margin-left: auto;
+    flex: 0 0 auto;
     background: linear-gradient(135deg, var(--yellow) 0%, var(--yellow-2) 100%);
     color: var(--black); font-weight: 900; font-size: 14px;
     min-width: 34px; height: 34px; border-radius: 17px;
     display: flex; align-items: center; justify-content: center;
-    padding: 0 11px; margin-left: 10px;
+    padding: 0 11px; margin-left: auto;
     box-shadow: 0 2px 8px rgba(255,183,3,.4);
   }
 
@@ -285,18 +282,15 @@
   .btn svg { width: 23px; height: 23px; display: block; flex: 0 0 auto; }
   .btn:active { transform: scale(.95); filter: brightness(.94); }
 
-  /* Чалуу — биздин сары түс, ичи кара */
   .btn.call {
     background: linear-gradient(135deg, var(--yellow) 0%, var(--yellow-2) 100%);
     color: var(--black);
     box-shadow: 0 3px 11px rgba(255,183,3,.4);
   }
-  /* WhatsApp — өз фирмалык жашылы */
   .btn.wa {
     background: linear-gradient(135deg, var(--wa) 0%, var(--wa-2) 100%);
     box-shadow: 0 3px 11px rgba(37,211,102,.35);
   }
-  /* Telegram — өз фирмалык көгү */
   .btn.tg {
     background: linear-gradient(135deg, var(--tg) 0%, var(--tg-2) 100%);
     box-shadow: 0 3px 11px rgba(29,142,196,.35);
@@ -376,6 +370,8 @@
   }
 
   /* ---- Ылдыйкы тилке ---- */
+  /* Белгилер SVG: ичке сызыктуу, эмодж эмес. Түсү тексттен алынат
+     (currentColor), ошондуктан активдүү бөлүм өзү кара болуп калат. */
   .tabbar {
     position: fixed; left: 0; right: 0; bottom: 0;
     background: rgba(255,255,255,.97);
@@ -388,22 +384,29 @@
   .tab {
     flex: 1 1 0; min-width: 0;
     display: flex; flex-direction: column;
-    align-items: center; gap: 4px;
+    align-items: center; gap: 5px;
     color: var(--grey-2); font-size: 10px; font-weight: 700;
     padding: 3px 1px; letter-spacing: -.1px; text-align: center;
     transition: color .16s;
   }
-  .tab .i { font-size: 21px; line-height: 1; transition: transform .16s; }
+  .tab .i {
+    display: flex; align-items: center; justify-content: center;
+    transition: transform .16s;
+  }
+  .tab .i svg { width: 23px; height: 23px; display: block; }
   .tab.on { color: var(--ink); font-weight: 800; }
-  .tab.on .i { transform: translateY(-1px) scale(1.08); }
+  .tab.on .i { transform: translateY(-1px); }
+  .tab.on .i svg { stroke-width: 2.3; }
+
+  /* Ортодогу «+» — сары тегерек, ичи кара */
   .tab.add { color: var(--ink); font-weight: 800; }
   .tab.add .i {
     background: linear-gradient(135deg, var(--yellow) 0%, var(--yellow-2) 100%);
     width: 46px; height: 46px; border-radius: 50%;
-    display: flex; align-items: center; justify-content: center;
-    margin-top: -16px; font-size: 25px;
+    margin-top: -16px; color: var(--black);
     box-shadow: 0 4px 14px rgba(255,183,3,.5);
   }
+  .tab.add .i svg { width: 25px; height: 25px; stroke-width: 2.6; }
   .tab.add:active .i { transform: scale(.94); }
 </style>
 </head>
@@ -412,7 +415,7 @@
 <div class="top">
   <div class="top-row">
     <div class="logo"><span class="car">🚕</span>ТАКСИ<b>роБОТ</b></div>
-    <span class="ver">v8</span>
+    <span class="ver">v9</span>
     <div class="chip-region"><span class="dot">•</span>{{ t('Кыргызстан', 'Кыргызстан') }}</div>
     <div class="lang">
       <a href="{{ lang_ky_url }}" class="{{ 'on' if lang == 'ky' else '' }}">KG</a>
@@ -434,23 +437,67 @@
 </main>
 
 <nav class="tabbar">
+
   <a class="tab {{ 'on' if request.path == '/' else '' }}" href="/?lang={{ lang }}">
-    <span class="i">🏠</span>{{ t('Башкы бет', 'Главная') }}
+    <span class="i">
+      {# Үй #}
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+           stroke-linecap="round" stroke-linejoin="round">
+        <path d="M3 10.5L12 3l9 7.5"/>
+        <path d="M5 9.6V20a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V9.6"/>
+        <path d="M9.5 21v-6h5v6"/>
+      </svg>
+    </span>{{ t('Башкы бет', 'Главная') }}
   </a>
+
   <a class="tab" href="{{ channel_url }}">
-    <span class="i">📢</span>{{ t('Канал', 'Канал') }}
+    <span class="i">
+      {# Рупор — канал #}
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+           stroke-linecap="round" stroke-linejoin="round">
+        <path d="M3 11v2a1 1 0 0 0 1 1h3l7 4.5V6.5L7 11H4a1 1 0 0 0-1 1z"/>
+        <path d="M17.5 9a4 4 0 0 1 0 6"/>
+        <path d="M20 6.5a7.5 7.5 0 0 1 0 11"/>
+      </svg>
+    </span>{{ t('Канал', 'Канал') }}
   </a>
+
   <a class="tab add {{ 'on' if request.path == '/post' else '' }}" href="/post?lang={{ lang }}">
-    <span class="i">➕</span>{{ t('Жарыя берүү', 'Объявление') }}
+    <span class="i">
+      {# Кошуу белгиси #}
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6"
+           stroke-linecap="round">
+        <path d="M12 5v14M5 12h14"/>
+      </svg>
+    </span>{{ t('Жарыя берүү', 'Объявление') }}
   </a>
+
   <a class="tab {{ 'on' if request.path == '/help' else '' }}" href="/help?lang={{ lang }}">
-    <span class="i">❓</span>{{ t('Жардам', 'Помощь') }}
+    <span class="i">
+      {# Суроо белгиси тегерек ичинде #}
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+           stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="9"/>
+        <path d="M9.3 9.2a2.8 2.8 0 0 1 5.4.9c0 1.9-2.7 2.4-2.7 4"/>
+        <path d="M12 17.3h.01"/>
+      </svg>
+    </span>{{ t('Жардам', 'Помощь') }}
   </a>
+
   <a class="tab {{ 'on' if request.path == '/me' else '' }}" href="/me?lang={{ lang }}">
-    <span class="i">👤</span>{{ t('Кабинет', 'Кабинет') }}
+    <span class="i">
+      {# Адам — кабинет #}
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+           stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="8" r="3.6"/>
+        <path d="M4.5 20.5a7.5 7.5 0 0 1 15 0"/>
+      </svg>
+    </span>{{ t('Кабинет', 'Кабинет') }}
   </a>
+
 </nav>
 
 </body>
 </html>
+
 
