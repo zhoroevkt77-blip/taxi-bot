@@ -23,6 +23,7 @@ web/app.py
 """
 
 import os
+import re
 import traceback
 from urllib.parse import quote
 from flask import (Flask, render_template, request, make_response,
@@ -32,7 +33,7 @@ from core.db import db
 from core import posts
 from core.texts import render as tr_render
 
-WEB_VERSION = "v17-smart-search"
+WEB_VERSION = "v18-smart-search"
 print(f"🌐 web/app.py жүктөлдү. Версия = {WEB_VERSION}")
 
 BOT_USERNAME = os.environ.get("BOT_USERNAME", "taxirobot_bot")
