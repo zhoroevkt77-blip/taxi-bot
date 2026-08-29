@@ -6,10 +6,20 @@
 <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <title>{% block title %}ТАКСИ роБОТ{% endblock %}</title>
+
+<!-- ---- Телефонго орнотуу (PWA) ---- -->
+<link rel="manifest" href="/manifest.json">
+<meta name="theme-color" content="#16161a">
+<link rel="icon" href="/static/icon-192.png" sizes="192x192">
+<link rel="apple-touch-icon" href="/static/icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<meta name="apple-mobile-web-app-title" content="ТАКСИ роБОТ">
+<meta name="description" content="Кыргызстан боюнча такси жарыялары: айдоочулар менен жүргүнчүлөрдү байланыштырган акылдуу сервис.">
 <style>
   /* ============================================================
      ТАКСИ роБОТ — сайттын стили
-     WEB_VERSION = v12-cat-tag
+     WEB_VERSION = v13-pwa
      Түстөр: кара (тилке), сары (акцент), ак (карточкалар).
      ============================================================ */
   :root {
@@ -444,7 +454,7 @@
 <div class="top">
   <div class="top-row">
     <div class="logo"><span class="car">🚕</span>ТАКСИ<b>роБОТ</b></div>
-    <span class="ver">v12</span>
+    <span class="ver">v13</span>
     <div class="chip-region"><span class="dot">•</span>{{ t('Кыргызстан', 'Кыргызстан') }}</div>
     <div class="lang">
       <a href="{{ lang_ky_url }}" class="{{ 'on' if lang == 'ky' else '' }}">KG</a>
@@ -521,6 +531,17 @@
 
 </nav>
 
+<script>
+  // Service worker'ди катталтабыз — сайт телефонго орнотулуучу болот.
+  // Ката чыкса үн чыгарбайбыз: сайт ансыз да кадимкидей иштейт.
+  if ("serviceWorker" in navigator) {
+    window.addEventListener("load", function () {
+      navigator.serviceWorker.register("/sw.js").catch(function () {});
+    });
+  }
+</script>
+
 </body>
 </html>
+
 
