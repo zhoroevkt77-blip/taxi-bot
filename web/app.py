@@ -31,7 +31,7 @@ from core.db import db
 from core import posts
 from core.texts import render as tr_render
 
-WEB_VERSION = "v5-pages"
+WEB_VERSION = "v6-photo-card"
 print(f"🌐 web/app.py жүктөлдү. Версия = {WEB_VERSION}")
 
 BOT_USERNAME = os.environ.get("BOT_USERNAME", "taxirobot_bot")
@@ -174,7 +174,11 @@ def _with_lang(resp):
     if q in ("ky", "ru"):
         resp.set_cookie("lang", q, max_age=365 * 24 * 3600)
     return resp
-
+def _with_lang(resp):
+    q = request.args.get("lang")
+    if q in ("ky", "ru"):
+        resp.set_cookie("lang", q, max_age=365 * 24 * 3600)
+    return resp          ← 176-сап, ушундан кийин
 
 # ============ БЕТТЕР ============
 
