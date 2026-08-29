@@ -1,4 +1,3 @@
-
 # -*- coding: utf-8 -*-
 """
 web/app.py
@@ -33,7 +32,7 @@ from core.db import db
 from core import posts
 from core.texts import render as tr_render
 
-WEB_VERSION = "v13-pwa"
+WEB_VERSION = "v16-payment"
 print(f"🌐 web/app.py жүктөлдү. Версия = {WEB_VERSION}")
 
 BOT_USERNAME = os.environ.get("BOT_USERNAME", "taxirobot_bot")
@@ -268,12 +267,15 @@ def help_page():
     lang = _lang()
     try:
         from core.texts import (GUIDE, FAQ_POST, FAQ_FREE, FAQ_SEARCH,
-                                FAQ_CONTACT, FAQ_SAFETY, DRIVER_SAFETY)
+                                FAQ_PAY, FAQ_CONTACT, FAQ_SAFETY,
+                                DRIVER_SAFETY)
         blocks = [
             (_t("📖 Нускама", "📖 Инструкция"), tr_render(GUIDE, lang)),
             (_t("📝 Жарыя жөнүндө", "📝 Об объявлении"), tr_render(FAQ_POST, lang)),
             (_t("🎁 Акысыз мүмкүнчүлүк", "🎁 Бесплатный доступ"), tr_render(FAQ_FREE, lang)),
             (_t("🔍 Издөө", "🔍 Поиск"), tr_render(FAQ_SEARCH, lang)),
+            (_t("💳 Төлөм жана баалар", "💳 Оплата и цены"),
+             tr_render(FAQ_PAY, lang)),
             (_t("📞 Байланыш", "📞 Связь"), tr_render(FAQ_CONTACT, lang)),
             (_t("🛡 Коопсуздук", "🛡 Безопасность"), tr_render(FAQ_SAFETY, lang)),
             (_t("🚦 Айдоочунун коопсуздугу", "🚦 Безопасность водителя"),
@@ -343,3 +345,4 @@ def run(host="0.0.0.0", port=None):
 
 if __name__ == "__main__":
     run()
+
