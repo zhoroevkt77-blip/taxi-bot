@@ -49,7 +49,7 @@ except ImportError:
 
 SITE_SHORT = SITE_URL.replace("https://", "").replace("http://", "").rstrip("/")
 
-LOGIC_VERSION = "v64-pay-button"
+LOGIC_VERSION = "v65-pay-link"
 print(f"🧩 core/logic.py жүктөлдү. Версия = {LOGIC_VERSION}")
 
 SESSIONS = {}
@@ -68,6 +68,9 @@ SEARCH_PREFIX = "Издөө:"
 # Баскыч кабар талаасына ушул текстти даярдап коёт, колдонуучу
 # жөнөтүү басат — бот аны таанып, дароо визардды баштайт.
 POST_PREFIX = "Жарыя берем:"
+
+# Сайттын «Кабинет» бетинен WhatsApp ботко түз кирүү — төлөм бөлүмүнө.
+PAY_TEXT = "Төлөм төлөймүн"
 
 # Башкы менюнун кыска аталышы. Толук WELCOME тексти /start деп КОЛ МЕНЕН
 # жазылганда гана чыгат — ал биринчи таанышуу үчүн. Каналдан ботко
@@ -94,7 +97,7 @@ SCREEN_PREFIXES = (
     "menu:site",
     "menu:faq", "faq:", "menu:guide", "menu:safety",
     "d_search", "p_search", "d_my", "p_my", "d_vip",
-    "d_pay", "p_pay",
+    "d_pay", "p_pay", "pay_entry",
     "sb:", "sr:", "lo:", "lof:", "lot:", "lr:", "ht:",
 )
 
@@ -395,6 +398,31 @@ def pay_btn(kind):
     return Button("💳 Төлөдүм (чек жиберем)", f"pay:start:{kind}")
 
 
+def pay_entry(messenger, msg, account):
+    """Сайттан төлөмгө түз келгенде — алгач ролду сурайбыз.
+
+    Баалар ролго жараша башка, ошондуктан «айдоочу» же «жүргүнчү»
+    экенин билбей туруп реквизит бере албайбыз.
+    """
+    kb = Keyboard.from_flat([
+        Button("🚗 Айдоочу катары", "d_pay"),
+        Button("🧳 Жүргүнчү катары", "p_pay"),
+        Button("🏠 Башкы меню", "menu:home"),
+    ])
+    _say(messenger, msg, account, L(
+        "💳 <b>Төлөм</b>\n\n"
+        "Кайсы ролдо төлөйсүз?\n\n"
+        f"🚗 <b>Айдоочу</b> — жарыя берүү укугу ({PAYMENT_AMOUNT}) "
+        f"же VIP ({VIP_PRICE}).\n"
+        f"🧳 <b>Жүргүнчү</b> — бир жарыя ({PASSENGER_POST_PRICE}).",
+        "💳 <b>Оплата</b>\n\n"
+        "В какой роли вы платите?\n\n"
+        f"🚗 <b>Водитель</b> — право размещать объявления "
+        f"({PAYMENT_AMOUNT}) или VIP ({VIP_PRICE}).\n"
+        f"🧳 <b>Пассажир</b> — одно объявление "
+        f"({PASSENGER_POST_PRICE})."), kb)
+
+
 def pay_menu(messenger, msg, account, role):
     """«💳 Төлөм төлөймүн» — эмне үчүн төлөөрүн тандоо экраны.
 
@@ -579,6 +607,9 @@ def handle_update(messenger, msg):
                                       int(parts[1][2:]), only_role="driver")
             except ValueError:
                 pass
+        elif len(parts) > 1 and parts[1] == "pay":
+            # Сайттын «Кабинет» бетинен төлөмгө түз келди
+            return pay_entry(messenger, msg, account)
         elif len(parts) > 1 and parts[1] in ("postd", "postp"):
             # Сайттагы «Жарыя берүү» бетинен түз келди —
             # дароо жарыя жазуу визардын баштайбыз
@@ -619,6 +650,12 @@ def handle_update(messenger, msg):
                 return _show_hashtag_results(messenger, msg, account,
                                              f"{frm}_{to}", frm, to,
                                              only_role="driver")
+
+    # Сайттын «Кабинет» бетинен WhatsApp ботко төлөмгө келгендер
+    if text.strip().lower() == PAY_TEXT.lower():
+        SESSIONS.pop(msg.user_id, None)
+        NAV.pop(msg.user_id, None)
+        return pay_entry(messenger, msg, account)
 
     # Сайттагы «Жарыя берүү» бетинен WhatsApp ботко түз келгендер:
     # «Жарыя берем: айдоочу» же «Жарыя берем: жүргүнчү»
@@ -773,6 +810,8 @@ def _dispatch(messenger, msg, account, a):
         return show_my_posts(messenger, msg, account, "passenger")
     if a == "d_vip":
         return show_vip(messenger, msg, account)
+    if a == "pay_entry":
+        return pay_entry(messenger, msg, account)
     if a in ("d_pay", "p_pay"):
         return pay_menu(messenger, msg, account,
                         "driver" if a == "d_pay" else "passenger")
@@ -2125,4 +2164,3 @@ def register_referral(messenger, newbie, inviter_id):
                  f"🎁 {days} күн акысыз жарыя бере аласыз.")
         else:
             tell(f"🎁 Дагы {days} күн акысыз кошулду!")
-
