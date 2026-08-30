@@ -33,7 +33,7 @@ from core.db import db
 from core import posts
 from core.texts import render as tr_render
 
-WEB_VERSION = "v29-filter-fold"
+WEB_VERSION = "v31-fold-manual"
 print(f"🌐 web/app.py жүктөлдү. Версия = {WEB_VERSION}")
 
 BOT_USERNAME = os.environ.get("BOT_USERNAME", "taxirobot_bot")
@@ -440,8 +440,16 @@ def index():
 
     # Чыпкалардын бирөө коюлганбы? (шаблондо «тазалоо» баскычы үчүн)
     has_filter = bool(obl or f_obl or f_city or t_obl or t_city or q)
-    # Канчоо коюлду — баскычтагы сары сан ушул
-    filter_n = sum(1 for v in (obl, f_obl, f_city, t_obl, t_city, q) if v)
+    # Блоктун ИЧИНДЕГИ чыпкалар гана. Облус чиби менен издөө сабы
+    # блоктон тышкары турат, ошондуктан аларды санабайбыз — болбосо
+    # чип басылганда блок бекеринен ачылып калат.
+    filter_n = sum(1 for v in (f_obl, f_city, t_obl, t_city) if v)
+
+    # Блок ачык турабы? Ар дайым ЖАБЫК — колдонуучу өзү басканда гана
+    # ачылат. Ичиндеги тизмени тандаганда форма «flt=1» белгисин
+    # жиберет, ошондуктан иштеп жатканда жабылып калбайт.
+    # Карточка, чип же издөө — баары жабык калтырат.
+    box_open = request.args.get("flt") == "1"
 
     def link(**over):
         """Учурдагы чыпкаларды сактап, бирөөнү гана алмаштырган шилтеме."""
@@ -465,6 +473,7 @@ def index():
                            to_opts=to_opts, tc_opts=tc_opts,
                            has_filter=has_filter,
                            filter_n=filter_n,
+                           box_open=box_open,
                            link=link,
                            total=sum(r["n"] for r in sel),
                            **_base_ctx())
