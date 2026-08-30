@@ -19,7 +19,7 @@
 <style>
   /* ============================================================
      ТАКСИ роБОТ — сайттын стили
-     WEB_VERSION = v25-pay-page
+     WEB_VERSION = v26-six-tabs
      Түстөр: кара (тилке), сары (акцент), ак (карточкалар).
      ============================================================ */
   :root {
@@ -532,16 +532,18 @@
   .tab {
     flex: 1 1 0; min-width: 0;
     display: flex; flex-direction: column;
-    align-items: center; gap: 5px;
-    color: var(--grey); font-size: 10px; font-weight: 700;
-    padding: 3px 1px; letter-spacing: -.1px; text-align: center;
+    align-items: center; gap: 4px;
+    color: var(--grey); font-size: 9.5px; font-weight: 700;
+    padding: 3px 1px; letter-spacing: -.2px; text-align: center;
     transition: color .16s;
   }
   .tab .i {
     display: flex; align-items: center; justify-content: center;
     transition: transform .16s;
   }
-  .tab .i svg { width: 23px; height: 23px; display: block; }
+  .tab .i svg { width: 22px; height: 22px; display: block; }
+  /* Telegram каналы — өз фирмалык көгү менен */
+  .tab .i svg.tg-mark { color: var(--tg); }
   .tab.on { color: var(--black); font-weight: 800; }
   .tab.on .i { transform: translateY(-1px); }
   .tab.on .i svg { stroke-width: 2.3; }
@@ -562,7 +564,7 @@
 <div class="top">
   <div class="top-row">
     <div class="logo"><img class="car" src="/static/icon-192.png" alt="">ТАКСИ<b>роБОТ</b></div>
-    <span class="ver">v25</span>
+    <span class="ver">v26</span>
     <div class="lang">
       <a href="{{ lang_ky_url }}" class="{{ 'on' if lang == 'ky' else '' }}">KG</a>
       <a href="{{ lang_ru_url }}" class="{{ 'on' if lang == 'ru' else '' }}">RU</a>
@@ -618,14 +620,23 @@
 
   <a class="tab" href="{{ channel_url }}">
     <span class="i">
-      {# Рупор — Telegram канал #}
+      {# Telegram логотиби — көк тегерек, ичинде ак кагаз учак #}
+      <svg class="tg-mark" viewBox="0 0 24 24" fill="currentColor">
+        <path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/>
+      </svg>
+    </span>{{ t('Канал', 'Канал') }}
+  </a>
+
+  <a class="tab {{ 'on' if request.path == '/help' else '' }}" href="/help?lang={{ lang }}">
+    <span class="i">
+      {# Суроо белгиси — Жардам #}
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
            stroke-linecap="round" stroke-linejoin="round">
-        <path d="M3 11v2a1 1 0 0 0 1 1h3l7 4.5V6.5L7 11H4a1 1 0 0 0-1 1z"/>
-        <path d="M17.5 9a4 4 0 0 1 0 6"/>
-        <path d="M20 6.5a7.5 7.5 0 0 1 0 11"/>
+        <circle cx="12" cy="12" r="9"/>
+        <path d="M9.3 9.2a2.8 2.8 0 0 1 5.4.9c0 1.9-2.7 2.4-2.7 4"/>
+        <path d="M12 17.3h.01"/>
       </svg>
-    </span>{{ t('Telegram канал', 'Telegram-канал') }}
+    </span>{{ t('Жардам', 'Помощь') }}
   </a>
 
   <a class="tab {{ 'on' if request.path == '/me' else '' }}" href="/me?lang={{ lang }}">
@@ -748,4 +759,5 @@
 
 </body>
 </html>
+
 
