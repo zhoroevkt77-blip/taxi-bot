@@ -33,7 +33,7 @@ from core.db import db
 from core import posts
 from core.texts import render as tr_render
 
-WEB_VERSION = "v27-howto"
+WEB_VERSION = "v28-filters"
 print(f"🌐 web/app.py жүктөлдү. Версия = {WEB_VERSION}")
 
 BOT_USERNAME = os.environ.get("BOT_USERNAME", "taxirobot_bot")
@@ -85,6 +85,43 @@ def _all_oblasts():
 
 
 ALL_OBLASTS = _all_oblasts()
+
+
+def _all_cities():
+    """Ар бир облустун шаар/райондорунун тизмеси.
+
+    Чыпка тизмелерин куруу үчүн керек: облус тандалганда, анын
+    ичиндеги жерлер гана көрүнөт.
+    """
+    table = {}
+    try:
+        from core.geo import REGIONS, DISTRICTS
+        for src_map in (REGIONS, DISTRICTS):
+            for oblast, cities in src_map.items():
+                bucket = table.setdefault(oblast, [])
+                for c in cities:
+                    if c not in bucket:
+                        bucket.append(c)
+    except Exception as e:
+        print("[web] шаарлардын тизмеси катасы:", e)
+    # Бишкек өзүнчө «облус» катары турат — багыттардын жарымы ошол
+    table.setdefault("Бишкек", ["Бишкек"])
+    for o in table:
+        table[o] = sorted(table[o])
+    return table
+
+
+ALL_CITIES = _all_cities()
+
+# Бишкек тизменин башында турсун — эң көп колдонулган жер
+OBLAST_LIST = ["Бишкек"] + [o for o in ALL_OBLASTS if o != "Бишкек"]
+
+
+def _obl_of(city):
+    """Шаардын облусу. Бишкек өзүнчө турат."""
+    if city == "Бишкек":
+        return "Бишкек"
+    return CITY_OBLAST.get(city) or "Башка"
 
 
 # ============ ИЗДӨӨНҮ ЖӨНӨКӨЙЛӨТҮҮ ============
@@ -179,6 +216,10 @@ def _lang():
 
 def _t(ky, ru):
     return ru if _lang() == "ru" else ky
+
+
+# Кыска атоо — index() ичинде көп колдонулат
+t_ = _t
 
 
 def _v(x):
@@ -296,62 +337,117 @@ def _no_cache(resp):
 
 # ============ БЕТТЕР ============
 
+def _row_ok(r, cat, obl, fo, fc, to, tc, q):
+    """Багыт ушул чыпкалардын баарына дал келеби?"""
+    if cat != "all" and r["cat"] != cat:
+        return False
+    if obl and r["obl"] != obl:
+        return False
+    if fo and r["fo"] != fo:
+        return False
+    if fc and r["from_city"] != fc:
+        return False
+    if to and r["to"] != to:
+        return False
+    if tc and r["to_city"] != tc:
+        return False
+    if q and not _matches(q, r["from_city"], r["to_city"]):
+        return False
+    return True
+
+
 @app.route("/")
 def index():
     cat = request.args.get("cat") or "all"
     obl = (request.args.get("obl") or "").strip()
     q = (request.args.get("q") or "").strip()
+    # Кеңейтилген чыпка: кайдан → кайда
+    f_obl = (request.args.get("fobl") or "").strip()
+    f_city = (request.args.get("fcity") or "").strip()
+    t_obl = (request.args.get("tobl") or "").strip()
+    t_city = (request.args.get("tcity") or "").strip()
 
     rows = driver_routes()
     for r in rows:
         r["cat"] = _category_of(r)
         r["obl"] = _oblast_of(r)
+        r["fo"] = _obl_of(r["from_city"])
+        r["to"] = _obl_of(r["to_city"])
 
-    # Категориялардын саны — карточкаларда көрсөтүү үчүн
-    cat_counts = {"all": sum(r["n"] for r in rows), "to": 0, "from": 0, "local": 0}
-    for r in rows:
-        cat_counts[r["cat"]] += r["n"]
+    # Облус алмашса, ичиндеги шаар тандоосу күчүн жоготот
+    if f_city and f_obl and _obl_of(f_city) != f_obl:
+        f_city = ""
+    if t_city and t_obl and _obl_of(t_city) != t_obl:
+        t_city = ""
 
-    # 1) Категория боюнча чыпкалайбыз
-    sel = rows if cat == "all" else [r for r in rows if r["cat"] == cat]
+    def cnt(**over):
+        """Ушул чыпка коюлса, канча жарыя калат?
 
-    # 2) Облус чиптери — БАРДЫГЫ ар дайым көрүнөт.
-    #    Жарыясы жок болсо «0» деп турат: тизме туруксуз болбошу үчүн.
-    obl_counts = {}
-    for r in sel:
-        obl_counts[r["obl"]] = obl_counts.get(r["obl"], 0) + r["n"]
+        Тизмелердеги сандар ушундан чыгат — адам бош жыйынтыкка
+        чейин барбашы үчүн.
+        """
+        st = dict(cat=cat, obl=obl, fo=f_obl, fc=f_city,
+                  to=t_obl, tc=t_city, q=q)
+        st.update(over)
+        return sum(r["n"] for r in rows if _row_ok(r, **st))
 
-    oblasts = [(name, obl_counts.get(name, 0)) for name in ALL_OBLASTS]
-    # Тизмеде жок аталыш чыгып калса («Башка» ж.б.) — аны да кошобуз
-    for name, n in obl_counts.items():
-        if name not in ALL_OBLASTS:
-            oblasts.append((name, n))
-    # Көбүрөөк жарыясы барлары башында, нөлдөр аягында
-    oblasts.sort(key=lambda kv: (-kv[1], kv[0]))
+    # ---- Тизмелерди курабыз ----
+    fo_opts = [("", t_("Бүт Кыргызстан", "Весь Кыргызстан"), cnt(fo="", fc=""))]
+    for o in OBLAST_LIST:
+        fo_opts.append((o, o, cnt(fo=o, fc="")))
 
-    # 3) Облус тандалса — ошону гана калтырабыз
-    if obl:
-        sel = [r for r in sel if r["obl"] == obl]
+    fc_opts = []
+    if f_obl:
+        fc_opts.append(("", t_("Бүт облус", "Вся область"), cnt(fc="")))
+        for c in ALL_CITIES.get(f_obl, []):
+            fc_opts.append((c, c, cnt(fc=c)))
 
-    # 4) Издөө — жазылышына карабай табылсын
+    to_opts = [("", t_("Бүт Кыргызстан", "Весь Кыргызстан"), cnt(to="", tc=""))]
+    for o in OBLAST_LIST:
+        to_opts.append((o, o, cnt(to=o, tc="")))
+
+    tc_opts = []
+    if t_obl:
+        tc_opts.append(("", t_("Бүт облус", "Вся область"), cnt(tc="")))
+        for c in ALL_CITIES.get(t_obl, []):
+            tc_opts.append((c, c, cnt(tc=c)))
+
+    # Категориялардын саны — карточкалар да чыпкаларды эске алат
+    cat_counts = {k: cnt(cat=k) for k in ("all", "to", "from", "local")}
+
+    # Облус чиптери — БАРДЫГЫ ар дайым көрүнөт, жарыясы жок болсо «0».
+    obl_counts = {name: cnt(obl=name) for name in ALL_OBLASTS}
+    oblasts = sorted(obl_counts.items(), key=lambda kv: (-kv[1], kv[0]))
+
+    # Акыркы тизме — бардык чыпкалар кошо
+    sel = [r for r in rows
+           if _row_ok(r, cat, obl, f_obl, f_city, t_obl, t_city, q)]
+
+    # Издөө боюнча эч нерсе табылбаса — жакын аталыштарды сунуштайбыз
     suggest = []
-    if q:
-        found = [r for r in sel if _matches(q, r["from_city"], r["to_city"])]
-        if not found:
-            # Эч нерсе табылбады — бүт тизмеден жакын аталыштарды
-            # чогултуп, «мүмкүн ушуну издедиңизби?» деп сунуштайбыз
-            nq = norm(q)
-            seen = set()
-            for r in rows:
-                for city in (r["from_city"], r["to_city"]):
-                    nc = norm(city)
-                    if city in seen or not nc:
-                        continue
-                    if nq[:3] and nc.startswith(nq[:3]) or _close(nq, nc, 2):
-                        seen.add(city)
-                        suggest.append(city)
-            suggest = suggest[:6]
-        sel = found
+    if q and not sel:
+        nq = norm(q)
+        seen = set()
+        for r in rows:
+            for city in (r["from_city"], r["to_city"]):
+                nc = norm(city)
+                if city in seen or not nc:
+                    continue
+                if nq[:3] and nc.startswith(nq[:3]) or _close(nq, nc, 2):
+                    seen.add(city)
+                    suggest.append(city)
+        suggest = suggest[:6]
+
+    # Чыпкалардын бирөө коюлганбы? (шаблондо «тазалоо» баскычы үчүн)
+    has_filter = bool(obl or f_obl or f_city or t_obl or t_city or q)
+
+    def link(**over):
+        """Учурдагы чыпкаларды сактап, бирөөнү гана алмаштырган шилтеме."""
+        st = {"cat": cat, "obl": obl, "fobl": f_obl, "fcity": f_city,
+              "tobl": t_obl, "tcity": t_city, "q": q, "lang": _lang()}
+        st.update(over)
+        parts = [f"{k}={quote(str(v))}" for k, v in st.items() if v]
+        return "/?" + "&".join(parts)
 
     html = render_template("index.html",
                            routes=sel,
@@ -361,6 +457,12 @@ def index():
                            obl=obl,
                            q=q,
                            suggest=suggest,
+                           f_obl=f_obl, f_city=f_city,
+                           t_obl=t_obl, t_city=t_city,
+                           fo_opts=fo_opts, fc_opts=fc_opts,
+                           to_opts=to_opts, tc_opts=tc_opts,
+                           has_filter=has_filter,
+                           link=link,
                            total=sum(r["n"] for r in sel),
                            **_base_ctx())
     return _with_lang(make_response(html))
@@ -498,4 +600,3 @@ def run(host="0.0.0.0", port=None):
 
 if __name__ == "__main__":
     run()
-
