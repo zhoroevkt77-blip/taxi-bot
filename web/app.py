@@ -33,7 +33,7 @@ from core.db import db
 from core import posts
 from core.texts import render as tr_render
 
-WEB_VERSION = "v31-fold-manual"
+WEB_VERSION = "v32-city-merge"
 print(f"🌐 web/app.py жүктөлдү. Версия = {WEB_VERSION}")
 
 BOT_USERNAME = os.environ.get("BOT_USERNAME", "taxirobot_bot")
@@ -41,87 +41,6 @@ WA_BOT_NUMBER = os.environ.get("WA_BOT_NUMBER", "996227155603")
 CHANNEL_LINK = os.environ.get("CHANNEL_LINK", "https://t.me/taxirobotbot")
 
 app = Flask(__name__)
-
-
-# ============ ШААР → ОБЛУС ТАБЛИЦАСЫ ============
-# core/geo.py'деги эки сөздүктөн бир жолу курулат: шаардын атынан
-# облусун табуу үчүн. Ошондо бетте «Ош облусу · 5» деген чиптерди
-# көрсөтө алабыз.
-
-def _build_city_oblast():
-    table = {}
-    try:
-        from core.geo import REGIONS, DISTRICTS
-        for oblast, cities in REGIONS.items():
-            for c in cities:
-                table[c] = oblast
-        for oblast, cities in DISTRICTS.items():
-            for c in cities:
-                table.setdefault(c, oblast)
-    except Exception as e:
-        print("[web] geo жүктөө катасы:", e)
-    return table
-
-
-CITY_OBLAST = _build_city_oblast()
-
-
-def _all_oblasts():
-    """Кыргызстандын бардык облустарынын туруктуу тизмеси.
-
-    Чиптер ар дайым толук көрүнүшү үчүн керек: жарыясы жок облус да
-    «0» менен турат. Ошондо колдонуучу тизменин өзгөрүп кетишинен
-    чаташпайт — чиптер жоголуп-пайда болбойт.
-    """
-    names = []
-    try:
-        from core.geo import REGIONS, DISTRICTS
-        for o in list(REGIONS.keys()) + list(DISTRICTS.keys()):
-            if o not in names:
-                names.append(o)
-    except Exception as e:
-        print("[web] облустардын тизмеси катасы:", e)
-    return names
-
-
-ALL_OBLASTS = _all_oblasts()
-
-
-def _all_cities():
-    """Ар бир облустун шаар/райондорунун тизмеси.
-
-    Чыпка тизмелерин куруу үчүн керек: облус тандалганда, анын
-    ичиндеги жерлер гана көрүнөт.
-    """
-    table = {}
-    try:
-        from core.geo import REGIONS, DISTRICTS
-        for src_map in (REGIONS, DISTRICTS):
-            for oblast, cities in src_map.items():
-                bucket = table.setdefault(oblast, [])
-                for c in cities:
-                    if c not in bucket:
-                        bucket.append(c)
-    except Exception as e:
-        print("[web] шаарлардын тизмеси катасы:", e)
-    # Бишкек өзүнчө «облус» катары турат — багыттардын жарымы ошол
-    table.setdefault("Бишкек", ["Бишкек"])
-    for o in table:
-        table[o] = sorted(table[o])
-    return table
-
-
-ALL_CITIES = _all_cities()
-
-# Бишкек тизменин башында турсун — эң көп колдонулган жер
-OBLAST_LIST = ["Бишкек"] + [o for o in ALL_OBLASTS if o != "Бишкек"]
-
-
-def _obl_of(city):
-    """Шаардын облусу. Бишкек өзүнчө турат."""
-    if city == "Бишкек":
-        return "Бишкек"
-    return CITY_OBLAST.get(city) or "Башка"
 
 
 # ============ ИЗДӨӨНҮ ЖӨНӨКӨЙЛӨТҮҮ ============
@@ -196,6 +115,96 @@ def _matches(q, *fields):
         if len(nq) >= 4 and _close(nq, nf, 2 if len(nq) > 6 else 1):
             return True
     return False
+
+
+# ============ ШААР → ОБЛУС ТАБЛИЦАСЫ ============
+# core/geo.py'деги эки сөздүктөн бир жолу курулат: шаардын атынан
+# облусун табуу үчүн. Ошондо бетте «Ош облусу · 5» деген чиптерди
+# көрсөтө алабыз.
+
+def _build_city_oblast():
+    table = {}
+    try:
+        from core.geo import REGIONS, DISTRICTS
+        for oblast, cities in REGIONS.items():
+            for c in cities:
+                table[c] = oblast
+        for oblast, cities in DISTRICTS.items():
+            for c in cities:
+                table.setdefault(c, oblast)
+    except Exception as e:
+        print("[web] geo жүктөө катасы:", e)
+    return table
+
+
+CITY_OBLAST = _build_city_oblast()
+
+
+def _all_oblasts():
+    """Кыргызстандын бардык облустарынын туруктуу тизмеси.
+
+    Чиптер ар дайым толук көрүнүшү үчүн керек: жарыясы жок облус да
+    «0» менен турат. Ошондо колдонуучу тизменин өзгөрүп кетишинен
+    чаташпайт — чиптер жоголуп-пайда болбойт.
+    """
+    names = []
+    try:
+        from core.geo import REGIONS, DISTRICTS
+        for o in list(REGIONS.keys()) + list(DISTRICTS.keys()):
+            if o not in names:
+                names.append(o)
+    except Exception as e:
+        print("[web] облустардын тизмеси катасы:", e)
+    return names
+
+
+ALL_OBLASTS = _all_oblasts()
+
+
+def _all_cities():
+    """Ар бир облустун шаар/райондорунун тизмеси.
+
+    МААНИЛҮҮ: geo.py'де бир эле жер эки башка жазылат —
+    REGIONS ичинде «Аксы», DISTRICTS ичинде «Аксы району».
+    Тизмеде экөө тең турса, колдонуучу чаташат. Ошондуктан
+    аларды БИРИКТИРЕБИЗ: жалпы ачкыч (norm) боюнча топтоп,
+    эң толук аталышын көрсөтөбүз.
+
+    Кайтарат: {облус: [(ачкыч, көрсөтүлүүчү ат), ...]}
+    """
+    table = {}
+    try:
+        from core.geo import REGIONS, DISTRICTS
+        for src_map in (REGIONS, DISTRICTS):
+            for oblast, cities in src_map.items():
+                bucket = table.setdefault(oblast, {})
+                for c in cities:
+                    key = norm(c)
+                    if not key:
+                        continue
+                    # Эң толук аталышты калтырабыз: «Аксы району»
+                    # «Аксы» дегенден түшүнүктүү
+                    if key not in bucket or len(c) > len(bucket[key]):
+                        bucket[key] = c
+    except Exception as e:
+        print("[web] шаарлардын тизмеси катасы:", e)
+
+    table.setdefault("Бишкек", {norm("Бишкек"): "Бишкек"})
+    return {o: sorted(d.items(), key=lambda kv: kv[1])
+            for o, d in table.items()}
+
+
+ALL_CITIES = _all_cities()
+
+# Бишкек тизменин башында турсун — эң көп колдонулган жер
+OBLAST_LIST = ["Бишкек"] + [o for o in ALL_OBLASTS if o != "Бишкек"]
+
+
+def _obl_of(city):
+    """Шаардын облусу. Бишкек өзүнчө турат."""
+    if city == "Бишкек":
+        return "Бишкек"
+    return CITY_OBLAST.get(city) or "Башка"
 
 
 def _oblast_of(row):
@@ -345,11 +354,11 @@ def _row_ok(r, cat, obl, fo, fc, to, tc, q):
         return False
     if fo and r["fo"] != fo:
         return False
-    if fc and r["from_city"] != fc:
+    if fc and norm(r["from_city"]) != fc:
         return False
     if to and r["to"] != to:
         return False
-    if tc and r["to_city"] != tc:
+    if tc and norm(r["to_city"]) != tc:
         return False
     if q and not _matches(q, r["from_city"], r["to_city"]):
         return False
@@ -374,10 +383,15 @@ def index():
         r["fo"] = _obl_of(r["from_city"])
         r["to"] = _obl_of(r["to_city"])
 
-    # Облус алмашса, ичиндеги шаар тандоосу күчүн жоготот
-    if f_city and f_obl and _obl_of(f_city) != f_obl:
+    # Облус алмашса, ичиндеги шаар тандоосу күчүн жоготот.
+    # f_city — «ачкыч» (мис. «аксы»), ошондуктан облустун
+    # тизмесинде бар-жогун ачкыч боюнча текшеребиз.
+    def _in_oblast(key, oblast):
+        return any(k == key for k, _ in ALL_CITIES.get(oblast, []))
+
+    if f_city and f_obl and not _in_oblast(f_city, f_obl):
         f_city = ""
-    if t_city and t_obl and _obl_of(t_city) != t_obl:
+    if t_city and t_obl and not _in_oblast(t_city, t_obl):
         t_city = ""
 
     def cnt(**over):
@@ -399,8 +413,8 @@ def index():
     fc_opts = []
     if f_obl:
         fc_opts.append(("", t_("Бүт облус", "Вся область"), cnt(fc="")))
-        for c in ALL_CITIES.get(f_obl, []):
-            fc_opts.append((c, c, cnt(fc=c)))
+        for key, label in ALL_CITIES.get(f_obl, []):
+            fc_opts.append((key, label, cnt(fc=key)))
 
     to_opts = [("", t_("Бүт Кыргызстан", "Весь Кыргызстан"), cnt(to="", tc=""))]
     for o in OBLAST_LIST:
@@ -409,8 +423,8 @@ def index():
     tc_opts = []
     if t_obl:
         tc_opts.append(("", t_("Бүт облус", "Вся область"), cnt(tc="")))
-        for c in ALL_CITIES.get(t_obl, []):
-            tc_opts.append((c, c, cnt(tc=c)))
+        for key, label in ALL_CITIES.get(t_obl, []):
+            tc_opts.append((key, label, cnt(tc=key)))
 
     # Категориялардын саны — карточкалар да чыпкаларды эске алат
     cat_counts = {k: cnt(cat=k) for k in ("all", "to", "from", "local")}
