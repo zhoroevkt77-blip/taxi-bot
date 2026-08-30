@@ -33,7 +33,7 @@ from core.db import db
 from core import posts
 from core.texts import render as tr_render
 
-WEB_VERSION = "v22-bots-page"
+WEB_VERSION = "v23-pay-link"
 print(f"🌐 web/app.py жүктөлдү. Версия = {WEB_VERSION}")
 
 BOT_USERNAME = os.environ.get("BOT_USERNAME", "taxirobot_bot")
@@ -272,6 +272,10 @@ def _base_ctx():
                            f"?text={quote('Жарыя берем: айдоочу')}"),
         "wa_post_passenger": (f"https://wa.me/{WA_BOT_NUMBER}"
                               f"?text={quote('Жарыя берем: жүргүнчү')}"),
+        # «Кабинет» бетинен ботко төлөм бөлүмүнө түз кирүү
+        "tg_pay": f"https://t.me/{BOT_USERNAME}?start=pay",
+        "wa_pay": (f"https://wa.me/{WA_BOT_NUMBER}"
+                   f"?text={quote('Төлөм төлөймүн')}"),
     }
 
 
