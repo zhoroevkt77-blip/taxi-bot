@@ -33,7 +33,7 @@ from core.db import db
 from core import posts
 from core.texts import render as tr_render
 
-WEB_VERSION = "v32-city-merge"
+WEB_VERSION = "v33-local-only"
 print(f"🌐 web/app.py жүктөлдү. Версия = {WEB_VERSION}")
 
 BOT_USERNAME = os.environ.get("BOT_USERNAME", "taxirobot_bot")
@@ -376,6 +376,14 @@ def index():
     t_obl = (request.args.get("tobl") or "").strip()
     t_city = (request.args.get("tcity") or "").strip()
 
+    # Кеңири издөө «Район/шаар аралык» бөлүмүндө гана иштейт.
+    # Бишкек багыттарында маршруттун бир жагы ансыз да белгилүү,
+    # ошондуктан «кайдан → кайда» тандоосу керексиз. Категория
+    # алмашканда чыпкалар тазаланат — жашырынып туруп иштебеши үчүн.
+    show_filter = cat == "local"
+    if not show_filter:
+        f_obl = f_city = t_obl = t_city = ""
+
     rows = driver_routes()
     for r in rows:
         r["cat"] = _category_of(r)
@@ -488,6 +496,7 @@ def index():
                            has_filter=has_filter,
                            filter_n=filter_n,
                            box_open=box_open,
+                           show_filter=show_filter,
                            link=link,
                            total=sum(r["n"] for r in sel),
                            **_base_ctx())
