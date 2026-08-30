@@ -49,7 +49,7 @@ except ImportError:
 
 SITE_SHORT = SITE_URL.replace("https://", "").replace("http://", "").rstrip("/")
 
-LOGIC_VERSION = "v63-site-after-post"
+LOGIC_VERSION = "v64-pay-button"
 print(f"🧩 core/logic.py жүктөлдү. Версия = {LOGIC_VERSION}")
 
 SESSIONS = {}
@@ -63,6 +63,11 @@ CHANNEL_LINK = os.environ.get("CHANNEL_LINK", "https://t.me/taxirobotbot")
 # WhatsApp'тагы «издөө» кабарынын башталышы. Каналдагы баскыч ушул
 # сөздөр менен башталган текстти даярдайт, бот аны кайра таанып алат.
 SEARCH_PREFIX = "Издөө:"
+
+# Сайттагы «Жарыя берүү» бетинен WhatsApp ботко түз кирүү үчүн.
+# Баскыч кабар талаасына ушул текстти даярдап коёт, колдонуучу
+# жөнөтүү басат — бот аны таанып, дароо визардды баштайт.
+POST_PREFIX = "Жарыя берем:"
 
 # Башкы менюнун кыска аталышы. Толук WELCOME тексти /start деп КОЛ МЕНЕН
 # жазылганда гана чыгат — ал биринчи таанышуу үчүн. Каналдан ботко
@@ -89,6 +94,7 @@ SCREEN_PREFIXES = (
     "menu:site",
     "menu:faq", "faq:", "menu:guide", "menu:safety",
     "d_search", "p_search", "d_my", "p_my", "d_vip",
+    "d_pay", "p_pay",
     "sb:", "sr:", "lo:", "lof:", "lot:", "lr:", "ht:",
 )
 
@@ -389,6 +395,59 @@ def pay_btn(kind):
     return Button("💳 Төлөдүм (чек жиберем)", f"pay:start:{kind}")
 
 
+def pay_menu(messenger, msg, account, role):
+    """«💳 Төлөм төлөймүн» — эмне үчүн төлөөрүн тандоо экраны.
+
+    Айдоочуга эки нерсе: жарыя берүү укугу жана VIP.
+    Жүргүнчүгө бирөө: бир жарыя.
+    """
+    if role == "driver":
+        kb = Keyboard.from_flat([
+            Button(f"💳 Жарыя берүү укугу — {PAYMENT_AMOUNT}", "pay:start:access"),
+            Button(f"⭐ VIP айдоочу — {VIP_PRICE}", "pay:start:vip"),
+            _back_btn(),
+        ])
+        return _say(messenger, msg, account, L(
+            f"💳 <b>Төлөм</b>\n\n"
+            f"Эмне үчүн төлөөрүңүздү тандаңыз:\n\n"
+            f"<b>💳 Жарыя берүү укугу — {PAYMENT_AMOUNT}</b>\n"
+            f"{PAYMENT_HOURS} саат бою чектөөсүз жарыя бересиз.\n\n"
+            f"<b>⭐ VIP айдоочу — {VIP_PRICE}</b>\n"
+            f"{VIP_HOURS} саат бою жарыяңыз издөө тизмесинин эң "
+            f"үстүндө турат.\n\n"
+            f"<i>Тандагандан кийин реквизиттер чыгат. Төлөп, чектин "
+            f"скриншотун ушул жерге жиберсеңиз, админ текшерип, "
+            f"автоматтык ачылат.</i>",
+            f"💳 <b>Оплата</b>\n\n"
+            f"Выберите, за что платите:\n\n"
+            f"<b>💳 Право размещать объявления — {PAYMENT_AMOUNT}</b>\n"
+            f"{PAYMENT_HOURS} часа объявлений без ограничений.\n\n"
+            f"<b>⭐ VIP-водитель — {VIP_PRICE}</b>\n"
+            f"{VIP_HOURS} часа ваше объявление в самом верху списка.\n\n"
+            f"<i>После выбора появятся реквизиты. Оплатите и отправьте "
+            f"сюда скриншот чека — администратор проверит, и доступ "
+            f"откроется автоматически.</i>"), kb)
+
+    kb = Keyboard.from_flat([
+        Button(f"💳 Бир жарыя — {PASSENGER_POST_PRICE}", "pay:start:post"),
+        _back_btn(),
+    ])
+    _say(messenger, msg, account, L(
+        f"💳 <b>Төлөм</b>\n\n"
+        f"<b>Бир жарыя — {PASSENGER_POST_PRICE}</b>\n\n"
+        f"Акысыз жарыяңыз бүтсө, ушул аркылуу улантасыз.\n\n"
+        f"<i>Баскычты бассаңыз реквизиттер чыгат. Төлөп, чектин "
+        f"скриншотун ушул жерге жиберсеңиз, админ текшерип, "
+        f"автоматтык кошулат.</i>",
+        f"💳 <b>Оплата</b>\n\n"
+        f"<b>Одно объявление — {PASSENGER_POST_PRICE}</b>\n\n"
+        f"Когда бесплатные объявления закончатся, продолжить можно "
+        f"так.\n\n"
+        f"<i>Нажмите кнопку — появятся реквизиты. Оплатите и отправьте "
+        f"сюда скриншот чека: администратор проверит, и объявление "
+        f"добавится автоматически.</i>"), kb)
+
+
 def start_payment(messenger, msg, account, kind):
     """«💳 Төлөдүм» басылды — реквизиттерди берип, чек күтөбүз."""
     info = PAY_KINDS.get(kind)
@@ -456,6 +515,7 @@ def driver_menu_kb():
         Button("🔍 Жүргүнчүлөрдү издейм", "d_search"),
         Button("📄 Менин посторум", "d_my"),
         Button("⭐ VIP болуу", "d_vip"),
+        Button("💳 Төлөм төлөймүн", "d_pay"),
         _back_btn(),
     ])
 
@@ -465,6 +525,7 @@ def passenger_menu_kb():
         Button("📝 Пост жазам", "p_types"),
         Button("🔍 Айдоочуларды издейм", "p_search"),
         Button("📄 Менин посторум", "p_my"),
+        Button("💳 Төлөм төлөймүн", "p_pay"),
         _back_btn(),
     ])
 
@@ -518,6 +579,11 @@ def handle_update(messenger, msg):
                                       int(parts[1][2:]), only_role="driver")
             except ValueError:
                 pass
+        elif len(parts) > 1 and parts[1] in ("postd", "postp"):
+            # Сайттагы «Жарыя берүү» бетинен түз келди —
+            # дароо жарыя жазуу визардын баштайбыз
+            role = "driver" if parts[1] == "postd" else "passenger"
+            return post_types(messenger, msg, account, role)
         elif len(parts) > 1 and parts[1].startswith("tag_"):
             frm, _, to = parts[1][4:].partition("_")
             if frm and to:
@@ -553,6 +619,15 @@ def handle_update(messenger, msg):
                 return _show_hashtag_results(messenger, msg, account,
                                              f"{frm}_{to}", frm, to,
                                              only_role="driver")
+
+    # Сайттагы «Жарыя берүү» бетинен WhatsApp ботко түз келгендер:
+    # «Жарыя берем: айдоочу» же «Жарыя берем: жүргүнчү»
+    if text.startswith(POST_PREFIX):
+        SESSIONS.pop(msg.user_id, None)
+        NAV.pop(msg.user_id, None)
+        who = text[len(POST_PREFIX):].strip().lower()
+        role = "driver" if who.startswith("айдооч") else "passenger"
+        return post_types(messenger, msg, account, role)
 
     # Эски формат: «HT85» деген кыска код (багыт белгисиз болгон учурда)
     if re.fullmatch(r"(?i)ht\d+", text):
@@ -698,6 +773,9 @@ def _dispatch(messenger, msg, account, a):
         return show_my_posts(messenger, msg, account, "passenger")
     if a == "d_vip":
         return show_vip(messenger, msg, account)
+    if a in ("d_pay", "p_pay"):
+        return pay_menu(messenger, msg, account,
+                        "driver" if a == "d_pay" else "passenger")
     if a in ("d_search", "p_search"):
         return search_menu(messenger, msg, account,
                            "passenger" if a == "d_search" else "driver")
