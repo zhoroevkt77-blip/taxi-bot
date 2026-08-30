@@ -19,7 +19,7 @@
 <style>
   /* ============================================================
      ТАКСИ роБОТ — сайттын стили
-     WEB_VERSION = v22-bots-tab
+     WEB_VERSION = v24-cabinet-pay
      Түстөр: кара (тилке), сары (акцент), ак (карточкалар).
      ============================================================ */
   :root {
@@ -384,6 +384,14 @@
   }
   .role-t svg { width: 21px; height: 21px; flex: 0 0 auto; color: var(--black); }
   .role-btns { display: flex; gap: 9px; }
+  /* Блоктун астындагы кыска түшүндүрмө */
+  .role-note {
+    margin-top: 12px; font-size: 13px; line-height: 1.5;
+    color: var(--grey);
+  }
+  /* Блоктун ичиндеги чоң баскычтардын аралыгы */
+  .role-block .big-btn { margin-bottom: 10px; }
+  .role-block .big-btn:last-of-type { margin-bottom: 0; }
 
   .info-card {
     background: var(--card); border-radius: var(--r); padding: 18px;
@@ -554,7 +562,7 @@
 <div class="top">
   <div class="top-row">
     <div class="logo"><img class="car" src="/static/icon-192.png" alt="">ТАКСИ<b>роБОТ</b></div>
-    <span class="ver">v22</span>
+    <span class="ver">v24</span>
     <div class="lang">
       <a href="{{ lang_ky_url }}" class="{{ 'on' if lang == 'ky' else '' }}">KG</a>
       <a href="{{ lang_ru_url }}" class="{{ 'on' if lang == 'ru' else '' }}">RU</a>
