@@ -33,7 +33,7 @@ from core.db import db
 from core import posts
 from core.texts import render as tr_render
 
-WEB_VERSION = "v28-filters"
+WEB_VERSION = "v29-filter-fold"
 print(f"🌐 web/app.py жүктөлдү. Версия = {WEB_VERSION}")
 
 BOT_USERNAME = os.environ.get("BOT_USERNAME", "taxirobot_bot")
@@ -440,6 +440,8 @@ def index():
 
     # Чыпкалардын бирөө коюлганбы? (шаблондо «тазалоо» баскычы үчүн)
     has_filter = bool(obl or f_obl or f_city or t_obl or t_city or q)
+    # Канчоо коюлду — баскычтагы сары сан ушул
+    filter_n = sum(1 for v in (obl, f_obl, f_city, t_obl, t_city, q) if v)
 
     def link(**over):
         """Учурдагы чыпкаларды сактап, бирөөнү гана алмаштырган шилтеме."""
@@ -462,6 +464,7 @@ def index():
                            fo_opts=fo_opts, fc_opts=fc_opts,
                            to_opts=to_opts, tc_opts=tc_opts,
                            has_filter=has_filter,
+                           filter_n=filter_n,
                            link=link,
                            total=sum(r["n"] for r in sel),
                            **_base_ctx())
