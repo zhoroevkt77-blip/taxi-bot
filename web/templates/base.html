@@ -19,7 +19,7 @@
 <style>
   /* ============================================================
      ТАКСИ роБОТ — сайттын стили
-     WEB_VERSION = v20-clean-top
+     WEB_VERSION = v21-all-oblasts
      Түстөр: кара (тилке), сары (акцент), ак (карточкалар).
      ============================================================ */
   :root {
@@ -216,6 +216,11 @@
   }
   .chip .n { color: var(--grey); font-weight: 800; margin-left: 6px; font-size: 13px; }
   .chip.on .n { color: #7a5a00; }
+  /* Жарыясы жок облус — солгун, бирок басууга болот */
+  .chip.zero { color: var(--grey-2); }
+  .chip.zero .n { color: var(--grey-2); }
+  .chip.on.zero { color: var(--black); }
+  .chip.on.zero .n { color: #7a5a00; }
 
   /* ---- Мазмун ---- */
   main { max-width: 640px; margin: 0 auto; padding: 2px 16px 108px; }
@@ -536,7 +541,7 @@
 <div class="top">
   <div class="top-row">
     <div class="logo"><img class="car" src="/static/icon-192.png" alt="">ТАКСИ<b>роБОТ</b></div>
-    <span class="ver">v20</span>
+    <span class="ver">v21</span>
     <div class="lang">
       <a href="{{ lang_ky_url }}" class="{{ 'on' if lang == 'ky' else '' }}">KG</a>
       <a href="{{ lang_ru_url }}" class="{{ 'on' if lang == 'ru' else '' }}">RU</a>
