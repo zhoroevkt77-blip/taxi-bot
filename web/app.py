@@ -33,7 +33,7 @@ from core.db import db
 from core import posts
 from core.texts import render as tr_render
 
-WEB_VERSION = "v18-smart-search"
+WEB_VERSION = "v21-all-oblasts"
 print(f"🌐 web/app.py жүктөлдү. Версия = {WEB_VERSION}")
 
 BOT_USERNAME = os.environ.get("BOT_USERNAME", "taxirobot_bot")
@@ -64,6 +64,27 @@ def _build_city_oblast():
 
 
 CITY_OBLAST = _build_city_oblast()
+
+
+def _all_oblasts():
+    """Кыргызстандын бардык облустарынын туруктуу тизмеси.
+
+    Чиптер ар дайым толук көрүнүшү үчүн керек: жарыясы жок облус да
+    «0» менен турат. Ошондо колдонуучу тизменин өзгөрүп кетишинен
+    чаташпайт — чиптер жоголуп-пайда болбойт.
+    """
+    names = []
+    try:
+        from core.geo import REGIONS, DISTRICTS
+        for o in list(REGIONS.keys()) + list(DISTRICTS.keys()):
+            if o not in names:
+                names.append(o)
+    except Exception as e:
+        print("[web] облустардын тизмеси катасы:", e)
+    return names
+
+
+ALL_OBLASTS = _all_oblasts()
 
 
 # ============ ИЗДӨӨНҮ ЖӨНӨКӨЙЛӨТҮҮ ============
@@ -281,11 +302,19 @@ def index():
     # 1) Категория боюнча чыпкалайбыз
     sel = rows if cat == "all" else [r for r in rows if r["cat"] == cat]
 
-    # 2) Облус чиптери ушул категориянын ичинен курулат
+    # 2) Облус чиптери — БАРДЫГЫ ар дайым көрүнөт.
+    #    Жарыясы жок болсо «0» деп турат: тизме туруксуз болбошу үчүн.
     obl_counts = {}
     for r in sel:
         obl_counts[r["obl"]] = obl_counts.get(r["obl"], 0) + r["n"]
-    oblasts = sorted(obl_counts.items(), key=lambda kv: (-kv[1], kv[0]))
+
+    oblasts = [(name, obl_counts.get(name, 0)) for name in ALL_OBLASTS]
+    # Тизмеде жок аталыш чыгып калса («Башка» ж.б.) — аны да кошобуз
+    for name, n in obl_counts.items():
+        if name not in ALL_OBLASTS:
+            oblasts.append((name, n))
+    # Көбүрөөк жарыясы барлары башында, нөлдөр аягында
+    oblasts.sort(key=lambda kv: (-kv[1], kv[0]))
 
     # 3) Облус тандалса — ошону гана калтырабыз
     if obl:
