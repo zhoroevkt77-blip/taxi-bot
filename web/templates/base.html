@@ -19,7 +19,7 @@
 <style>
   /* ============================================================
      ТАКСИ роБОТ — сайттын стили
-     WEB_VERSION = v28-filters
+     WEB_VERSION = v29-filter-fold
      Түстөр: кара (тилке), сары (акцент), ак (карточкалар).
      ============================================================ */
   :root {
@@ -196,11 +196,43 @@
     white-space: nowrap; padding-left: 10px;
   }
 
-  /* ---- Кеңейтилген чыпка (кайдан → кайда) ---- */
-  .flt { margin-top: 4px; }
+  /* ---- Кеңейтилген чыпка (кайдан → кайда) ----
+     Жыйылып турат: экранды ээлеп калбашы үчүн. Чыпка коюлса,
+     өзү ачык чыгат жана баскычта сары сан көрүнөт. */
+  .flt-box {
+    background: var(--card); border-radius: var(--r);
+    box-shadow: var(--shadow); margin-top: 6px; overflow: hidden;
+  }
+  .flt-box summary {
+    display: flex; align-items: center; gap: 10px;
+    padding: 16px 17px; cursor: pointer; list-style: none;
+    font-size: 15px; font-weight: 800; letter-spacing: -.2px;
+    color: var(--ink);
+  }
+  .flt-box summary::-webkit-details-marker { display: none; }
+  .flt-box summary svg { width: 19px; height: 19px; flex: 0 0 auto; }
+  .flt-box summary .s-t { flex: 0 0 auto; }
+  /* Канча чыпка коюлганын көрсөткөн сары сан */
+  .flt-box summary .s-n {
+    flex: 0 0 auto; min-width: 22px; height: 22px; border-radius: 11px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 12px; font-weight: 900; color: var(--black); padding: 0 7px;
+    background: linear-gradient(135deg, var(--yellow) 0%, var(--yellow-2) 100%);
+  }
+  /* Ачылуучу жебе */
+  .flt-box summary .s-x {
+    margin-left: auto; flex: 0 0 auto; width: 9px; height: 9px;
+    border-right: 2.2px solid var(--grey); border-bottom: 2.2px solid var(--grey);
+    transform: translateY(-2px) rotate(45deg); transition: transform .2s;
+  }
+  .flt-box[open] summary .s-x { transform: translateY(2px) rotate(-135deg); }
+  .flt-box[open] summary { border-bottom: 1px solid var(--line); }
+
+  .flt { padding: 4px 17px 0; }
 
   /* Бөлүмдүн аталышы: жазуу, андан кийин ичке сызык */
-  .sec { display: flex; align-items: center; gap: 12px; margin: 20px 0 13px; }
+  .sec { display: flex; align-items: center; gap: 12px; margin: 18px 0 13px; }
+  .flt .sec:first-child { margin-top: 14px; }
   .sec span {
     font-size: 12px; font-weight: 800; letter-spacing: .8px;
     color: var(--ink); text-transform: uppercase; white-space: nowrap;
@@ -241,7 +273,7 @@
     box-shadow: var(--glow);
   }
   .reset {
-    display: block; text-align: center; padding: 13px;
+    display: block; text-align: center; padding: 6px 13px 16px;
     font-size: 13.5px; font-weight: 700; color: var(--grey);
   }
 
@@ -613,7 +645,7 @@
 <div class="top">
   <div class="top-row">
     <div class="logo"><img class="car" src="/static/icon-192.png" alt="">ТАКСИ<b>роБОТ</b></div>
-    <span class="ver">v28</span>
+    <span class="ver">v29</span>
     <div class="lang">
       <a href="{{ lang_ky_url }}" class="{{ 'on' if lang == 'ky' else '' }}">KG</a>
       <a href="{{ lang_ru_url }}" class="{{ 'on' if lang == 'ru' else '' }}">RU</a>
@@ -808,4 +840,3 @@
 
 </body>
 </html>
-
