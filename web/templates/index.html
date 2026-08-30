@@ -82,7 +82,7 @@
   <a class="chip {{ 'on' if not obl else '' }}"
      href="/?cat={{ cat }}&lang={{ lang }}">{{ t('Баары', 'Все') }}</a>
   {% for name, n in oblasts %}
-    <a class="chip {{ 'on' if obl == name else '' }}"
+    <a class="chip {{ 'on' if obl == name else '' }} {{ 'zero' if n == 0 else '' }}"
        href="/?cat={{ cat }}&obl={{ name|urlencode }}&lang={{ lang }}">
       {{ name }}<span class="n num">{{ n }}</span>
     </a>
