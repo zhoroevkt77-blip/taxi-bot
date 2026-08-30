@@ -35,8 +35,8 @@ from core.texts import (render, WELCOME, GUIDE, DRIVER_WARNING,
                         PAYMENT_AMOUNT, PAYMENT_HOURS, DRIVER_DAILY_LIMIT,
                         PASSENGER_POST_PRICE,
                         VIP_HOURS,
-                        FAQ_INTRO, FAQ_POST, FAQ_FREE, FAQ_SEARCH,
-                        FAQ_PAY, FAQ_CONTACT, FAQ_SAFETY)
+                        FAQ_INTRO, FAQ_HOWTO, FAQ_POST, FAQ_FREE,
+                        FAQ_SEARCH, FAQ_PAY, FAQ_CONTACT, FAQ_SAFETY)
 
 # Сайттын дареги жана «🌐 Сайт» бөлүмүнүн тексти.
 # texts.py эски версия болуп калса да бот кулабашы үчүн — коргоо менен.
@@ -49,7 +49,7 @@ except ImportError:
 
 SITE_SHORT = SITE_URL.replace("https://", "").replace("http://", "").rstrip("/")
 
-LOGIC_VERSION = "v65-pay-link"
+LOGIC_VERSION = "v66-howto"
 print(f"🧩 core/logic.py жүктөлдү. Версия = {LOGIC_VERSION}")
 
 SESSIONS = {}
@@ -944,6 +944,7 @@ def help_menu(messenger, msg, account):
 def faq_menu(messenger, msg, account):
     """Көп берилүүчү суроолордун бөлүмдөрү."""
     kb = Keyboard.from_flat([
+        Button("➕ Жарыя кантип берем?", "faq:howto"),
         Button("📝 Жарыя жөнүндө", "faq:post"),
         Button("🎁 Акысыз мүмкүнчүлүк", "faq:free"),
         Button("🔍 Издөө", "faq:search"),
@@ -956,6 +957,7 @@ def faq_menu(messenger, msg, account):
 
 
 FAQ_SECTIONS = {
+    "howto": FAQ_HOWTO,
     "post": FAQ_POST,
     "free": FAQ_FREE,
     "search": FAQ_SEARCH,
@@ -2164,3 +2166,4 @@ def register_referral(messenger, newbie, inviter_id):
                  f"🎁 {days} күн акысыз жарыя бере аласыз.")
         else:
             tell(f"🎁 Дагы {days} күн акысыз кошулду!")
+
