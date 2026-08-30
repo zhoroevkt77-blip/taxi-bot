@@ -69,7 +69,7 @@
 {# ============ КЕҢЕЙТИЛГЕН ЧЫПКА ============ #}
 {# Тизмелердеги сандар калган чыпкаларды эске алып эсептелет —
    адам бош жыйынтыкка чейин барбашы үчүн. #}
-<details class="flt-box" {{ 'open' if has_filter else '' }}>
+<details class="flt-box" {{ 'open' if box_open else '' }}>
   <summary>
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
          stroke-linecap="round" stroke-linejoin="round">
@@ -82,6 +82,7 @@
 
 <form class="flt" method="get" action="/" id="flt">
   <input type="hidden" name="lang" value="{{ lang }}">
+  <input type="hidden" name="flt" value="1">
   <input type="hidden" name="cat" value="{{ cat }}">
   <input type="hidden" name="obl" value="{{ obl }}">
   {% if q %}<input type="hidden" name="q" value="{{ q }}">{% endif %}
@@ -260,4 +261,3 @@
 {% endif %}
 
 {% endblock %}
-
