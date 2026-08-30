@@ -3,12 +3,11 @@
 {% block title %}{{ t('Такси жарыялары', 'Объявления такси') }} — ТАКСИ роБОТ{% endblock %}
 
 {% block cats %}
-{# Категория карточкалары. «Баары» — сүрөт, калгандары — SVG белгилер. #}
+{# Категория карточкалары. «Баары» — эмблема, калгандары — SVG белгилер. #}
 <div class="cats">
 
-  <a class="cat {{ 'on' if cat == 'all' else '' }}" href="/?cat=all&lang={{ lang }}">
+  <a class="cat {{ 'on' if cat == 'all' else '' }}" href="{{ link(cat='all') }}">
     <div class="ico photo">
-      {# Түбүндөгү SVG такси: сүрөт ачылбаса ушул көрүнөт #}
       <svg class="fallback" viewBox="0 0 24 24" fill="none"
            stroke="#16161a" stroke-width="2"
            stroke-linecap="round" stroke-linejoin="round">
@@ -25,7 +24,7 @@
       <span class="n num">{{ cat_counts.all }}</span></div>
   </a>
 
-  <a class="cat {{ 'on' if cat == 'to' else '' }}" href="/?cat=to&lang={{ lang }}">
+  <a class="cat {{ 'on' if cat == 'to' else '' }}" href="{{ link(cat='to') }}">
     <div class="ico">
       <svg viewBox="0 0 24 24" width="26" height="26" fill="none"
            stroke="#16161a" stroke-width="2.6"
@@ -37,7 +36,7 @@
       <span class="n num">{{ cat_counts.to }}</span></div>
   </a>
 
-  <a class="cat {{ 'on' if cat == 'from' else '' }}" href="/?cat=from&lang={{ lang }}">
+  <a class="cat {{ 'on' if cat == 'from' else '' }}" href="{{ link(cat='from') }}">
     <div class="ico">
       <svg viewBox="0 0 24 24" width="26" height="26" fill="none"
            stroke="#16161a" stroke-width="2.6"
@@ -49,7 +48,7 @@
       <span class="n num">{{ cat_counts.from }}</span></div>
   </a>
 
-  <a class="cat {{ 'on' if cat == 'local' else '' }}" href="/?cat=local&lang={{ lang }}">
+  <a class="cat {{ 'on' if cat == 'local' else '' }}" href="{{ link(cat='local') }}">
     <div class="ico">
       <svg viewBox="0 0 24 24" width="26" height="26" fill="none"
            stroke="#16161a" stroke-width="2.4"
@@ -67,6 +66,86 @@
 
 {% block content %}
 
+{# ============ КЕҢЕЙТИЛГЕН ЧЫПКА ============ #}
+{# Тизмелердеги сандар калган чыпкаларды эске алып эсептелет —
+   адам бош жыйынтыкка чейин барбашы үчүн. #}
+<form class="flt" method="get" action="/" id="flt">
+  <input type="hidden" name="lang" value="{{ lang }}">
+  <input type="hidden" name="cat" value="{{ cat }}">
+  <input type="hidden" name="obl" value="{{ obl }}">
+  {% if q %}<input type="hidden" name="q" value="{{ q }}">{% endif %}
+
+  <div class="sec"><span>{{ t('Кайсы жерден', 'Откуда') }}</span></div>
+
+  <div class="fld">
+    <label>{{ t('Облус · шаар', 'Область · город') }}</label>
+    <div class="sel">
+      <select name="fobl" onchange="this.form.submit()">
+        {% for val, name, n in fo_opts %}
+          <option value="{{ val }}" {{ 'selected' if val == f_obl else '' }}>{{ name }} ({{ n }})</option>
+        {% endfor %}
+      </select>
+    </div>
+  </div>
+
+  <div class="fld">
+    <label>{{ t('Район · шаар', 'Район · город') }}</label>
+    <div class="sel">
+      {% if fc_opts %}
+        <select name="fcity" onchange="this.form.submit()">
+          {% for val, name, n in fc_opts %}
+            <option value="{{ val }}" {{ 'selected' if val == f_city else '' }}>{{ name }} ({{ n }})</option>
+          {% endfor %}
+        </select>
+      {% else %}
+        <select disabled>
+          <option>{{ t('Алгач облусту тандаңыз', 'Сначала выберите область') }}</option>
+        </select>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="sec"><span>{{ t('Кайда', 'Куда') }}</span></div>
+
+  <div class="fld">
+    <label>{{ t('Облус · шаар', 'Область · город') }}</label>
+    <div class="sel">
+      <select name="tobl" onchange="this.form.submit()">
+        {% for val, name, n in to_opts %}
+          <option value="{{ val }}" {{ 'selected' if val == t_obl else '' }}>{{ name }} ({{ n }})</option>
+        {% endfor %}
+      </select>
+    </div>
+  </div>
+
+  <div class="fld">
+    <label>{{ t('Район · шаар', 'Район · город') }}</label>
+    <div class="sel">
+      {% if tc_opts %}
+        <select name="tcity" onchange="this.form.submit()">
+          {% for val, name, n in tc_opts %}
+            <option value="{{ val }}" {{ 'selected' if val == t_city else '' }}>{{ name }} ({{ n }})</option>
+          {% endfor %}
+        </select>
+      {% else %}
+        <select disabled>
+          <option>{{ t('Алгач облусту тандаңыз', 'Сначала выберите область') }}</option>
+        </select>
+      {% endif %}
+    </div>
+  </div>
+
+  <noscript>
+    <button class="go" type="submit">{{ t('Издөө', 'Найти') }}</button>
+  </noscript>
+</form>
+
+{% if has_filter %}
+  <a class="reset" href="/?lang={{ lang }}">
+    {{ t('✕ Чыпкаларды тазалоо', '✕ Сбросить фильтры') }}
+  </a>
+{% endif %}
+
 <div class="head">
   <h2>
     {% if cat == 'to' %}{{ t('Бишкекке бараткандар', 'Едут в Бишкек') }}
@@ -80,10 +159,10 @@
 {% if oblasts %}
 <div class="chips">
   <a class="chip {{ 'on' if not obl else '' }}"
-     href="/?cat={{ cat }}&lang={{ lang }}">{{ t('Баары', 'Все') }}</a>
+     href="{{ link(obl='') }}">{{ t('Баары', 'Все') }}</a>
   {% for name, n in oblasts %}
     <a class="chip {{ 'on' if obl == name else '' }} {{ 'zero' if n == 0 else '' }}"
-       href="/?cat={{ cat }}&obl={{ name|urlencode }}&lang={{ lang }}">
+       href="{{ link(obl=name) }}">
       {{ name }}<span class="n num">{{ n }}</span>
     </a>
   {% endfor %}
@@ -93,7 +172,6 @@
 {% for r in routes %}
   <a class="route" href="/route?from={{ r.from_city|urlencode }}&to={{ r.to_city|urlencode }}&lang={{ lang }}">
 
-    {# Багыт кайсы категорияга тиешелүү экени — карточканын үстүндө #}
     <span class="cat-tag {{ r.cat }}">
       {% if r.cat == 'to' %}
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8"
@@ -146,18 +224,25 @@
                                   'Возможно, вы искали это?') }}</div>
           <div class="sug-list">
             {% for s in suggest %}
-              <a class="chip" href="/?cat={{ cat }}&q={{ s|urlencode }}&lang={{ lang }}">{{ s }}</a>
+              <a class="chip" href="/?q={{ s|urlencode }}&lang={{ lang }}">{{ s }}</a>
             {% endfor %}
           </div>
         </div>
       {% endif %}
+    {% elif has_filter %}
+      <div>{{ t('Тандалган чыпкалар боюнча жарыя жок.',
+                'По выбранным фильтрам объявлений нет.') }}</div>
+      <div style="margin-top:8px">
+        {{ t('Райондун ордуна бүт облусту тандап көрүңүз.',
+             'Попробуйте выбрать всю область вместо района.') }}
+      </div>
     {% else %}
       <div>{{ t('Бул бөлүмдө азырынча жарыя жок.',
                 'В этом разделе пока нет объявлений.') }}</div>
+      <div style="margin-top:8px">
+        {{ t('Бир аздан кийин кайра карап көрүңүз.', 'Загляните чуть позже.') }}
+      </div>
     {% endif %}
-    <div style="margin-top:8px">
-      {{ t('Бир аздан кийин кайра карап көрүңүз.', 'Загляните чуть позже.') }}
-    </div>
   </div>
 {% endif %}
 
