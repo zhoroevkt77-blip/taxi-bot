@@ -33,7 +33,7 @@ from core.db import db
 from core import posts
 from core.texts import render as tr_render
 
-WEB_VERSION = "v23-pay-link"
+WEB_VERSION = "v25-pay-page"
 print(f"🌐 web/app.py жүктөлдү. Версия = {WEB_VERSION}")
 
 BOT_USERNAME = os.environ.get("BOT_USERNAME", "taxirobot_bot")
@@ -386,6 +386,18 @@ def route():
 def post_page():
     """«➕ Жарыя берүү» — эки ботко өтүү."""
     html = render_template("post.html", **_base_ctx())
+    return _with_lang(make_response(html))
+
+
+@app.route("/pay")
+def pay_page():
+    """«💳 Төлөм төлөймүн» — эки ботко өтүү.
+
+    Төлөм сайтта кабыл алынбайт: телефон ырастоо, чек текшерүү жана
+    админ ырастоосу боттордо жүргүзүлөт. Ошондуктан бул бет жөн
+    гана ботко багыттайт.
+    """
+    html = render_template("pay.html", **_base_ctx())
     return _with_lang(make_response(html))
 
 
