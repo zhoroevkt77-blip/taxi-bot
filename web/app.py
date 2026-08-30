@@ -33,7 +33,7 @@ from core.db import db
 from core import posts
 from core.texts import render as tr_render
 
-WEB_VERSION = "v21-all-oblasts"
+WEB_VERSION = "v22-bots-page"
 print(f"🌐 web/app.py жүктөлдү. Версия = {WEB_VERSION}")
 
 BOT_USERNAME = os.environ.get("BOT_USERNAME", "taxirobot_bot")
@@ -263,6 +263,15 @@ def _base_ctx():
         "help_url": f"https://t.me/{BOT_USERNAME}?start=home",
         "wa_bot_url": f"https://wa.me/{WA_BOT_NUMBER}?text=/start",
         "channel_url": CHANNEL_LINK,
+        # «Жарыя берүү» бетинен ботко ТҮЗ кирүү — ролу менен кошо.
+        # Telegram start-параметрди өзү берет, WhatsApp'та кабар
+        # талаасына даяр текст коюлат.
+        "tg_post_driver": f"https://t.me/{BOT_USERNAME}?start=postd",
+        "tg_post_passenger": f"https://t.me/{BOT_USERNAME}?start=postp",
+        "wa_post_driver": (f"https://wa.me/{WA_BOT_NUMBER}"
+                           f"?text={quote('Жарыя берем: айдоочу')}"),
+        "wa_post_passenger": (f"https://wa.me/{WA_BOT_NUMBER}"
+                              f"?text={quote('Жарыя берем: жүргүнчү')}"),
     }
 
 
@@ -373,6 +382,13 @@ def route():
 def post_page():
     """«➕ Жарыя берүү» — эки ботко өтүү."""
     html = render_template("post.html", **_base_ctx())
+    return _with_lang(make_response(html))
+
+
+@app.route("/bots")
+def bots_page():
+    """«🤖 Боттор» — эки ботко өтүү."""
+    html = render_template("bots.html", **_base_ctx())
     return _with_lang(make_response(html))
 
 
