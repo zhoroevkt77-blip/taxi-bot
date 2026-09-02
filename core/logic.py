@@ -49,7 +49,7 @@ except ImportError:
 
 SITE_SHORT = SITE_URL.replace("https://", "").replace("http://", "").rstrip("/")
 
-LOGIC_VERSION = "v66-howto"
+LOGIC_VERSION = "v67-passenger-site"
 print(f"🧩 core/logic.py жүктөлдү. Версия = {LOGIC_VERSION}")
 
 SESSIONS = {}
@@ -96,7 +96,7 @@ SCREEN_PREFIXES = (
     "menu:driver", "menu:passenger", "menu:help", "menu:channel", "menu:lang",
     "menu:site",
     "menu:faq", "faq:", "menu:guide", "menu:safety",
-    "d_search", "p_search", "d_my", "p_my", "d_vip",
+    "d_search", "p_search", "p_search_bot", "d_my", "p_my", "d_vip",
     "d_pay", "p_pay", "pay_entry",
     "sb:", "sr:", "lo:", "lof:", "lot:", "lr:", "ht:",
 )
@@ -815,9 +815,14 @@ def _dispatch(messenger, msg, account, a):
     if a in ("d_pay", "p_pay"):
         return pay_menu(messenger, msg, account,
                         "driver" if a == "d_pay" else "passenger")
-    if a in ("d_search", "p_search"):
-        return search_menu(messenger, msg, account,
-                           "passenger" if a == "d_search" else "driver")
+    if a == "d_search":
+        return search_menu(messenger, msg, account, "passenger")
+    if a == "p_search":
+        # Жүргүнчүгө айдоочулар керек — сайтта дал ошолор турат.
+        # Ошондуктан алгач сайтты сунуштайбыз.
+        return passenger_search(messenger, msg, account)
+    if a == "p_search_bot":
+        return search_menu(messenger, msg, account, "driver")
     if a.startswith("del:"):
         return delete_post(messenger, msg, account, int(a.split(":")[1]))
     if a.startswith("sd:"):
@@ -1887,6 +1892,52 @@ def delete_post(messenger, msg, account, post_id):
 
 # ============ ИЗДӨӨ ============
 
+def passenger_search(messenger, msg, account):
+    """«🔍 Айдоочуларды издейм» — сайтка багыттайт.
+
+    Сайтта так айдоочулардын жарыялары турат: багыт боюнча тизме,
+    облус чыпкасы, ар бир жарыяда чалуу/WhatsApp/Telegram баскычтары.
+    Ботто издөө да калат — кичине баскыч менен, интернети начар же
+    браузерге чыккысы келбегендер үчүн.
+    """
+    if msg.platform == "telegram":
+        kb = Keyboard.from_flat([
+            Button("🌐 Сайттан айдоочуларды көрүү", "noop", SITE_URL),
+            Button("🔍 Ботто издөө", "p_search_bot"),
+            _back_btn(),
+        ])
+        return _say(messenger, msg, account, L(
+            "🌐 <b>Айдоочуларды сайттан издеңиз</b>\n\n"
+            "Сайтта бардык айдоочулар багыт боюнча тизме менен турат. "
+            "Облус боюнча чыпкалайсыз, шаар издейсиз, ар бир жарыяда "
+            "чалуу, WhatsApp жана Telegram баскычтары даяр.\n\n"
+            "<i>Каалабасаңыз, ботто да издей аласыз — ылдыйкы "
+            "баскычты басыңыз.</i>",
+            "🌐 <b>Ищите водителей на сайте</b>\n\n"
+            "На сайте все водители выведены списком по направлениям. "
+            "Можно отфильтровать по области, найти город, а у каждого "
+            "объявления готовы кнопки звонка, WhatsApp и Telegram.\n\n"
+            "<i>Если не хотите — можно искать и в боте, нажмите "
+            "кнопку ниже.</i>"), kb)
+
+    # WhatsApp: URL баскычы жок — шилтеме текст менен
+    kb = Keyboard.from_flat([
+        Button("🔍 Ботто издөө", "p_search_bot"),
+        _back_btn(),
+    ])
+    _say(messenger, msg, account, L(
+        "🌐 <b>Айдоочуларды сайттан издеңиз</b>\n\n"
+        "Сайтта бардык айдоочулар багыт боюнча тизме менен турат — "
+        "чалуу, WhatsApp жана Telegram баскычтары менен:\n"
+        + SITE_URL + "\n\n"
+        "<i>Каалабасаңыз, ботто да издей аласыз.</i>",
+        "🌐 <b>Ищите водителей на сайте</b>\n\n"
+        "На сайте все водители выведены списком по направлениям — "
+        "с кнопками звонка, WhatsApp и Telegram:\n"
+        + SITE_URL + "\n\n"
+        "<i>Если не хотите — можно искать и в боте.</i>"), kb)
+
+
 def search_menu(messenger, msg, account, target_role):
     kb = Keyboard.from_flat([
         Button("➡️ Бишкекке бараткандар", f"sb:to:{target_role}"),
@@ -2166,4 +2217,3 @@ def register_referral(messenger, newbie, inviter_id):
                  f"🎁 {days} күн акысыз жарыя бере аласыз.")
         else:
             tell(f"🎁 Дагы {days} күн акысыз кошулду!")
-
