@@ -19,7 +19,7 @@
 <style>
   /* ============================================================
      ТАКСИ роБОТ — сайттын стили
-     WEB_VERSION = v33-local-only
+     WEB_VERSION = v34-qr
      Түстөр: кара (тилке), сары (акцент), ак (карточкалар).
      ============================================================ */
   :root {
@@ -474,6 +474,28 @@
   .role-block .big-btn { margin-bottom: 10px; }
   .role-block .big-btn:last-of-type { margin-bottom: 0; }
 
+  /* ---- QR-код блогу ---- */
+  .qr-card {
+    background: var(--card); border-radius: var(--r); padding: 20px 18px;
+    margin-top: 16px; box-shadow: var(--shadow); text-align: center;
+  }
+  .qr-card .qr-t {
+    font-size: 15.5px; font-weight: 800; letter-spacing: -.2px;
+    color: var(--ink); margin-bottom: 14px;
+  }
+  .qr-card img {
+    width: 100%; max-width: 280px; height: auto; display: block;
+    margin: 0 auto 14px; border-radius: 14px;
+    border: 1px solid var(--line);
+  }
+  .qr-card .qr-s {
+    font-size: 13.5px; line-height: 1.55; color: #55555f;
+  }
+  .qr-card .qr-w {
+    margin-top: 13px; padding: 11px 13px; background: #fff8e6;
+    border-radius: 12px; font-size: 12.5px; line-height: 1.5; color: #7a5a00;
+  }
+
   .info-card {
     background: var(--card); border-radius: var(--r); padding: 18px;
     font-size: 14.5px; line-height: 1.65; color: #55555f;
@@ -645,7 +667,7 @@
 <div class="top">
   <div class="top-row">
     <div class="logo"><img class="car" src="/static/icon-192.png" alt="">ТАКСИ<b>роБОТ</b></div>
-    <span class="ver">v33</span>
+    <span class="ver">v34</span>
     <div class="lang">
       <a href="{{ lang_ky_url }}" class="{{ 'on' if lang == 'ky' else '' }}">KG</a>
       <a href="{{ lang_ru_url }}" class="{{ 'on' if lang == 'ru' else '' }}">RU</a>
