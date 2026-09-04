@@ -31,7 +31,10 @@ print(f"📄 core/texts.py жүктөлдү. Версия = {TEXTS_VERSION}")
 # ============ ЖӨНДӨӨЛӨР ============
 REQUIRED_REFERRALS = 3
 GATE_BONUS_DAYS = 5           # биринчи 3 дос үчүн
-REFERRAL_BONUS_STEP = 3
+# Кодду REQUIRED_REFERRALS башкарат (logic.register_referral).
+# Экөө айырмаланса, бот бир нерсе кылып, текст башканы жазат —
+# ошондуктан теңеп коёбуз.
+REFERRAL_BONUS_STEP = REQUIRED_REFERRALS
 REFERRAL_BONUS_DAYS = 3       # ар кийинки 3 дос үчүн
 VIP_REFERRAL_STEP = 5
 VIP_HOURS = 24
@@ -50,15 +53,19 @@ PASSENGER_POST_PRICE = "20 сом"
 # PASSENGER_POST_PRICE.
 LOCAL_DRIVER_POST_PRICE = "20 сом"
 LOCAL_PASSENGER_POST_PRICE = "10 сом"
-PASSENGER_FREE_POSTS = 3
+PASSENGER_FREE_POSTS = 3       # ⏸ колдонулбайт: free_posts базадан алынат
 DRIVER_DAILY_LIMIT = 0         # айдоочу 24 саатта канча жарыя бере алат (0 = чектөө жок)
 VIP_PRICE = "100 сом"
 
 POST_LIFETIME_HOURS = 24
-BUMP_PRICE = "10 сом"
-SPAM_LIMIT_PER_HOUR = 3
-REPORTS_TO_HIDE = 3
-EXPIRY_WARN_MINUTES = 60
+
+# ⏸ ТӨМӨНКҮЛӨР АЗЫРЫНЧА КОДДО КОЛДОНУЛБАЙТ — камдап коюлган.
+# Бул сандарды өзгөртсөң, ботто эч нерсе өзгөрбөйт. Иштетүү үчүн
+# logic.py'ге тиешелүү текшерүүнү кошуу керек.
+BUMP_PRICE = "10 сом"            # ⏸ жарыяны өйдө көтөрүү
+SPAM_LIMIT_PER_HOUR = 3          # ⏸ сааттык чектөө
+REPORTS_TO_HIDE = 3              # ⏸ канча арыздан кийин жашырылат
+EXPIRY_WARN_MINUTES = 60         # ⏸ мөөнөт бүтөрдө эскертүү
 
 # Сайттын дареги. Кийин өз доменибизди алганда (мисалы taxirobot.kg),
 # Railway'дин Variables бөлүмүнөн SITE_URL өзгөрмөсүн алмаштырабыз —
@@ -205,7 +212,7 @@ GUIDE = (
     "<b>3️⃣ Акысыз мүмкүнчүлүктү ачыңыз (Дос чакыруу):</b>\n"
     "🚖 <b>Айдоочу үчүн:</b>\n"
     f"{REQUIRED_REFERRALS} дос чакырсаңыз — {GATE_BONUS_DAYS} күн акысыз жарыя.\n"
-    f"Мөөнөт бүткөндөн кийин ар {REFERRAL_BONUS_STEP} дос чакырууңузга — "
+    f"Андан ары ар {REFERRAL_BONUS_STEP} дос чакырганыңызга — "
     f"{REFERRAL_BONUS_DAYS} күн акысыз "
     f"(же {PAYMENT_HOURS} саатка болгону {PAYMENT_AMOUNT}).\n"
     "🧳 <b>Жүргүнчү үчүн:</b>\n"
@@ -302,7 +309,7 @@ GUIDE_RU = (
     "🚖 <b>Для водителя:</b>\n"
     f"Пригласите {REQUIRED_REFERRALS} друзей — {GATE_BONUS_DAYS} дней "
     "бесплатных объявлений.\n"
-    f"После окончания срока за каждые {REFERRAL_BONUS_STEP} приглашённых "
+    f"Далее за каждые {REFERRAL_BONUS_STEP} приглашённых "
     f"друга — {REFERRAL_BONUS_DAYS} дня бесплатно "
     f"(или всего {PAYMENT_AMOUNT} за {PAYMENT_HOURS} часа).\n"
     "🧳 <b>Для пассажира:</b>\n"
@@ -1344,6 +1351,22 @@ _RU_SORTED = sorted(RU.items(), key=lambda kv: -len(kv[0]))
 _HTML_TAG_RE = re.compile(r"<[^>]+>")
 
 
+# Котормодо сөздүн чегин сактоо үчүн: алмаштыруу башка сөздүн
+# ичине түшүп кетпеши керек. Мисалы «ат» деген сөз «сатам» дегендин
+# ичинен табылып, текстти бузуп салышы мүмкүн.
+_KY_LETTER = "а-яёөүңА-ЯЁӨҮҢ"
+
+
+def _sub_ky(ky, ru, text):
+    """Кыргызча сөздү орусчага алмаштырат, сөздүн чегин сактап."""
+    try:
+        return re.sub(
+            rf"(?<![{_KY_LETTER}]){re.escape(ky)}(?![{_KY_LETTER}])",
+            ru.replace("\\", "\\\\"), text)
+    except re.error:
+        return text.replace(ky, ru)
+
+
 def tr(text, lang):
     """Кыргызча текстти орусчага которот."""
     if lang != "ru" or not text:
@@ -1357,7 +1380,7 @@ def tr(text, lang):
     out = text
     for ky, ru in _RU_SORTED:
         if ky in out:
-            out = out.replace(ky, ru)
+            out = _sub_ky(ky, ru, out)
     for ky, ru in RU_WORDS.items():
         out = re.sub(
             rf"(?<![а-яёөүңА-ЯЁӨҮҢ]){re.escape(ky)}(?![а-яёөүңА-ЯЁӨҮҢ])",
