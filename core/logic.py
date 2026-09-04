@@ -15,6 +15,10 @@ Telegram да, WhatsApp да ушул файлды колдонот.
 ТӨЛӨМ:
     Мөөнөтү бүткөн айдоочу «💳 Төлөдүм» басып, чектин скриншотун
     жиберет. Чек админге барат, ал ырастаса — мөөнөт автоматтык кошулат.
+
+САЙТ:
+    Башкы менюдагы «🌐 Сайт» баскычы жарыяларды браузерден көрсөтөт.
+    Дареги texts.py'деги SITE_URL'ден алынат.
 """
 import os
 import re
@@ -31,10 +35,21 @@ from core.texts import (render, WELCOME, GUIDE, DRIVER_WARNING,
                         PAYMENT_AMOUNT, PAYMENT_HOURS, DRIVER_DAILY_LIMIT,
                         PASSENGER_POST_PRICE,
                         VIP_HOURS,
-                        FAQ_INTRO, FAQ_POST, FAQ_FREE, FAQ_SEARCH,
-                        FAQ_CONTACT, FAQ_SAFETY)
+                        FAQ_INTRO, FAQ_HOWTO, FAQ_POST, FAQ_FREE,
+                        FAQ_SEARCH, FAQ_PAY, FAQ_CONTACT, FAQ_SAFETY)
 
-LOGIC_VERSION = "v60-final"
+# Сайттын дареги жана «🌐 Сайт» бөлүмүнүн тексти.
+# texts.py эски версия болуп калса да бот кулабашы үчүн — коргоо менен.
+try:
+    from core.texts import SITE_URL, SITE_INFO
+except ImportError:
+    SITE_URL = os.environ.get(
+        "SITE_URL", "https://taxi-bot-production-fdb5.up.railway.app")
+    SITE_INFO = None
+
+SITE_SHORT = SITE_URL.replace("https://", "").replace("http://", "").rstrip("/")
+
+LOGIC_VERSION = "v67-passenger-site"
 print(f"🧩 core/logic.py жүктөлдү. Версия = {LOGIC_VERSION}")
 
 SESSIONS = {}
@@ -48,6 +63,14 @@ CHANNEL_LINK = os.environ.get("CHANNEL_LINK", "https://t.me/taxirobotbot")
 # WhatsApp'тагы «издөө» кабарынын башталышы. Каналдагы баскыч ушул
 # сөздөр менен башталган текстти даярдайт, бот аны кайра таанып алат.
 SEARCH_PREFIX = "Издөө:"
+
+# Сайттагы «Жарыя берүү» бетинен WhatsApp ботко түз кирүү үчүн.
+# Баскыч кабар талаасына ушул текстти даярдап коёт, колдонуучу
+# жөнөтүү басат — бот аны таанып, дароо визардды баштайт.
+POST_PREFIX = "Жарыя берем:"
+
+# Сайттын «Кабинет» бетинен WhatsApp ботко түз кирүү — төлөм бөлүмүнө.
+PAY_TEXT = "Төлөм төлөймүн"
 
 # Башкы менюнун кыска аталышы. Толук WELCOME тексти /start деп КОЛ МЕНЕН
 # жазылганда гана чыгат — ал биринчи таанышуу үчүн. Каналдан ботко
@@ -71,8 +94,10 @@ STEP_FIELD = {
 # Тарыхка жазылуучу экрандар (баскыч коддорунун башы)
 SCREEN_PREFIXES = (
     "menu:driver", "menu:passenger", "menu:help", "menu:channel", "menu:lang",
+    "menu:site",
     "menu:faq", "faq:", "menu:guide", "menu:safety",
-    "d_search", "p_search", "d_my", "p_my", "d_vip",
+    "d_search", "p_search", "p_search_bot", "d_my", "p_my", "d_vip",
+    "d_pay", "p_pay", "pay_entry",
     "sb:", "sr:", "lo:", "lof:", "lot:", "lr:", "ht:",
 )
 
@@ -373,6 +398,84 @@ def pay_btn(kind):
     return Button("💳 Төлөдүм (чек жиберем)", f"pay:start:{kind}")
 
 
+def pay_entry(messenger, msg, account):
+    """Сайттан төлөмгө түз келгенде — алгач ролду сурайбыз.
+
+    Баалар ролго жараша башка, ошондуктан «айдоочу» же «жүргүнчү»
+    экенин билбей туруп реквизит бере албайбыз.
+    """
+    kb = Keyboard.from_flat([
+        Button("🚗 Айдоочу катары", "d_pay"),
+        Button("🧳 Жүргүнчү катары", "p_pay"),
+        Button("🏠 Башкы меню", "menu:home"),
+    ])
+    _say(messenger, msg, account, L(
+        "💳 <b>Төлөм</b>\n\n"
+        "Кайсы ролдо төлөйсүз?\n\n"
+        f"🚗 <b>Айдоочу</b> — жарыя берүү укугу ({PAYMENT_AMOUNT}) "
+        f"же VIP ({VIP_PRICE}).\n"
+        f"🧳 <b>Жүргүнчү</b> — бир жарыя ({PASSENGER_POST_PRICE}).",
+        "💳 <b>Оплата</b>\n\n"
+        "В какой роли вы платите?\n\n"
+        f"🚗 <b>Водитель</b> — право размещать объявления "
+        f"({PAYMENT_AMOUNT}) или VIP ({VIP_PRICE}).\n"
+        f"🧳 <b>Пассажир</b> — одно объявление "
+        f"({PASSENGER_POST_PRICE})."), kb)
+
+
+def pay_menu(messenger, msg, account, role):
+    """«💳 Төлөм төлөймүн» — эмне үчүн төлөөрүн тандоо экраны.
+
+    Айдоочуга эки нерсе: жарыя берүү укугу жана VIP.
+    Жүргүнчүгө бирөө: бир жарыя.
+    """
+    if role == "driver":
+        kb = Keyboard.from_flat([
+            Button(f"💳 Жарыя берүү укугу — {PAYMENT_AMOUNT}", "pay:start:access"),
+            Button(f"⭐ VIP айдоочу — {VIP_PRICE}", "pay:start:vip"),
+            _back_btn(),
+        ])
+        return _say(messenger, msg, account, L(
+            f"💳 <b>Төлөм</b>\n\n"
+            f"Эмне үчүн төлөөрүңүздү тандаңыз:\n\n"
+            f"<b>💳 Жарыя берүү укугу — {PAYMENT_AMOUNT}</b>\n"
+            f"{PAYMENT_HOURS} саат бою чектөөсүз жарыя бересиз.\n\n"
+            f"<b>⭐ VIP айдоочу — {VIP_PRICE}</b>\n"
+            f"{VIP_HOURS} саат бою жарыяңыз издөө тизмесинин эң "
+            f"үстүндө турат.\n\n"
+            f"<i>Тандагандан кийин реквизиттер чыгат. Төлөп, чектин "
+            f"скриншотун ушул жерге жиберсеңиз, админ текшерип, "
+            f"автоматтык ачылат.</i>",
+            f"💳 <b>Оплата</b>\n\n"
+            f"Выберите, за что платите:\n\n"
+            f"<b>💳 Право размещать объявления — {PAYMENT_AMOUNT}</b>\n"
+            f"{PAYMENT_HOURS} часа объявлений без ограничений.\n\n"
+            f"<b>⭐ VIP-водитель — {VIP_PRICE}</b>\n"
+            f"{VIP_HOURS} часа ваше объявление в самом верху списка.\n\n"
+            f"<i>После выбора появятся реквизиты. Оплатите и отправьте "
+            f"сюда скриншот чека — администратор проверит, и доступ "
+            f"откроется автоматически.</i>"), kb)
+
+    kb = Keyboard.from_flat([
+        Button(f"💳 Бир жарыя — {PASSENGER_POST_PRICE}", "pay:start:post"),
+        _back_btn(),
+    ])
+    _say(messenger, msg, account, L(
+        f"💳 <b>Төлөм</b>\n\n"
+        f"<b>Бир жарыя — {PASSENGER_POST_PRICE}</b>\n\n"
+        f"Акысыз жарыяңыз бүтсө, ушул аркылуу улантасыз.\n\n"
+        f"<i>Баскычты бассаңыз реквизиттер чыгат. Төлөп, чектин "
+        f"скриншотун ушул жерге жиберсеңиз, админ текшерип, "
+        f"автоматтык кошулат.</i>",
+        f"💳 <b>Оплата</b>\n\n"
+        f"<b>Одно объявление — {PASSENGER_POST_PRICE}</b>\n\n"
+        f"Когда бесплатные объявления закончатся, продолжить можно "
+        f"так.\n\n"
+        f"<i>Нажмите кнопку — появятся реквизиты. Оплатите и отправьте "
+        f"сюда скриншот чека: администратор проверит, и объявление "
+        f"добавится автоматически.</i>"), kb)
+
+
 def start_payment(messenger, msg, account, kind):
     """«💳 Төлөдүм» басылды — реквизиттерди берип, чек күтөбүз."""
     info = PAY_KINDS.get(kind)
@@ -420,6 +523,7 @@ def main_menu_kb(platform="telegram"):
         Button("🚗 Айдоочумун", "menu:driver"),
         Button("🔍 Жүргүнчүмүн", "menu:passenger"),
         Button(channel_label, "menu:channel"),
+        Button("🌐 Сайт", "menu:site"),
         Button("🆘 Жардам", "menu:help"),
         Button("🌐 Тил / Язык", "menu:lang"),
     ])
@@ -439,6 +543,7 @@ def driver_menu_kb():
         Button("🔍 Жүргүнчүлөрдү издейм", "d_search"),
         Button("📄 Менин посторум", "d_my"),
         Button("⭐ VIP болуу", "d_vip"),
+        Button("💳 Төлөм төлөймүн", "d_pay"),
         _back_btn(),
     ])
 
@@ -448,6 +553,7 @@ def passenger_menu_kb():
         Button("📝 Пост жазам", "p_types"),
         Button("🔍 Айдоочуларды издейм", "p_search"),
         Button("📄 Менин посторум", "p_my"),
+        Button("💳 Төлөм төлөймүн", "p_pay"),
         _back_btn(),
     ])
 
@@ -501,6 +607,14 @@ def handle_update(messenger, msg):
                                       int(parts[1][2:]), only_role="driver")
             except ValueError:
                 pass
+        elif len(parts) > 1 and parts[1] == "pay":
+            # Сайттын «Кабинет» бетинен төлөмгө түз келди
+            return pay_entry(messenger, msg, account)
+        elif len(parts) > 1 and parts[1] in ("postd", "postp"):
+            # Сайттагы «Жарыя берүү» бетинен түз келди —
+            # дароо жарыя жазуу визардын баштайбыз
+            role = "driver" if parts[1] == "postd" else "passenger"
+            return post_types(messenger, msg, account, role)
         elif len(parts) > 1 and parts[1].startswith("tag_"):
             frm, _, to = parts[1][4:].partition("_")
             if frm and to:
@@ -536,6 +650,21 @@ def handle_update(messenger, msg):
                 return _show_hashtag_results(messenger, msg, account,
                                              f"{frm}_{to}", frm, to,
                                              only_role="driver")
+
+    # Сайттын «Кабинет» бетинен WhatsApp ботко төлөмгө келгендер
+    if text.strip().lower() == PAY_TEXT.lower():
+        SESSIONS.pop(msg.user_id, None)
+        NAV.pop(msg.user_id, None)
+        return pay_entry(messenger, msg, account)
+
+    # Сайттагы «Жарыя берүү» бетинен WhatsApp ботко түз келгендер:
+    # «Жарыя берем: айдоочу» же «Жарыя берем: жүргүнчү»
+    if text.startswith(POST_PREFIX):
+        SESSIONS.pop(msg.user_id, None)
+        NAV.pop(msg.user_id, None)
+        who = text[len(POST_PREFIX):].strip().lower()
+        role = "driver" if who.startswith("айдооч") else "passenger"
+        return post_types(messenger, msg, account, role)
 
     # Эски формат: «HT85» деген кыска код (багыт белгисиз болгон учурда)
     if re.fullmatch(r"(?i)ht\d+", text):
@@ -632,6 +761,8 @@ def _dispatch(messenger, msg, account, a):
         return start_payment(messenger, msg, account, a.split(":")[2])
     if a == "menu:help":
         return help_menu(messenger, msg, account)
+    if a == "menu:site":
+        return show_site(messenger, msg, account)
     if a == "menu:guide":
         return _say(messenger, msg, account, GUIDE, back_kb())
     if a == "menu:safety":
@@ -679,9 +810,19 @@ def _dispatch(messenger, msg, account, a):
         return show_my_posts(messenger, msg, account, "passenger")
     if a == "d_vip":
         return show_vip(messenger, msg, account)
-    if a in ("d_search", "p_search"):
-        return search_menu(messenger, msg, account,
-                           "passenger" if a == "d_search" else "driver")
+    if a == "pay_entry":
+        return pay_entry(messenger, msg, account)
+    if a in ("d_pay", "p_pay"):
+        return pay_menu(messenger, msg, account,
+                        "driver" if a == "d_pay" else "passenger")
+    if a == "d_search":
+        return search_menu(messenger, msg, account, "passenger")
+    if a == "p_search":
+        # Жүргүнчүгө айдоочулар керек — сайтта дал ошолор турат.
+        # Ошондуктан алгач сайтты сунуштайбыз.
+        return passenger_search(messenger, msg, account)
+    if a == "p_search_bot":
+        return search_menu(messenger, msg, account, "driver")
     if a.startswith("del:"):
         return delete_post(messenger, msg, account, int(a.split(":")[1]))
     if a.startswith("sd:"):
@@ -717,6 +858,53 @@ def _dispatch(messenger, msg, account, a):
     _say(messenger, msg, account, "Бул баскыч азырынча иштелип чыккан жок.")
 
 
+def show_site(messenger, msg, account):
+    """🌐 Сайт — жарыяларды браузерден көрүү.
+
+    Telegram'да басылуучу URL баскычы чыгат. WhatsApp мындай баскычты
+    колдобойт, ошондуктан ал жерде шилтеме текст менен берилет —
+    WhatsApp аны өзү басылуучу кылат.
+    """
+    body = SITE_INFO or L(
+        f"🌐 <b>ТАКСИ роБОТ — сайтыбыз</b>\n\n"
+        f"<b>{SITE_SHORT}</b>\n\n"
+        f"Браузерден ачыла берет — каттоонун кереги жок.\n\n"
+        f"Сайтта бардык активдүү айдоочулар багыт боюнча тизме менен "
+        f"чыгат: облус боюнча чыпкалайсыз, шаар издейсиз, кыргызча же "
+        f"орусчага которосуз. Ар бир жарыяда чалуу, WhatsApp жана "
+        f"Telegram баскычтары даяр турат.\n\n"
+        f"⚠️ Сайт жарыяларды <b>көрсөтөт гана</b> — жарыя берүү ботто "
+        f"калат.\n\n"
+        f"💡 Шилтемени досторуңузга жибериңиз: алар ботту орнотпой эле "
+        f"айдоочуларды таба алат.",
+        f"🌐 <b>ТАКСИ роБОТ — наш сайт</b>\n\n"
+        f"<b>{SITE_SHORT}</b>\n\n"
+        f"Открывается в браузере — регистрация не нужна.\n\n"
+        f"На сайте все активные водители выводятся списком по "
+        f"направлениям: можно отфильтровать по области, найти город, "
+        f"переключить язык. У каждого объявления готовы кнопки звонка, "
+        f"WhatsApp и Telegram.\n\n"
+        f"⚠️ Сайт <b>только показывает</b> объявления — публикация "
+        f"остаётся в боте.\n\n"
+        f"💡 Отправьте ссылку друзьям: они найдут водителя, даже не "
+        f"устанавливая бот.")
+
+    if msg.platform == "telegram":
+        kb = Keyboard.from_flat([
+            Button("🌐 Сайтты ачуу", "noop", SITE_URL),
+            _back_btn(),
+        ])
+        return _say(messenger, msg, account, body, kb)
+
+    # WhatsApp: баскыч жок — шилтемени тексттин аягына кошобуз
+    if isinstance(body, tuple):
+        body = ("__L__",
+                body[1] + f"\n\n{SITE_URL}",
+                body[2] + f"\n\n{SITE_URL}")
+        return _say(messenger, msg, account, body, back_kb())
+    _say(messenger, msg, account, body, back_kb())
+
+
 def hashtag_search(messenger, msg, account, post_id, only_other=False,
                    only_role=None):
     """Жарыянын багыты боюнча издейт (издөө баскычы басылганда).
@@ -745,11 +933,12 @@ def hashtag_search(messenger, msg, account, post_id, only_other=False,
 
 
 def help_menu(messenger, msg, account):
-    """🆘 Жардам — эки бөлүм: нускама жана суроо-жооптор."""
+    """🆘 Жардам — нускама, суроо-жооптор, коопсуздук жана сайт."""
     kb = Keyboard.from_flat([
         Button("📖 Нускама", "menu:guide"),
         Button("❓ Көп берилүүчү суроолорго жооп", "menu:faq"),
         Button("🛡 Айдоочунун коопсуздугу", "menu:safety"),
+        Button("🌐 Сайт", "menu:site"),
         _back_btn(),
     ])
     _say(messenger, msg, account, L(
@@ -760,9 +949,11 @@ def help_menu(messenger, msg, account):
 def faq_menu(messenger, msg, account):
     """Көп берилүүчү суроолордун бөлүмдөрү."""
     kb = Keyboard.from_flat([
+        Button("➕ Жарыя кантип берем?", "faq:howto"),
         Button("📝 Жарыя жөнүндө", "faq:post"),
         Button("🎁 Акысыз мүмкүнчүлүк", "faq:free"),
         Button("🔍 Издөө", "faq:search"),
+        Button("💳 Төлөм жана баалар", "faq:pay"),
         Button("📞 Байланыш", "faq:contact"),
         Button("🛡 Коопсуздук", "faq:safety"),
         _back_btn(),
@@ -771,9 +962,11 @@ def faq_menu(messenger, msg, account):
 
 
 FAQ_SECTIONS = {
+    "howto": FAQ_HOWTO,
     "post": FAQ_POST,
     "free": FAQ_FREE,
     "search": FAQ_SEARCH,
+    "pay": FAQ_PAY,
     "contact": FAQ_CONTACT,
     "safety": FAQ_SAFETY,
 }
@@ -1099,6 +1292,17 @@ def channel_text(d, role, tag=None):
     return ""
 
 
+def _route_url(frm, to, lang="ky"):
+    """Ошол багыттын сайттагы бети.
+
+    Айдоочу жарыясын жазып бүткөндө, ага дал ушул шилтемени беребиз —
+    издеп отурбай, өз жарыясын дароо көрөт.
+    """
+    from urllib.parse import quote
+    return (f"{SITE_URL}/route?from={quote(frm or '')}"
+            f"&to={quote(to or '')}&lang={lang}")
+
+
 def _publish(messenger, text, links):
     """Каналга чыгарат — платформадан көз каранды эмес.
 
@@ -1183,10 +1387,59 @@ def save(messenger, msg, account, st):
             _say(messenger, msg, account, L(
                  "📢 Жарыяңыз каналга да чыкты — жүргүнчүлөр аны ошол жерден көрө алат.",
                  "📢 Объявление также опубликовано в канале — пассажиры увидят его там."))
+        # Сайтта да көрүнөт — өз багытына түз шилтеме беребиз
+        lang = account.get("lang", "ky")
+        url = _route_url(d.get("from_city"), d.get("to_city"), lang)
+        if msg.platform == "telegram":
+            kb = Keyboard.from_flat([
+                Button("🌐 Сайттан көрүү", "noop", url),
+            ])
+            _say(messenger, msg, account, L(
+                 "🌐 <b>Сайтта да турат!</b>\n\n"
+                 "Жарыяңыз сайттан да көрүнөт — Telegram'ы да, WhatsApp'ы "
+                 "да жок адамдар сизди ошол жерден таба алат.\n\n"
+                 "Төмөнкү баскычты басып, өз багытыңызды көрүңүз. "
+                 "Шилтемени досторуңузга да жибере аласыз.",
+                 "🌐 <b>Также на сайте!</b>\n\n"
+                 "Ваше объявление видно и на сайте — вас найдут даже те, "
+                 "у кого нет ни Telegram, ни WhatsApp.\n\n"
+                 "Нажмите кнопку ниже, чтобы посмотреть своё направление. "
+                 "Ссылку можно отправить друзьям."), kb)
+        else:
+            _say(messenger, msg, account, L(
+                 "🌐 <b>Сайтта да турат!</b>\n\n"
+                 "Жарыяңыз сайттан да көрүнөт — Telegram'ы да, WhatsApp'ы "
+                 "да жок адамдар сизди ошол жерден таба алат.\n\n"
+                 "Өз багытыңыз:\n" + url,
+                 "🌐 <b>Также на сайте!</b>\n\n"
+                 "Ваше объявление видно и на сайте — вас найдут даже те, "
+                 "у кого нет ни Telegram, ни WhatsApp.\n\n"
+                 "Ваше направление:\n" + url))
     else:
         _say(messenger, msg, account, L(
              "🔒 Жүргүнчүнүн жарыясы каналга чыкпайт — аны айдоочулар ботто гана көрөт.",
              "🔒 Объявление пассажира в канал не публикуется — его видят водители в боте."))
+        # Жүргүнчүнүн жарыясы сайтка чыкпайт, бирок сайт ага дагы пайдалуу:
+        # ошол багыттагы айдоочуларды браузерден көрө алат.
+        lang = account.get("lang", "ky")
+        url = _route_url(d.get("from_city"), d.get("to_city"), lang)
+        if msg.platform == "telegram":
+            kb = Keyboard.from_flat([
+                Button("🌐 Сайттан айдоочуларды көрүү", "noop", url),
+            ])
+            _say(messenger, msg, account, L(
+                 "🌐 <b>Сайтыбызды да карап коюңуз</b>\n\n"
+                 "Ошол багыттагы айдоочулар сайттан да көрүнөт — "
+                 "чалуу, WhatsApp жана Telegram баскычтары менен.",
+                 "🌐 <b>Загляните и на сайт</b>\n\n"
+                 "Водители по этому направлению видны и на сайте — "
+                 "с кнопками звонка, WhatsApp и Telegram."), kb)
+        else:
+            _say(messenger, msg, account, L(
+                 "🌐 <b>Сайтыбызды да карап коюңуз</b>\n\n"
+                 "Ошол багыттагы айдоочулар сайттан да көрүнөт:\n" + url,
+                 "🌐 <b>Загляните и на сайт</b>\n\n"
+                 "Водители по этому направлению видны и на сайте:\n" + url))
 
     # Жаңы жарыя — тескери ролдогуларга кабар кетет.
     # Айдоочу жазса → жүргүнчүлөргө, жүргүнчү жазса → айдоочуларга.
@@ -1639,6 +1892,52 @@ def delete_post(messenger, msg, account, post_id):
 
 # ============ ИЗДӨӨ ============
 
+def passenger_search(messenger, msg, account):
+    """«🔍 Айдоочуларды издейм» — сайтка багыттайт.
+
+    Сайтта так айдоочулардын жарыялары турат: багыт боюнча тизме,
+    облус чыпкасы, ар бир жарыяда чалуу/WhatsApp/Telegram баскычтары.
+    Ботто издөө да калат — кичине баскыч менен, интернети начар же
+    браузерге чыккысы келбегендер үчүн.
+    """
+    if msg.platform == "telegram":
+        kb = Keyboard.from_flat([
+            Button("🌐 Сайттан айдоочуларды көрүү", "noop", SITE_URL),
+            Button("🔍 Ботто издөө", "p_search_bot"),
+            _back_btn(),
+        ])
+        return _say(messenger, msg, account, L(
+            "🌐 <b>Айдоочуларды сайттан издеңиз</b>\n\n"
+            "Сайтта бардык айдоочулар багыт боюнча тизме менен турат. "
+            "Облус боюнча чыпкалайсыз, шаар издейсиз, ар бир жарыяда "
+            "чалуу, WhatsApp жана Telegram баскычтары даяр.\n\n"
+            "<i>Каалабасаңыз, ботто да издей аласыз — ылдыйкы "
+            "баскычты басыңыз.</i>",
+            "🌐 <b>Ищите водителей на сайте</b>\n\n"
+            "На сайте все водители выведены списком по направлениям. "
+            "Можно отфильтровать по области, найти город, а у каждого "
+            "объявления готовы кнопки звонка, WhatsApp и Telegram.\n\n"
+            "<i>Если не хотите — можно искать и в боте, нажмите "
+            "кнопку ниже.</i>"), kb)
+
+    # WhatsApp: URL баскычы жок — шилтеме текст менен
+    kb = Keyboard.from_flat([
+        Button("🔍 Ботто издөө", "p_search_bot"),
+        _back_btn(),
+    ])
+    _say(messenger, msg, account, L(
+        "🌐 <b>Айдоочуларды сайттан издеңиз</b>\n\n"
+        "Сайтта бардык айдоочулар багыт боюнча тизме менен турат — "
+        "чалуу, WhatsApp жана Telegram баскычтары менен:\n"
+        + SITE_URL + "\n\n"
+        "<i>Каалабасаңыз, ботто да издей аласыз.</i>",
+        "🌐 <b>Ищите водителей на сайте</b>\n\n"
+        "На сайте все водители выведены списком по направлениям — "
+        "с кнопками звонка, WhatsApp и Telegram:\n"
+        + SITE_URL + "\n\n"
+        "<i>Если не хотите — можно искать и в боте.</i>"), kb)
+
+
 def search_menu(messenger, msg, account, target_role):
     kb = Keyboard.from_flat([
         Button("➡️ Бишкекке бараткандар", f"sb:to:{target_role}"),
@@ -1918,4 +2217,3 @@ def register_referral(messenger, newbie, inviter_id):
                  f"🎁 {days} күн акысыз жарыя бере аласыз.")
         else:
             tell(f"🎁 Дагы {days} күн акысыз кошулду!")
-
