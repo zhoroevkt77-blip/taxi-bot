@@ -33,7 +33,7 @@ from core.db import db
 from core import posts
 from core.texts import render as tr_render
 
-WEB_VERSION = "v33-local-only"
+WEB_VERSION = "v35-balance-help"
 print(f"🌐 web/app.py жүктөлдү. Версия = {WEB_VERSION}")
 
 BOT_USERNAME = os.environ.get("BOT_USERNAME", "taxirobot_bot")
@@ -323,6 +323,9 @@ def _base_ctx():
         "wa_post_passenger": (f"https://wa.me/{WA_BOT_NUMBER}"
                               f"?text={quote('Жарыя берем: жүргүнчү')}"),
         # «Кабинет» бетинен ботко төлөм бөлүмүнө түз кирүү
+        "tg_balance": f"https://t.me/{BOT_USERNAME}?start=balance",
+        "wa_balance": (f"https://wa.me/{WA_BOT_NUMBER}"
+                       f"?text={quote('Менин балансым')}"),
         "tg_pay": f"https://t.me/{BOT_USERNAME}?start=pay",
         "wa_pay": (f"https://wa.me/{WA_BOT_NUMBER}"
                    f"?text={quote('Төлөм төлөймүн')}"),
@@ -526,6 +529,18 @@ def post_page():
     return _with_lang(make_response(html))
 
 
+@app.route("/balance")
+def balance_page():
+    """«💼 Менин балансым» — ботко багыттайт.
+
+    Сайт колдонуучуну тааныбайт (каттоо жок), ошондуктан балансты
+    өзү көрсөтө албайт. Ботто болсо номер ырасталган — ал бардыгын
+    билет.
+    """
+    html = render_template("balance.html", **_base_ctx())
+    return _with_lang(make_response(html))
+
+
 @app.route("/pay")
 def pay_page():
     """«💳 Төлөм төлөймүн» — эки ботко өтүү.
@@ -556,7 +571,8 @@ def help_page():
     try:
         from core.texts import (GUIDE, FAQ_HOWTO, FAQ_POST, FAQ_FREE,
                                 FAQ_SEARCH, FAQ_PAY, FAQ_CONTACT,
-                                FAQ_SAFETY, DRIVER_SAFETY)
+                                FAQ_SAFETY, FAQ_TROUBLE, FAQ_RULES,
+                                FAQ_PRIVACY, DRIVER_SAFETY)
         blocks = [
             (_t("📖 Нускама", "📖 Инструкция"), tr_render(GUIDE, lang)),
             (_t("➕ Жарыя кантип берем?", "➕ Как дать объявление?"),
@@ -570,6 +586,12 @@ def help_page():
             (_t("🛡 Коопсуздук", "🛡 Безопасность"), tr_render(FAQ_SAFETY, lang)),
             (_t("🚦 Айдоочунун коопсуздугу", "🚦 Безопасность водителя"),
              tr_render(DRIVER_SAFETY, lang)),
+            (_t("🛠 Көйгөйлөр жана чечими", "🛠 Проблемы и решения"),
+             tr_render(FAQ_TROUBLE, lang)),
+            (_t("📜 Колдонуу эрежелери", "📜 Правила использования"),
+             tr_render(FAQ_RULES, lang)),
+            (_t("🔒 Купуялык", "🔒 Конфиденциальность"),
+             tr_render(FAQ_PRIVACY, lang)),
         ]
     except Exception as e:
         print("[web] жардам текстин алуу катасы:", e)
