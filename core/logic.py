@@ -36,7 +36,8 @@ from core.texts import (render, WELCOME, GUIDE, DRIVER_WARNING,
                         PASSENGER_POST_PRICE,
                         VIP_HOURS,
                         FAQ_INTRO, FAQ_HOWTO, FAQ_POST, FAQ_FREE,
-                        FAQ_SEARCH, FAQ_PAY, FAQ_CONTACT, FAQ_SAFETY)
+                        FAQ_SEARCH, FAQ_PAY, FAQ_CONTACT, FAQ_SAFETY,
+                        FAQ_TROUBLE, FAQ_RULES, FAQ_PRIVACY)
 
 # Сайттын дареги жана «🌐 Сайт» бөлүмүнүн тексти.
 # texts.py эски версия болуп калса да бот кулабашы үчүн — коргоо менен.
@@ -49,7 +50,7 @@ except ImportError:
 
 SITE_SHORT = SITE_URL.replace("https://", "").replace("http://", "").rstrip("/")
 
-LOGIC_VERSION = "v67-passenger-site"
+LOGIC_VERSION = "v68-balance"
 print(f"🧩 core/logic.py жүктөлдү. Версия = {LOGIC_VERSION}")
 
 SESSIONS = {}
@@ -71,6 +72,9 @@ POST_PREFIX = "Жарыя берем:"
 
 # Сайттын «Кабинет» бетинен WhatsApp ботко түз кирүү — төлөм бөлүмүнө.
 PAY_TEXT = "Төлөм төлөймүн"
+
+# Сайттын «Кабинет» бетинен балансты көрүү үчүн
+BALANCE_TEXT = "Менин балансым"
 
 # Башкы менюнун кыска аталышы. Толук WELCOME тексти /start деп КОЛ МЕНЕН
 # жазылганда гана чыгат — ал биринчи таанышуу үчүн. Каналдан ботко
@@ -97,7 +101,7 @@ SCREEN_PREFIXES = (
     "menu:site",
     "menu:faq", "faq:", "menu:guide", "menu:safety",
     "d_search", "p_search", "p_search_bot", "d_my", "p_my", "d_vip",
-    "d_pay", "p_pay", "pay_entry",
+    "d_pay", "p_pay", "pay_entry", "menu:balance",
     "sb:", "sr:", "lo:", "lof:", "lot:", "lr:", "ht:",
 )
 
@@ -398,6 +402,90 @@ def pay_btn(kind):
     return Button("💳 Төлөдүм (чек жиберем)", f"pay:start:{kind}")
 
 
+def show_balance(messenger, msg, account):
+    """💼 Менин балансым — бир экранда бардык абал.
+
+    Айдоочунун мөөнөтү, жүргүнчүнүн акысыз посттору, чакырылган
+    достор, кийинки бонуска канча калганы жана ырасталган номер.
+    """
+    acc = db.get_account(account["account_id"]) or account
+    lang = acc.get("lang", "ky")
+
+    refs = acc.get("ref_count", 0) or 0
+    free = acc.get("free_posts", 0) or 0
+    phone = acc.get("verified_phone")
+    left = days_left(acc)
+    ok = has_access(acc)
+
+    # Кийинки айдоочу бонусуна канча дос калды?
+    need = REQUIRED_REFERRALS - (refs % REQUIRED_REFERRALS)
+    if need == REQUIRED_REFERRALS and refs > 0:
+        need = REQUIRED_REFERRALS
+
+    # ---- Айдоочу катары ----
+    if refs < REQUIRED_REFERRALS:
+        ky_drv = (f"🔒 Жабык. Ачылышы үчүн дагы "
+                  f"{REQUIRED_REFERRALS - refs} дос керек "
+                  f"(же {PAYMENT_AMOUNT} төлөм).")
+        ru_drv = (f"🔒 Закрыто. Нужно ещё "
+                  f"{REQUIRED_REFERRALS - refs} друга "
+                  f"(или оплата {PAYMENT_AMOUNT}).")
+    elif ok:
+        ky_drv = f"✅ Ачык. Дагы <b>{left} күн</b> калды."
+        ru_drv = f"✅ Открыто. Осталось <b>{left} дн.</b>"
+    else:
+        ky_drv = (f"⏳ Мөөнөтү бүттү. Улантуу үчүн: "
+                  f"{REFERRAL_BONUS_STEP} дос ({REFERRAL_BONUS_DAYS} күн) "
+                  f"же {PAYMENT_AMOUNT} ({PAYMENT_HOURS} саат).")
+        ru_drv = (f"⏳ Срок истёк. Чтобы продолжить: "
+                  f"{REFERRAL_BONUS_STEP} друга ({REFERRAL_BONUS_DAYS} дня) "
+                  f"или {PAYMENT_AMOUNT} ({PAYMENT_HOURS} часа).")
+
+    # ---- Жүргүнчү катары ----
+    if free > 0:
+        ky_psg = f"✅ Дагы <b>{free} акысыз жарыя</b> бар."
+        ru_psg = f"✅ Осталось <b>{free} бесплатных объявл.</b>"
+    else:
+        ky_psg = (f"⏳ Акысыз жарыя бүттү. 1 дос чакырсаңыз "
+                  f"+{PASSENGER_NEXT_BONUS}, же {PASSENGER_POST_PRICE} "
+                  f"төлөсөңүз +1 жарыя.")
+        ru_psg = (f"⏳ Бесплатные закончились. Пригласите друга — "
+                  f"+{PASSENGER_NEXT_BONUS}, или оплатите "
+                  f"{PASSENGER_POST_PRICE} — +1 объявление.")
+
+    ky_ph = f"📱 Номериңиз: <b>+{_digits_only(phone)}</b>" if phone else \
+            "📱 Номер ырасталган эмес — биринчи жарыяда суралат."
+    ru_ph = f"📱 Ваш номер: <b>+{_digits_only(phone)}</b>" if phone else \
+            "📱 Номер не подтверждён — спросим при первом объявлении."
+
+    body = L(
+        f"💼 <b>Менин балансым</b>\n\n"
+        f"🚖 <b>Айдоочу катары</b>\n{ky_drv}\n\n"
+        f"🧳 <b>Жүргүнчү катары</b>\n{ky_psg}\n\n"
+        f"👥 <b>Чакырган досторуңуз: {refs}</b>\n"
+        f"Кийинки айдоочу бонусуна дагы {need} дос керек.\n\n"
+        f"{ky_ph}",
+        f"💼 <b>Мой баланс</b>\n\n"
+        f"🚖 <b>Как водитель</b>\n{ru_drv}\n\n"
+        f"🧳 <b>Как пассажир</b>\n{ru_psg}\n\n"
+        f"👥 <b>Приглашено друзей: {refs}</b>\n"
+        f"До следующего бонуса водителя — ещё {need}.\n\n"
+        f"{ru_ph}")
+
+    _say(messenger, msg, account, body)
+
+    # Шилтемелер өзүнчө кабар менен — басууга ыңгайлуу болсун
+    invite = _invite_block(acc, msg.platform, lang)
+    kb = Keyboard.from_flat([
+        Button("💳 Төлөм төлөймүн", "pay_entry"),
+        Button("🏠 Башкы меню", "menu:home"),
+    ])
+    _say(messenger, msg, account, L(
+        "👥 <b>Дос чакырып, акысыз колдонуңуз</b>\n\n" + invite,
+        "👥 <b>Приглашайте друзей и пользуйтесь бесплатно</b>\n\n"
+        + _invite_block(acc, msg.platform, "ru")), kb)
+
+
 def pay_entry(messenger, msg, account):
     """Сайттан төлөмгө түз келгенде — алгач ролду сурайбыз.
 
@@ -522,6 +610,7 @@ def main_menu_kb(platform="telegram"):
     return Keyboard.from_flat([
         Button("🚗 Айдоочумун", "menu:driver"),
         Button("🔍 Жүргүнчүмүн", "menu:passenger"),
+        Button("💼 Менин балансым", "menu:balance"),
         Button(channel_label, "menu:channel"),
         Button("🌐 Сайт", "menu:site"),
         Button("🆘 Жардам", "menu:help"),
@@ -607,6 +696,9 @@ def handle_update(messenger, msg):
                                       int(parts[1][2:]), only_role="driver")
             except ValueError:
                 pass
+        elif len(parts) > 1 and parts[1] == "balance":
+            # Сайттын «Кабинет» бетинен балансты көрүүгө келди
+            return show_balance(messenger, msg, account)
         elif len(parts) > 1 and parts[1] == "pay":
             # Сайттын «Кабинет» бетинен төлөмгө түз келди
             return pay_entry(messenger, msg, account)
@@ -650,6 +742,12 @@ def handle_update(messenger, msg):
                 return _show_hashtag_results(messenger, msg, account,
                                              f"{frm}_{to}", frm, to,
                                              only_role="driver")
+
+    # Сайттын «Кабинет» бетинен WhatsApp ботко баланс көрүүгө келгендер
+    if text.strip().lower() == BALANCE_TEXT.lower():
+        SESSIONS.pop(msg.user_id, None)
+        NAV.pop(msg.user_id, None)
+        return show_balance(messenger, msg, account)
 
     # Сайттын «Кабинет» бетинен WhatsApp ботко төлөмгө келгендер
     if text.strip().lower() == PAY_TEXT.lower():
@@ -761,6 +859,8 @@ def _dispatch(messenger, msg, account, a):
         return start_payment(messenger, msg, account, a.split(":")[2])
     if a == "menu:help":
         return help_menu(messenger, msg, account)
+    if a == "menu:balance":
+        return show_balance(messenger, msg, account)
     if a == "menu:site":
         return show_site(messenger, msg, account)
     if a == "menu:guide":
@@ -956,6 +1056,9 @@ def faq_menu(messenger, msg, account):
         Button("💳 Төлөм жана баалар", "faq:pay"),
         Button("📞 Байланыш", "faq:contact"),
         Button("🛡 Коопсуздук", "faq:safety"),
+        Button("🛠 Көйгөйлөр жана чечими", "faq:trouble"),
+        Button("📜 Колдонуу эрежелери", "faq:rules"),
+        Button("🔒 Купуялык", "faq:privacy"),
         _back_btn(),
     ])
     _say(messenger, msg, account, FAQ_INTRO, kb)
@@ -969,6 +1072,9 @@ FAQ_SECTIONS = {
     "pay": FAQ_PAY,
     "contact": FAQ_CONTACT,
     "safety": FAQ_SAFETY,
+    "trouble": FAQ_TROUBLE,
+    "rules": FAQ_RULES,
+    "privacy": FAQ_PRIVACY,
 }
 
 
