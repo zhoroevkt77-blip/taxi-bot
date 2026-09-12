@@ -15,7 +15,33 @@
 </div>
 
 {% for c in cards %}
-  <div class="post {{ 'vip' if c.is_vip else '' }}">
+  <div class="post {{ 'vip' if c.is_vip else '' }}"
+       data-id="{{ c.id }}"
+       data-from="{{ frm }}" data-to="{{ to }}"
+       data-name="{{ c.name }}" data-phone="{{ c.phone }}"
+       data-when="{{ c.date }} · {{ c.time }}">
+
+    {# ---- Үстүнкү катар: бөлүшүү жана тандалгандар ---- #}
+    <div class="p-top">
+      <button class="p-act share" type="button" aria-label="Бөлүшүү">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+             stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="18" cy="5" r="2.6"/><circle cx="6" cy="12" r="2.6"/>
+          <circle cx="18" cy="19" r="2.6"/>
+          <path d="M8.3 10.8l7.4-4.3M8.3 13.2l7.4 4.3"/>
+        </svg>
+        <span>{{ t('Бөлүшүү', 'Поделиться') }}</span>
+      </button>
+
+      <button class="p-act fav" type="button" aria-label="Тандалгандар">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+             stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 20.3l-1.5-1.35C5.4 14.36 2 11.28 2 7.5 2 4.42 4.42 2 7.5 2
+                   c1.74 0 3.41.81 4.5 2.09C13.09 2.81 14.76 2 16.5 2
+                   19.58 2 22 4.42 22 7.5c0 3.78-3.4 6.86-8.55 11.45L12 20.3z"/>
+        </svg>
+      </button>
+    </div>
 
     {% if c.is_vip %}
       <div class="vip-tag">
@@ -138,6 +164,25 @@
 
     </div>
 
+    {# ---- Ылдыйкы катар: качан коюлду, канча көрүлдү ---- #}
+    <div class="p-meta">
+      <span>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"
+             stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="8.5"/><path d="M12 7.2V12l3.2 2.2"/>
+        </svg>
+        {{ c.ago }}
+      </span>
+      <span class="p-views">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"
+             stroke-linecap="round" stroke-linejoin="round">
+          <path d="M2 12s3.6-6.5 10-6.5S22 12 22 12s-3.6 6.5-10 6.5S2 12 2 12z"/>
+          <circle cx="12" cy="12" r="2.7"/>
+        </svg>
+        <b>{{ c.views }}</b>
+      </span>
+    </div>
+
     {% if c.phone %}
       <div class="phone-num">{{ c.phone }}</div>
 
@@ -192,5 +237,89 @@
   </div>
 {% endif %}
 
-{% endblock %}
+<script>
+/* ============================================================
+   Карточканын кошумча функциялары
+   1. Көрүү эсептегичи — ар бир жарыя браузерде БИР ЖОЛУ саналат
+   2. Бөлүшүү — телефондун өз терезеси, же шилтемени көчүрүү
+   3. Тандалгандар — телефондун эсинде (localStorage) сакталат
+   ============================================================ */
+(function () {
+  var VIEW_KEY = "tr_viewed";
+  var FAV_KEY  = "tr_favs";
 
+  function load(key) {
+    try { return JSON.parse(localStorage.getItem(key) || "[]"); }
+    catch (e) { return []; }
+  }
+  function save(key, val) {
+    try { localStorage.setItem(key, JSON.stringify(val)); } catch (e) {}
+  }
+
+  var viewed = load(VIEW_KEY);
+  var favs = load(FAV_KEY);
+  var pageUrl = location.href.split("#")[0];
+
+  document.querySelectorAll(".post[data-id]").forEach(function (card) {
+    var id = card.dataset.id;
+
+    /* ---- 1. Көрүү ---- */
+    if (viewed.indexOf(id) === -1) {
+      viewed.push(id);
+      if (viewed.length > 400) viewed = viewed.slice(-400);
+      save(VIEW_KEY, viewed);
+      fetch("/view/" + id, { method: "POST" }).catch(function () {});
+      var vb = card.querySelector(".p-views b");
+      if (vb) vb.textContent = (parseInt(vb.textContent, 10) || 0) + 1;
+    }
+
+    /* ---- 2. Бөлүшүү ---- */
+    var shareBtn = card.querySelector(".share");
+    if (shareBtn) {
+      shareBtn.addEventListener("click", function () {
+        var txt = card.dataset.from + " → " + card.dataset.to +
+                  "\n" + card.dataset.name + " · " + card.dataset.when +
+                  "\n" + card.dataset.phone;
+        if (navigator.share) {
+          navigator.share({ title: "ТАКСИ роБОТ", text: txt, url: pageUrl })
+                   .catch(function () {});
+        } else if (navigator.clipboard) {
+          navigator.clipboard.writeText(txt + "\n" + pageUrl);
+          shareBtn.classList.add("done");
+          setTimeout(function () { shareBtn.classList.remove("done"); }, 1600);
+        }
+      });
+    }
+
+    /* ---- 3. Тандалгандар ---- */
+    var favBtn = card.querySelector(".fav");
+    if (!favBtn) return;
+
+    function isFav() {
+      return favs.some(function (f) { return f.id === id; });
+    }
+    function paint() { favBtn.classList.toggle("on", isFav()); }
+    paint();
+
+    favBtn.addEventListener("click", function () {
+      if (isFav()) {
+        favs = favs.filter(function (f) { return f.id !== id; });
+      } else {
+        favs.push({
+          id: id,
+          from: card.dataset.from,
+          to: card.dataset.to,
+          name: card.dataset.name,
+          phone: card.dataset.phone,
+          when: card.dataset.when,
+          url: pageUrl
+        });
+      }
+      save(FAV_KEY, favs);
+      paint();
+    });
+  });
+})();
+</script>
+
+{% endblock %}
