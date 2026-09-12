@@ -19,7 +19,7 @@
 <style>
   /* ============================================================
      ТАКСИ роБОТ — сайттын стили
-     WEB_VERSION = v36-cats-fit
+     WEB_VERSION = v37-card-extras
      Түстөр: кара (тилке), сары (акцент), ак (карточкалар).
      ============================================================ */
   :root {
@@ -361,6 +361,38 @@
     box-shadow: 0 4px 16px rgba(255,183,3,.22);
   }
 
+  /* ---- Карточканын үстүнкү катары: бөлүшүү жана тандалгандар ---- */
+  .p-top {
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 10px; margin: -4px -4px 12px;
+  }
+  .p-act {
+    display: inline-flex; align-items: center; gap: 6px;
+    border: 0; background: #f4f4f7; color: var(--grey);
+    font-family: inherit; font-size: 12.5px; font-weight: 800;
+    padding: 8px 12px; border-radius: 11px;
+    transition: transform .12s, background .15s, color .15s;
+  }
+  .p-act svg { width: 16px; height: 16px; flex: 0 0 auto; }
+  .p-act:active { transform: scale(.94); }
+  .p-act.done { background: #eef7ee; color: #3d7a41; }
+  /* Жүрөкчө — тандалганда кызыл болуп толот */
+  .p-act.fav { padding: 8px 10px; }
+  .p-act.fav.on { background: #ffeaea; color: #e0344a; }
+  .p-act.fav.on svg { fill: #e0344a; stroke: #e0344a; }
+
+  /* ---- Ылдыйкы катар: качан коюлду, канча көрүлдү ---- */
+  .p-meta {
+    display: flex; align-items: center; gap: 14px;
+    margin-top: 13px; padding-top: 12px;
+    border-top: 1px solid var(--line);
+    font-size: 12.5px; font-weight: 700; color: var(--grey-2);
+  }
+  .p-meta span { display: inline-flex; align-items: center; gap: 5px; }
+  .p-meta svg { width: 14px; height: 14px; flex: 0 0 auto; }
+  .p-meta .p-views { margin-left: auto; }
+  .p-meta b { color: var(--grey); font-weight: 800; }
+
   .vip-tag {
     display: inline-flex; align-items: center; gap: 5px;
     background: linear-gradient(135deg, var(--yellow) 0%, var(--yellow-2) 100%);
@@ -671,7 +703,7 @@
 <div class="top">
   <div class="top-row">
     <div class="logo"><img class="car" src="/static/icon-192.png" alt="">ТАКСИ<b>роБОТ</b></div>
-    <span class="ver">v36</span>
+    <span class="ver">v37</span>
     <div class="lang">
       <a href="{{ lang_ky_url }}" class="{{ 'on' if lang == 'ky' else '' }}">KG</a>
       <a href="{{ lang_ru_url }}" class="{{ 'on' if lang == 'ru' else '' }}">RU</a>
