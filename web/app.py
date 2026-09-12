@@ -34,7 +34,7 @@ from core.db import db
 from core import posts
 from core.texts import render as tr_render
 
-WEB_VERSION = "v37-card-extras"
+WEB_VERSION = "v38-photo"
 print(f"🌐 web/app.py жүктөлдү. Версия = {WEB_VERSION}")
 
 BOT_USERNAME = os.environ.get("BOT_USERNAME", "taxirobot_bot")
@@ -304,6 +304,7 @@ def _card(p):
     lang = _lang()
     return {
         "id": p.get("id"),
+        "photo": bool(p.get("photo_id") or p.get("photo_url")),
         "ago": _ago(p.get("created_at"), lang),
         "views": p.get("views") or 0,
         "name": p.get("name") or "",
@@ -557,6 +558,50 @@ def post_page():
     """«➕ Жарыя берүү» — эки ботко өтүү."""
     html = render_template("post.html", **_base_ctx())
     return _with_lang(make_response(html))
+
+
+# Telegram шилтемеси ~1 саат жашайт, ошондуктан кештейбиз
+_PHOTO_CACHE = {}      # post_id -> (url, качан алынды)
+_PHOTO_TTL = 45 * 60   # 45 мүнөт
+
+
+@app.route("/photo/<int:post_id>")
+def post_photo(post_id):
+    """Жарыянын сүрөтүн көрсөтөт.
+
+    Эки булак болушу мүмкүн:
+      photo_url — WhatsApp берген ачык шилтеме, түз багыттайбыз
+      photo_id  — Telegram'дын file_id'си, браузер аны түшүнбөйт.
+                  Ошондуктан getFile аркылуу түз шилтеме алабыз.
+
+    Боттун токени эч качан браузерге чыкпайт: биз шилтемени өзүбүз
+    алып, колдонуучуну ошого багыттайбыз.
+    """
+    import time
+    from flask import redirect, abort
+
+    p = posts.get_post(post_id)
+    if not p or not p.get("active"):
+        abort(404)
+
+    if p.get("photo_url"):
+        return redirect(p["photo_url"], code=302)
+
+    fid = p.get("photo_id")
+    if not fid:
+        abort(404)
+
+    hit = _PHOTO_CACHE.get(post_id)
+    now = time.time()
+    if hit and now - hit[1] < _PHOTO_TTL:
+        return redirect(hit[0], code=302)
+
+    from core import channel
+    url = channel.file_url(fid)
+    if not url:
+        abort(404)
+    _PHOTO_CACHE[post_id] = (url, now)
+    return redirect(url, code=302)
 
 
 @app.route("/view/<int:post_id>", methods=["POST"])
