@@ -43,6 +43,14 @@
       </button>
     </div>
 
+    {# ---- Унаанын сүрөтү (айдоочу койгон болсо) ---- #}
+    {% if c.photo %}
+      <a class="p-photo" href="/photo/{{ c.id }}" target="_blank" rel="noopener">
+        <img src="/photo/{{ c.id }}" alt="{{ c.car }}" loading="lazy"
+             onerror="this.parentNode.style.display='none'">
+      </a>
+    {% endif %}
+
     {% if c.is_vip %}
       <div class="vip-tag">
         <svg viewBox="0 0 24 24" fill="currentColor" width="12" height="12">
