@@ -3,10 +3,17 @@
 core/posts.py  (PostgreSQL варианты)
 =====================================
 Жарыялар (посттор) менен иштөө. db.py тийбейт — ошол эле базаны колдонот.
+
+ЖАҢЫ (v2):
+    - views  — сайтта канча жолу көрүлгөнү
+    - photo_id / photo_url — айдоочунун унаасынын сүрөтү (каалоо боюнча)
 """
 
 from datetime import datetime, timedelta
 from core.db import db
+
+POSTS_VERSION = "v2-views-photo"
+print(f"📦 core/posts.py жүктөлдү. Версия = {POSTS_VERSION}")
 
 POST_LIFETIME_HOURS = 24
 
@@ -18,17 +25,47 @@ def create_post(account_id, role, data):
         cur.execute("""
             INSERT INTO posts (account_id, role, name, car, from_city, to_city,
                                date_text, time_text, seats, people_count, baggage,
-                               price, comment, phone, is_vip)
-            VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+                               price, comment, phone, is_vip, photo_id, photo_url)
+            VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
             RETURNING id
         """, (account_id, role, data.get("name"), data.get("car"),
               data.get("from_city"), data.get("to_city"), data.get("date_text"),
               data.get("time_text"), data.get("seats"), data.get("people_count"),
               data.get("baggage"), data.get("price"), data.get("comment"),
-              data.get("phone"), 1 if data.get("is_vip") else 0))
+              data.get("phone"), 1 if data.get("is_vip") else 0,
+              data.get("photo_id"), data.get("photo_url")))
         post_id = cur.fetchone()["id"]
         conn.commit()
         return post_id
+
+
+def bump_views(post_id):
+    """Көрүү санын бирге көбөйтөт.
+
+    Сайт ар бир жарыяны бир браузерде бир жолу гана эсептейт —
+    ал жагы клиентте (localStorage) чечилет, бул жерде жөн эле
+    санды чоңойтобуз.
+    """
+    try:
+        with db() as conn:
+            cur = conn.cursor()
+            cur.execute(
+                "UPDATE posts SET views = COALESCE(views, 0) + 1 "
+                "WHERE id = %s AND active = 1", (post_id,))
+            conn.commit()
+            return cur.rowcount > 0
+    except Exception as e:
+        print("[posts] көрүү эсептөө катасы:", e)
+        return False
+
+
+def set_photo(post_id, photo_id=None, photo_url=None):
+    """Жарыяга сүрөт кошот же алмаштырат."""
+    with db() as conn:
+        cur = conn.cursor()
+        cur.execute("UPDATE posts SET photo_id = %s, photo_url = %s WHERE id = %s",
+                    (photo_id, photo_url, post_id))
+        conn.commit()
 
 
 def recent_posts_times(account_id, role, hours=24):
@@ -173,4 +210,3 @@ def search_by_hashtag(frm, to):
                        ORDER BY is_vip DESC, created_at DESC""",
                     (f"{frm}%", f"{to}%"))
         return [dict(r) for r in cur.fetchall()]
-
