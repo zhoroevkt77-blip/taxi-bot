@@ -50,7 +50,7 @@ except ImportError:
 
 SITE_SHORT = SITE_URL.replace("https://", "").replace("http://", "").rstrip("/")
 
-LOGIC_VERSION = "v70-photo-hint"
+LOGIC_VERSION = "v74-dir-2col"
 print(f"🧩 core/logic.py жүктөлдү. Версия = {LOGIC_VERSION}")
 
 SESSIONS = {}
@@ -605,47 +605,66 @@ def receive_receipt(messenger, msg, account, kind):
 # ============ КЛАВИАТУРАЛАР ============
 
 def main_menu_kb(platform="telegram"):
-    # Канал Telegram'да гана бар — аны эки платформада тең так жазабыз,
-    # антпесе WhatsApp колдонуучусу "кайсы канал?" деп чаташат.
+    """Башкы меню — эки мамыча болуп жайгашат.
+
+    Тартиби telegram_adapter'деги ылдыйкы клавиатура менен бирдей:
+    колдонуучу кайсынысын колдонсо да, баскычтар ошол эле жерде турат.
+
+    WhatsApp'та бул номерленген тизмеге айланат — катарлардын тартиби
+    сакталат, ошондуктан сандар да ошол эле бойдон калат.
+    """
     channel_label = "📢 Telegram каналыбыз"
-    return Keyboard.from_flat([
-        Button("🚗 Айдоочумун", "menu:driver"),
-        Button("🔍 Жүргүнчүмүн", "menu:passenger"),
-        Button("💼 Менин балансым", "menu:balance"),
-        Button(channel_label, "menu:channel"),
-        Button("🌐 Сайт", "menu:site"),
-        Button("🆘 Жардам", "menu:help"),
-        Button("🌐 Тил / Язык", "menu:lang"),
+    return Keyboard(rows=[
+        [Button("🚗 Айдоочумун", "menu:driver"),
+         Button("🔍 Жүргүнчүмүн", "menu:passenger")],
+        [Button("💼 Менин балансым", "menu:balance")],
+        [Button(channel_label, "menu:channel"),
+         Button("🌐 Сайт", "menu:site")],
+        [Button("🆘 Жардам", "menu:help"),
+         Button("🌐 Тил / Язык", "menu:lang")],
     ])
 
 
 def lang_kb():
-    return Keyboard.from_flat([
-        Button("🇰🇬 Кыргызча", "setlang:ky"),
-        Button("🇷🇺 Русский", "setlang:ru"),
-        _back_btn(),
+    return Keyboard(rows=[
+        [Button("🇰🇬 Кыргызча", "setlang:ky"),
+         Button("🇷🇺 Русский", "setlang:ru")],
+        [_back_btn()],
     ])
 
 
 def driver_menu_kb():
-    return Keyboard.from_flat([
-        Button("📝 Пост жазам", "d_types"),
-        Button("🔍 Жүргүнчүлөрдү издейм", "d_search"),
-        Button("📄 Менин посторум", "d_my"),
-        Button("⭐ VIP болуу", "d_vip"),
-        Button("💳 Төлөм төлөймүн", "d_pay"),
-        _back_btn(),
+    return Keyboard(rows=[
+        [Button("📝 Пост жазам", "d_types")],
+        [Button("🔍 Жүргүнчүлөрдү издейм", "d_search")],
+        [Button("📄 Менин посторум", "d_my"),
+         Button("⭐ VIP болуу", "d_vip")],
+        [Button("💳 Төлөм төлөймүн", "d_pay")],
+        [_back_btn()],
     ])
 
 
 def passenger_menu_kb():
-    return Keyboard.from_flat([
-        Button("📝 Пост жазам", "p_types"),
-        Button("🔍 Айдоочуларды издейм", "p_search"),
-        Button("📄 Менин посторум", "p_my"),
-        Button("💳 Төлөм төлөймүн", "p_pay"),
-        _back_btn(),
+    return Keyboard(rows=[
+        [Button("📝 Пост жазам", "p_types")],
+        [Button("🔍 Айдоочуларды издейм", "p_search")],
+        [Button("📄 Менин посторум", "p_my"),
+         Button("💳 Төлөм төлөймүн", "p_pay")],
+        [_back_btn()],
     ])
+
+
+def two_col(buttons, back=True):
+    """Баскычтарды эки мамычага бөлөт.
+
+    Узун тизмелер (облустар, FAQ бөлүмдөрү) экранды толтуруп
+    кетпеши үчүн керек. «🔙 Артка» ар дайым өзүнчө акыркы катарда
+    турат — орду өзгөрбөсүн.
+    """
+    rows = [buttons[i:i + 2] for i in range(0, len(buttons), 2)]
+    if back:
+        rows.append([_back_btn()])
+    return Keyboard(rows=rows)
 
 
 def back_kb():
@@ -653,9 +672,8 @@ def back_kb():
 
 
 def regions_kb():
-    return Keyboard.from_flat(
-        [Button(r, f"preg:{i}") for i, r in enumerate(REGION_LIST)]
-        + [_back_btn()])
+    return two_col([Button(r, f"preg:{i}")
+                    for i, r in enumerate(REGION_LIST)])
 
 
 # ============ КИРҮҮ НУКТАСЫ ============
@@ -1059,12 +1077,12 @@ def hashtag_search(messenger, msg, account, post_id, only_other=False,
 
 def help_menu(messenger, msg, account):
     """🆘 Жардам — нускама, суроо-жооптор, коопсуздук жана сайт."""
-    kb = Keyboard.from_flat([
-        Button("📖 Нускама", "menu:guide"),
-        Button("❓ Көп берилүүчү суроолорго жооп", "menu:faq"),
-        Button("🛡 Айдоочунун коопсуздугу", "menu:safety"),
-        Button("🌐 Сайт", "menu:site"),
-        _back_btn(),
+    kb = Keyboard(rows=[
+        [Button("📖 Нускама", "menu:guide")],
+        [Button("❓ Көп берилүүчү суроолорго жооп", "menu:faq")],
+        [Button("🛡 Айдоочунун коопсуздугу", "menu:safety"),
+         Button("🌐 Сайт", "menu:site")],
+        [_back_btn()],
     ])
     _say(messenger, msg, account, L(
          "🆘 <b>Жардам</b>\n\nЭмне керек экенин тандаңыз:",
@@ -1073,18 +1091,18 @@ def help_menu(messenger, msg, account):
 
 def faq_menu(messenger, msg, account):
     """Көп берилүүчү суроолордун бөлүмдөрү."""
-    kb = Keyboard.from_flat([
-        Button("➕ Жарыя кантип берем?", "faq:howto"),
-        Button("📝 Жарыя жөнүндө", "faq:post"),
-        Button("🎁 Акысыз мүмкүнчүлүк", "faq:free"),
-        Button("🔍 Издөө", "faq:search"),
-        Button("💳 Төлөм жана баалар", "faq:pay"),
-        Button("📞 Байланыш", "faq:contact"),
-        Button("🛡 Коопсуздук", "faq:safety"),
-        Button("🛠 Көйгөйлөр жана чечими", "faq:trouble"),
-        Button("📜 Колдонуу эрежелери", "faq:rules"),
-        Button("🔒 Купуялык", "faq:privacy"),
-        _back_btn(),
+    kb = Keyboard(rows=[
+        [Button("➕ Жарыя кантип берем?", "faq:howto")],
+        [Button("📝 Жарыя жөнүндө", "faq:post"),
+         Button("🎁 Акысыз мүмкүнчүлүк", "faq:free")],
+        [Button("🔍 Издөө", "faq:search"),
+         Button("💳 Төлөм жана баалар", "faq:pay")],
+        [Button("📞 Байланыш", "faq:contact"),
+         Button("🛡 Коопсуздук", "faq:safety")],
+        [Button("🛠 Көйгөйлөр жана чечими", "faq:trouble")],
+        [Button("📜 Колдонуу эрежелери", "faq:rules"),
+         Button("🔒 Купуялык", "faq:privacy")],
+        [_back_btn()],
     ])
     _say(messenger, msg, account, FAQ_INTRO, kb)
 
@@ -1245,16 +1263,15 @@ def post_types(messenger, msg, account, role):
 def ask_route(messenger, msg, account, st):
     if st["data"].get("mode") == "local":
         st["step"] = "loreg"
-        kb = Keyboard.from_flat(
-            [Button(o, f"loreg:{i}") for i, o in enumerate(DISTRICT_OBLASTS)]
-            + [_back_btn()])
+        kb = two_col([Button(o, f"loreg:{i}")
+                      for i, o in enumerate(DISTRICT_OBLASTS)])
         _say(messenger, msg, account, "🗺 Кайсы облустан чыгасыз?", kb)
     else:
         st["step"] = "dir"
-        kb = Keyboard.from_flat([
-            Button("🚕 Бишкекке барам", "route:to_bishkek"),
-            Button("🚕 Бишкектен кайтам", "route:from_bishkek"),
-            _back_btn(),
+        kb = Keyboard(rows=[
+            [Button("🚕 Бишкекке барам", "route:to_bishkek"),
+             Button("🚕 Бишкектен кайтам", "route:from_bishkek")],
+            [_back_btn()],
         ])
         _say(messenger, msg, account, L("Багытты тандаңыз:", "Выберите направление:"), kb)
 
@@ -1674,9 +1691,8 @@ def _wizard_button(messenger, msg, account, st):
         region = REGION_LIST[int(a.split(":")[1])]
         d["_region"] = region
         st["step"] = "pcity"
-        kb = Keyboard.from_flat(
-            [Button(c, f"pcity:{i}") for i, c in enumerate(REGIONS[region])]
-            + [_back_btn()])
+        kb = two_col([Button(c, f"pcity:{i}")
+                      for i, c in enumerate(REGIONS[region])])
         return _say(messenger, msg, account,
                     f"📍 <b>{region}</b>\nШаар/район тандаңыз:", kb)
 
@@ -1696,9 +1712,8 @@ def _wizard_button(messenger, msg, account, st):
         oblast = DISTRICT_OBLASTS[int(a.split(":")[1])]
         d["_oblast"] = oblast
         st["step"] = "lofrom"
-        kb = Keyboard.from_flat(
-            [Button(c, f"lofrom:{i}") for i, c in enumerate(DISTRICTS[oblast])]
-            + [_back_btn()])
+        kb = two_col([Button(c, f"lofrom:{i}")
+                      for i, c in enumerate(DISTRICTS[oblast])])
         return _say(messenger, msg, account,
                     f"📍 <b>{oblast}</b>\nКайсы райондон/шаардан чыгасыз?", kb)
 
@@ -1706,9 +1721,8 @@ def _wizard_button(messenger, msg, account, st):
         oblast = d["_oblast"]
         d["from_city"] = DISTRICTS[oblast][int(a.split(":")[1])]
         st["step"] = "lotoreg"
-        kb = Keyboard.from_flat(
-            [Button(o, f"lotoreg:{i}") for i, o in enumerate(DISTRICT_OBLASTS)]
-            + [_back_btn()])
+        kb = two_col([Button(o, f"lotoreg:{i}")
+                      for i, o in enumerate(DISTRICT_OBLASTS)])
         return _say(messenger, msg, account,
             f"📍 Чыгуу: <b>{d['from_city']}</b>\n🗺 Кайсы облуска барасыз?", kb)
 
@@ -1718,10 +1732,9 @@ def _wizard_button(messenger, msg, account, st):
         st["step"] = "loto"
         btns = [Button(c, f"loto:{i}") for i, c in enumerate(DISTRICTS[oblast])
                 if c != d.get("from_city")]
-        btns.append(_back_btn())
         return _say(messenger, msg, account,
                     f"📍 <b>{oblast}</b>\nКайсы районго/шаарга барасыз?",
-                    Keyboard.from_flat(btns))
+                    two_col(btns))
 
     if a.startswith("loto:"):
         oblast = d["_to_oblast"]
@@ -1801,9 +1814,8 @@ def wizard_back(messenger, msg, account, st):
         st["step"] = "lofrom"
         oblast = st["data"].get("_oblast")
         if oblast:
-            kb = Keyboard.from_flat(
-                [Button(c, f"lofrom:{i}") for i, c in enumerate(DISTRICTS[oblast])]
-                + [_back_btn()])
+            kb = two_col([Button(c, f"lofrom:{i}")
+                          for i, c in enumerate(DISTRICTS[oblast])])
             return _say(messenger, msg, account,
                         f"📍 <b>{oblast}</b>\nКайсы райондон/шаардан чыгасыз?", kb)
 
@@ -1929,7 +1941,11 @@ def show_my_posts(messenger, msg, account, role):
             btns.append(Button("👥 Бош орун", f"sd:{p['id']}"))
             btns.append(Button("⏰ Убакыт", f"tw:{p['id']}"))
         btns.append(Button("❌ Өчүрүү", f"del:{p['id']}"))
-        kb = Keyboard.from_flat(btns)
+        # Айдоочуда үч баскыч: экөө катар, өчүрүү өзүнчө
+        if len(btns) == 3:
+            kb = Keyboard(rows=[[btns[0], btns[1]], [btns[2]]])
+        else:
+            kb = Keyboard.from_flat(btns)
         _say(messenger, msg, account,
              L(post_card(p, "ky"), post_card(p, "ru")), kb)
     _say(messenger, msg, account, L("⬇️ Кайтуу үчүн:", "⬇️ Чтобы вернуться:"), back_kb())
