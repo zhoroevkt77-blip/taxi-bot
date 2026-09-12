@@ -50,7 +50,7 @@ except ImportError:
 
 SITE_SHORT = SITE_URL.replace("https://", "").replace("http://", "").rstrip("/")
 
-LOGIC_VERSION = "v68-balance"
+LOGIC_VERSION = "v69-photo"
 print(f"🧩 core/logic.py жүктөлдү. Версия = {LOGIC_VERSION}")
 
 SESSIONS = {}
@@ -86,7 +86,8 @@ MENU_TITLE = ("__L__",
 
 REGION_LIST = list(REGIONS.keys())
 
-DRIVER_STEPS = ["name", "car", "date", "time", "seats", "price", "comment", "phone"]
+DRIVER_STEPS = ["name", "car", "date", "time", "seats", "price",
+                "comment", "photo", "phone"]
 PASSENGER_STEPS = ["name", "date", "time", "people", "baggage", "comment", "phone"]
 
 STEP_FIELD = {
@@ -663,8 +664,23 @@ def handle_update(messenger, msg):
     account = db.get_or_create_account(msg.user_id, msg.platform)
     session = SESSIONS.get(msg.user_id)
 
-    # ---- Сүрөт келдиби? (төлөм чеги) ----
+    # ---- Сүрөт келдиби? ----
     if getattr(msg, "photo_id", None):
+        # 1) Визардда сүрөт кадамында турабызбы? — жарыянын сүрөтү
+        st = SESSIONS.get(msg.user_id)
+        if st and st.get("step") == "photo":
+            ref = msg.photo_id
+            # Telegram file_id берет, WhatsApp — ачык шилтеме.
+            # Экөөнү эки башка мамычага жазабыз.
+            if str(ref).startswith("http"):
+                st["data"]["photo_url"] = ref
+            else:
+                st["data"]["photo_id"] = ref
+            _say(messenger, msg, account, L(
+                "✅ Сүрөт кабыл алынды.", "✅ Фото принято."))
+            return next_step(messenger, msg, account, st, "photo")
+
+        # 2) Болбосо — төлөм чеги
         kind = PAY_WAIT.pop(msg.user_id, None)
         if kind:
             return receive_receipt(messenger, msg, account, kind)
@@ -1318,6 +1334,22 @@ def ask_step(messenger, msg, account, st, step):
             "<i>Жок болсо — төмөнкү баскычты басыңыз.\n"
             "Бар болсо — жазып жибериңиз (мис. 2 чемодан).</i>", kb)
 
+    if step == "photo":
+        kb = Keyboard.from_flat([Button("⏭ Сүрөтсүз улантам", "skip:photo"),
+                                 _back_btn()])
+        return _say(messenger, msg, account, L(
+            "📷 <b>Унааңыздын сүрөтүн жиберсеңиз болот</b>\n\n"
+            "Сүрөтү бар жарыяга ишеним көбүрөөк — жүргүнчүлөр кандай "
+            "унаага түшөрүн алдын ала көрөт.\n\n"
+            "<i>Сүрөттү ушул жерге жөнөтүңүз, же төмөнкү баскычты "
+            "басып өткөрүп жибериңиз. Каалагыңыз келбесе — милдеттүү "
+            "эмес.</i>",
+            "📷 <b>Можно отправить фото вашей машины</b>\n\n"
+            "Объявлению с фото доверяют больше — пассажиры заранее "
+            "видят, в какую машину сядут.\n\n"
+            "<i>Отправьте фото сюда или нажмите кнопку ниже, чтобы "
+            "пропустить. Это не обязательно.</i>"), kb)
+
     if step == "phone":
         ph = account.get("verified_phone")
         if ph:
@@ -1392,7 +1424,7 @@ def channel_text(d, role, tag=None):
             f"📅 {d.get('date_text')} · ⏰ {d.get('time_text')}\n"
             f"👥 Бош орун / Мест: {d.get('seats')}\n"
             f"💰 Баасы / Цена: {d.get('price')}\n"
-            f"📝 {d.get('comment')}\n"
+            f"📝 {(d.get('comment') or '')[:200]}\n"
             f"📞 Чалуу / Позвонить: +{_digits_only(d.get('phone'))}"
             )
     return ""
@@ -1409,13 +1441,20 @@ def _route_url(frm, to, lang="ky"):
             f"&to={quote(to or '')}&lang={lang}")
 
 
-def _publish(messenger, text, links):
+def _publish(messenger, text, links, photo=None):
     """Каналга чыгарат — платформадан көз каранды эмес.
 
     core/channel.py түз Telegram API'ге кайрылат, ошондуктан WhatsApp'тан
     жазылган айдоочунун жарыясы да ошол эле каналга барат.
+
+    photo берилсе — жарыя сүрөт менен чыгат, текст кол жазуу болот.
     """
-    return channel.publish(text, links)
+    return channel.publish(text, links, photo=photo)
+
+
+def _photo_of(d):
+    """Жарыянын сүрөтү (Telegram file_id же ачык URL). Жок болсо None."""
+    return d.get("photo_id") or d.get("photo_url") or None
 
 
 def _notify_opposite(author, post_id, d, role):
@@ -1487,7 +1526,8 @@ def save(messenger, msg, account, st):
         # Астына байланыш баскычтарын кошобуз.
         msg_id = _publish(messenger, channel_text(d, role),
                           contact_links(d.get("phone"), post_id,
-                                        d.get("from_city"), d.get("to_city")))
+                                        d.get("from_city"), d.get("to_city")),
+                          photo=_photo_of(d))
         if msg_id:
             posts.set_channel_msg(post_id, msg_id)
             _say(messenger, msg, account, L(
@@ -1682,6 +1722,9 @@ def _wizard_button(messenger, msg, account, st):
     if a.startswith("ppl:"):
         d["people_count"] = a.split(":")[1]
         return next_step(messenger, msg, account, st, "people")
+
+    if a == "skip:photo":
+        return next_step(messenger, msg, account, st, "photo")
 
     if a == "usephone":
         d["phone"] = account.get("verified_phone", "")
@@ -1892,7 +1935,8 @@ def _refresh_channel(post_id):
         channel.edit(p["channel_msg_id"],
                      channel_text(p, "driver"),
                      contact_links(p.get("phone"), post_id,
-                                   p.get("from_city"), p.get("to_city")))
+                                   p.get("from_city"), p.get("to_city")),
+                     has_photo=bool(_photo_of(p)))
     except Exception as e:
         print("Каналды жаңыртуу катасы:", e)
 
