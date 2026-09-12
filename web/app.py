@@ -25,6 +25,7 @@ web/app.py
 import os
 import re
 import traceback
+from datetime import datetime
 from urllib.parse import quote
 from flask import (Flask, render_template, request, make_response,
                    send_from_directory)
@@ -33,7 +34,7 @@ from core.db import db
 from core import posts
 from core.texts import render as tr_render
 
-WEB_VERSION = "v35-balance-help"
+WEB_VERSION = "v37-card-extras"
 print(f"🌐 web/app.py жүктөлдү. Версия = {WEB_VERSION}")
 
 BOT_USERNAME = os.environ.get("BOT_USERNAME", "taxirobot_bot")
@@ -273,9 +274,38 @@ def _category_of(r):
     return "local"
 
 
+def _ago(ts, lang="ky"):
+    """«2 саат мурун» деген кыска жазуу.
+
+    Базада created_at TIMESTAMP болуп турат. Убакыт өтпөсө «азыр эле».
+    """
+    if not ts:
+        return ""
+    try:
+        if isinstance(ts, str):
+            ts = datetime.fromisoformat(ts)
+        secs = (datetime.now() - ts).total_seconds()
+    except Exception:
+        return ""
+    if secs < 60:
+        return "азыр эле" if lang != "ru" else "только что"
+    mins = int(secs // 60)
+    if mins < 60:
+        return f"{mins} мүнөт мурун" if lang != "ru" else f"{mins} мин. назад"
+    hours = mins // 60
+    if hours < 24:
+        return f"{hours} саат мурун" if lang != "ru" else f"{hours} ч. назад"
+    days = hours // 24
+    return f"{days} күн мурун" if lang != "ru" else f"{days} дн. назад"
+
+
 def _card(p):
     d = _digits(p.get("phone"))
+    lang = _lang()
     return {
+        "id": p.get("id"),
+        "ago": _ago(p.get("created_at"), lang),
+        "views": p.get("views") or 0,
         "name": p.get("name") or "",
         "car": p.get("car") or "",
         "date": _v(p.get("date_text")),
@@ -526,6 +556,30 @@ def route():
 def post_page():
     """«➕ Жарыя берүү» — эки ботко өтүү."""
     html = render_template("post.html", **_base_ctx())
+    return _with_lang(make_response(html))
+
+
+@app.route("/view/<int:post_id>", methods=["POST"])
+def view_post(post_id):
+    """Көрүү эсептегичи.
+
+    Браузер ар бир жарыяны БИР ЖОЛУ гана билдирет — ал жагы
+    route.html'деги кичине скриптте (localStorage) чечилет.
+    Ошондуктан бетти жаңырткан сайын сан өспөйт.
+    """
+    posts.bump_views(post_id)
+    return "", 204
+
+
+@app.route("/favorites")
+def favorites_page():
+    """«❤️ Тандалгандар» — телефондун өзүндө сакталат.
+
+    Каттоо жок болгондуктан сервер эч нерсе билбейт: тизме
+    браузердин эсинде (localStorage) турат жана ошол жерден
+    чыгарылат.
+    """
+    html = render_template("favorites.html", **_base_ctx())
     return _with_lang(make_response(html))
 
 
