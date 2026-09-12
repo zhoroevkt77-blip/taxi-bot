@@ -19,7 +19,7 @@
 <style>
   /* ============================================================
      ТАКСИ роБОТ — сайттын стили
-     WEB_VERSION = v37-card-extras
+     WEB_VERSION = v38-photo
      Түстөр: кара (тилке), сары (акцент), ак (карточкалар).
      ============================================================ */
   :root {
@@ -393,6 +393,16 @@
   .p-meta .p-views { margin-left: auto; }
   .p-meta b { color: var(--grey); font-weight: 800; }
 
+  /* ---- Унаанын сүрөтү ---- */
+  .p-photo {
+    display: block; margin: 0 0 13px; border-radius: 14px;
+    overflow: hidden; background: #f1f1f4;
+    aspect-ratio: 4 / 3;
+  }
+  .p-photo img {
+    width: 100%; height: 100%; object-fit: cover; display: block;
+  }
+
   .vip-tag {
     display: inline-flex; align-items: center; gap: 5px;
     background: linear-gradient(135deg, var(--yellow) 0%, var(--yellow-2) 100%);
@@ -703,7 +713,7 @@
 <div class="top">
   <div class="top-row">
     <div class="logo"><img class="car" src="/static/icon-192.png" alt="">ТАКСИ<b>роБОТ</b></div>
-    <span class="ver">v37</span>
+    <span class="ver">v38</span>
     <div class="lang">
       <a href="{{ lang_ky_url }}" class="{{ 'on' if lang == 'ky' else '' }}">KG</a>
       <a href="{{ lang_ru_url }}" class="{{ 'on' if lang == 'ru' else '' }}">RU</a>
