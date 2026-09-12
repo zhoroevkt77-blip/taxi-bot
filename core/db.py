@@ -10,6 +10,11 @@ core/db.py  (PostgreSQL варианты)
 
   - platform_id    — "tg:123456" же "wa:996700123456"
   - verified_phone — эки платформаны бир аккаунтка байлаган ачкыч
+
+МИГРАЦИЯ ЖӨНҮНДӨ:
+    CREATE TABLE IF NOT EXISTS эски таблицага жаңы мамыча кошпойт.
+    Ошондуктан _migrate() өзүнчө иштейт: ADD COLUMN IF NOT EXISTS.
+    Жаңы мамыча керек болсо, ошол жерге бир сап кошуу жетиштүү.
 """
 
 import os
@@ -18,10 +23,35 @@ import psycopg2.extras
 
 DATABASE_URL = os.environ.get("DATABASE_URL")
 
+DB_VERSION = "v2-views-photo"
+print(f"🗄 core/db.py жүктөлдү. Версия = {DB_VERSION}")
+
 
 def db():
     conn = psycopg2.connect(DATABASE_URL, cursor_factory=psycopg2.extras.RealDictCursor)
     return conn
+
+
+# Жаңы мамычалар: (таблица, мамыча, түрү)
+_NEW_COLUMNS = [
+    # Сайттагы «👁 Көрүү» эсептегичи
+    ("posts", "views", "INTEGER DEFAULT 0"),
+    # Айдоочунун унаасынын сүрөтү (каалоо боюнча)
+    #   photo_id  — Telegram'дын file_id'си
+    #   photo_url — WhatsApp берген түз шилтеме
+    ("posts", "photo_id", "TEXT"),
+    ("posts", "photo_url", "TEXT"),
+]
+
+
+def _migrate(cur):
+    """Эски базага жаңы мамычаларды кошот. Бар болсо тийбейт."""
+    for table, col, coltype in _NEW_COLUMNS:
+        try:
+            cur.execute(
+                f"ALTER TABLE {table} ADD COLUMN IF NOT EXISTS {col} {coltype}")
+        except Exception as e:
+            print(f"[db] {table}.{col} кошуу катасы:", e)
 
 
 def init_db():
@@ -67,9 +97,13 @@ def init_db():
             is_vip         INTEGER DEFAULT 0,
             active         INTEGER DEFAULT 1,
             channel_msg_id INTEGER,
+            views          INTEGER DEFAULT 0,
+            photo_id       TEXT,
+            photo_url      TEXT,
             created_at     TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
         """)
+        _migrate(cur)
         conn.commit()
 
 
