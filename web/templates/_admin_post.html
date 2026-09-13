@@ -1,0 +1,55 @@
+{# Админ панелдеги жарыянын карточкасы.
+   «Жарыялар» жана «Модерация» өтмөктөрү экөө тең ушуну колдонот. #}
+<div class="row {{ 'flag' if p.flags else '' }} {{ 'off' if not p.active else '' }}">
+
+  <div class="rt">
+    <span class="id">#{{ p.id }}</span>
+    {{ p.from_city }} → {{ p.to_city }}
+    {% if p.role == 'driver' %}
+      <span class="tag dr">🚖 айдоочу</span>
+    {% else %}
+      <span class="tag ps">🧳 жүргүнчү</span>
+    {% endif %}
+    {% if p.is_vip %}<span class="tag vip">⭐ VIP</span>{% endif %}
+    {% if p.photo_id or p.photo_url %}<span class="tag ph">📷 сүрөт</span>{% endif %}
+    {% if not p.active %}<span class="tag no">өчкөн</span>{% endif %}
+  </div>
+
+  <div class="meta">
+    🧍 <b>{{ p.name or '—' }}</b>
+    {% if p.car %} · 🚘 {{ p.car }}{% endif %}<br>
+    📞 <b>{{ p.phone or '—' }}</b> ·
+    👤 аккаунт <b>#{{ p.account_id }}</b><br>
+    📅 {{ p.date_text or '—' }} · ⏰ {{ p.time_text or '—' }}<br>
+    {% if p.role == 'driver' %}
+      👥 орун: <b>{{ p.seats or '—' }}</b> · 💰 <b>{{ p.price or '—' }}</b><br>
+    {% else %}
+      👥 адам: <b>{{ p.people_count or '—' }}</b> · 🎒 {{ p.baggage or '—' }}<br>
+    {% endif %}
+    {% if p.comment %}📝 {{ p.comment }}<br>{% endif %}
+    🕐 {{ ago(p.created_at) }} мурун · 👁 {{ p.views or 0 }}
+  </div>
+
+  {% if p.flags %}
+    <div>
+      {% for f in p.flags %}<span class="tag no">⚠️ {{ f }}</span>{% endfor %}
+    </div>
+  {% endif %}
+
+  <div class="acts">
+    {% if p.photo_id or p.photo_url %}
+      <a class="btn" href="/photo/{{ p.id }}" target="_blank" rel="noopener">
+        Сүрөттү көрүү
+      </a>
+    {% endif %}
+    <a class="btn" href="/route?from={{ p.from_city|urlencode }}&to={{ p.to_city|urlencode }}"
+       target="_blank" rel="noopener">Сайттан көрүү</a>
+    {% if p.active %}
+      <form method="post" action="/admin/post/{{ p.id }}/delete"
+            onsubmit="return confirm('Жарыя өчүрүлсүнбү? Каналдан да кетет.')">
+        <button class="btn red" type="submit">Өчүрүү</button>
+      </form>
+    {% endif %}
+  </div>
+
+</div>
