@@ -34,7 +34,7 @@ from core.db import db
 from core import posts
 from core.texts import render as tr_render
 
-WEB_VERSION = "v39-admin"
+WEB_VERSION = "v40-push"
 print(f"🌐 web/app.py жүктөлдү. Версия = {WEB_VERSION}")
 
 BOT_USERNAME = os.environ.get("BOT_USERNAME", "taxirobot_bot")
@@ -48,6 +48,13 @@ app = Flask(__name__)
 # бирок коопсуздук бузулбайт.
 app.secret_key = os.environ.get("SECRET_KEY") or os.urandom(32)
 app.permanent_session_lifetime = timedelta(days=7)
+
+# Кабарлардын таблицасы (жок болсо түзүлөт)
+try:
+    from core import push
+    push.init()
+except Exception as e:
+    print("[web] push жүктөлгөн жок:", e)
 
 # Админ панель — өзүнчө модулда, /admin дареги боюнча
 try:
@@ -615,6 +622,48 @@ def post_photo(post_id):
         abort(404)
     _PHOTO_CACHE[post_id] = (url, now)
     return redirect(url, code=302)
+
+
+@app.route("/push/key")
+def push_key():
+    """Браузерге ачык VAPID ачкычын берет.
+
+    Ачкыч ачык болушу керек — браузер аны жазылуу үчүн колдонот.
+    Жашыруун ачкыч бул жерде эч качан чыкпайт.
+    """
+    from flask import jsonify
+    try:
+        from core import push
+        return jsonify({"key": push.VAPID_PUBLIC, "on": push.enabled()})
+    except Exception:
+        return jsonify({"key": "", "on": False})
+
+
+@app.route("/push/subscribe", methods=["POST"])
+def push_subscribe():
+    """Багытка жазылуу."""
+    from flask import jsonify
+    data = request.get_json(silent=True) or {}
+    sub = data.get("sub") or {}
+    frm = (data.get("from") or "").strip()
+    to = (data.get("to") or "").strip()
+    if not (sub and frm and to):
+        return jsonify({"ok": False}), 400
+    from core import push
+    ok = push.subscribe(sub, frm, to, _lang())
+    return jsonify({"ok": bool(ok)})
+
+
+@app.route("/push/unsubscribe", methods=["POST"])
+def push_unsubscribe():
+    """Жазылуудан баш тартуу."""
+    from flask import jsonify
+    data = request.get_json(silent=True) or {}
+    ep = (data.get("endpoint") or "").strip()
+    if not ep:
+        return jsonify({"ok": False}), 400
+    from core import push
+    return jsonify({"ok": bool(push.unsubscribe(ep))})
 
 
 @app.route("/view/<int:post_id>", methods=["POST"])
