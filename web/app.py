@@ -34,7 +34,7 @@ from core.db import db
 from core import posts
 from core.texts import render as tr_render
 
-WEB_VERSION = "v41-push-fix"
+WEB_VERSION = "v42-watch"
 print(f"🌐 web/app.py жүктөлдү. Версия = {WEB_VERSION}")
 
 BOT_USERNAME = os.environ.get("BOT_USERNAME", "taxirobot_bot")
@@ -555,6 +555,8 @@ def index():
                            fo_opts=fo_opts, fc_opts=fc_opts,
                            to_opts=to_opts, tc_opts=tc_opts,
                            has_filter=has_filter,
+                           all_cities=ALL_CITIES,
+                           oblast_list=OBLAST_LIST,
                            filter_n=filter_n,
                            box_open=box_open,
                            show_filter=show_filter,
@@ -646,6 +648,17 @@ def push_key():
         return jsonify({"key": "", "on": False})
 
 
+@app.route("/push/routes", methods=["POST"])
+def push_routes():
+    """Ушул браузер кайсы багыттарга жазылган."""
+    data = request.get_json(silent=True) or {}
+    ep = (data.get("endpoint") or "").strip()
+    if not ep:
+        return jsonify({"routes": []})
+    from core import push
+    return jsonify({"routes": push.routes_of(ep)})
+
+
 @app.route("/push/subscribe", methods=["POST"])
 def push_subscribe():
     """Багытка жазылуу."""
@@ -669,8 +682,10 @@ def push_unsubscribe():
     ep = (data.get("endpoint") or "").strip()
     if not ep:
         return jsonify({"ok": False}), 400
+    frm = (data.get("from") or "").strip() or None
+    to = (data.get("to") or "").strip() or None
     from core import push
-    return jsonify({"ok": bool(push.unsubscribe(ep))})
+    return jsonify({"ok": bool(push.unsubscribe(ep, frm, to))})
 
 
 @app.route("/view/<int:post_id>", methods=["POST"])
