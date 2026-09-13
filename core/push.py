@@ -32,7 +32,7 @@ from urllib.parse import quote
 
 from core.db import db
 
-PUSH_VERSION = "v2-safe"
+PUSH_VERSION = "v3-multi"
 print(f"🔔 core/push.py жүктөлдү. Версия = {PUSH_VERSION}")
 
 VAPID_PUBLIC = os.environ.get("VAPID_PUBLIC_KEY", "").strip()
@@ -56,7 +56,7 @@ def init():
             cur.execute("""
             CREATE TABLE IF NOT EXISTS push_subs (
                 id         SERIAL PRIMARY KEY,
-                endpoint   TEXT UNIQUE NOT NULL,
+                endpoint   TEXT NOT NULL,
                 p256dh     TEXT NOT NULL,
                 auth       TEXT NOT NULL,
                 from_city  TEXT,
@@ -66,6 +66,16 @@ def init():
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
             """)
+            # Эски таблицада endpoint UNIQUE болчу — ошондо бир браузер
+            # бир гана багытка жазыла алмак. Аны алып салабыз.
+            try:
+                cur.execute("ALTER TABLE push_subs "
+                            "DROP CONSTRAINT IF EXISTS push_subs_endpoint_key")
+            except Exception as e:
+                print("[push] эски чектөөнү алуу:", e)
+            # Бир браузер + бир багыт = бир жазуу
+            cur.execute("CREATE UNIQUE INDEX IF NOT EXISTS push_uni_idx "
+                        "ON push_subs (endpoint, from_city, to_city)")
             cur.execute("CREATE INDEX IF NOT EXISTS push_route_idx "
                         "ON push_subs (from_city, to_city)")
             conn.commit()
@@ -95,11 +105,9 @@ def subscribe(sub, from_city, to_city, lang="ky"):
                 INSERT INTO push_subs (endpoint, p256dh, auth, from_city,
                                        to_city, lang, fails)
                 VALUES (%s,%s,%s,%s,%s,%s,0)
-                ON CONFLICT (endpoint) DO UPDATE SET
+                ON CONFLICT (endpoint, from_city, to_city) DO UPDATE SET
                     p256dh = EXCLUDED.p256dh,
                     auth = EXCLUDED.auth,
-                    from_city = EXCLUDED.from_city,
-                    to_city = EXCLUDED.to_city,
                     lang = EXCLUDED.lang,
                     fails = 0
             """, (endpoint, p256dh, auth, from_city, to_city, lang))
@@ -110,18 +118,41 @@ def subscribe(sub, from_city, to_city, lang="ky"):
         return False
 
 
-def unsubscribe(endpoint):
-    """Жазылууну өчүрөт."""
+def unsubscribe(endpoint, from_city=None, to_city=None):
+    """Жазылууну өчүрөт.
+
+    Багыт берилсе — ошол багыт гана. Берилбесе — ушул браузердин
+    бардык жазылуулары (браузер уруксатты алып салганда керек).
+    """
     try:
         with db() as conn:
             cur = conn.cursor()
-            cur.execute("DELETE FROM push_subs WHERE endpoint = %s",
-                        (endpoint,))
+            if from_city and to_city:
+                cur.execute("DELETE FROM push_subs WHERE endpoint = %s "
+                            "AND from_city = %s AND to_city = %s",
+                            (endpoint, from_city, to_city))
+            else:
+                cur.execute("DELETE FROM push_subs WHERE endpoint = %s",
+                            (endpoint,))
             conn.commit()
             return cur.rowcount > 0
     except Exception as e:
         print("[push] өчүрүү катасы:", e)
         return False
+
+
+def routes_of(endpoint):
+    """Ушул браузер кайсы багыттарга жазылган."""
+    try:
+        with db() as conn:
+            cur = conn.cursor()
+            cur.execute("SELECT from_city, to_city FROM push_subs "
+                        "WHERE endpoint = %s ORDER BY created_at",
+                        (endpoint,))
+            return [dict(r) for r in cur.fetchall()]
+    except Exception as e:
+        print("[push] тизме катасы:", e)
+        return []
 
 
 def count_for(from_city, to_city):
@@ -154,6 +185,7 @@ def _drop(endpoint):
     try:
         with db() as conn:
             cur = conn.cursor()
+            # Endpoint жараксыз болсо, анын БАРДЫК багыттары өчөт
             cur.execute("DELETE FROM push_subs WHERE endpoint = %s",
                         (endpoint,))
             conn.commit()
