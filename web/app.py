@@ -34,7 +34,7 @@ from core.db import db
 from core import posts
 from core.texts import render as tr_render
 
-WEB_VERSION = "v40-push"
+WEB_VERSION = "v41-push-fix"
 print(f"🌐 web/app.py жүктөлдү. Версия = {WEB_VERSION}")
 
 BOT_USERNAME = os.environ.get("BOT_USERNAME", "taxirobot_bot")
@@ -49,12 +49,19 @@ app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY") or os.urandom(32)
 app.permanent_session_lifetime = timedelta(days=7)
 
-# Кабарлардын таблицасы (жок болсо түзүлөт)
+# Кабарлардын таблицасы (жок болсо түзүлөт).
+# Ката болсо толук жазабыз — логдон себебин так көрүү үчүн.
 try:
     from core import push
-    push.init()
+    starter = getattr(push, "init", None) or getattr(push, "init_push_table", None)
+    if starter:
+        starter()
+    else:
+        print("[web] push модулунда init() жок — таблица түзүлгөн жок.")
 except Exception as e:
-    print("[web] push жүктөлгөн жок:", e)
+    import traceback
+    print("[web] push жүктөлгөн жок:", repr(e))
+    traceback.print_exc()
 
 # Админ панель — өзүнчө модулда, /admin дареги боюнча
 try:
