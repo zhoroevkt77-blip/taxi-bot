@@ -23,7 +23,7 @@ import psycopg2.extras
 
 DATABASE_URL = os.environ.get("DATABASE_URL")
 
-DB_VERSION = "v3-push"
+DB_VERSION = "v4-clean"
 print(f"🗄 core/db.py жүктөлдү. Версия = {DB_VERSION}")
 
 
@@ -107,11 +107,6 @@ def init_db():
         conn.commit()
 
     # Браузердин кабары үчүн таблица — өзүнчө модулда
-    try:
-        from core import push
-        push.init()
-    except Exception as e:
-        print("[db] push таблицасы түзүлгөн жок:", e)
 
 
 def get_or_create_account(platform_id, platform, username=None, first_name=None):
