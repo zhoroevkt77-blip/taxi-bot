@@ -19,7 +19,7 @@
 <style>
   /* ============================================================
      ТАКСИ роБОТ — сайттын стили
-     WEB_VERSION = v40-push
+     WEB_VERSION = v43-watch-text
      Түстөр: кара (тилке), сары (акцент), ак (карточкалар).
      ============================================================ */
   :root {
@@ -197,6 +197,37 @@
     margin-left: auto; font-size: 13.5px; font-weight: 700; color: var(--grey);
     white-space: nowrap; padding-left: 10px;
   }
+
+  /* ---- Башкы беттеги «Кабар алуу» блогу ---- */
+  .watch-box summary svg { color: var(--yellow-2); }
+  .w-list { padding-bottom: 4px; }
+  /* Блоктун башындагы түшүндүрмө */
+  .w-lead {
+    margin: 14px 0 2px; padding: 14px 15px;
+    background: #fff8e6; border-radius: 14px;
+  }
+  .w-lead b {
+    display: block; font-size: 14.5px; font-weight: 800;
+    color: #7a5a00; line-height: 1.45; letter-spacing: -.2px;
+  }
+  .w-lead span {
+    display: block; margin-top: 8px; font-size: 13px;
+    line-height: 1.55; color: #96742a;
+  }
+  .w-item {
+    display: flex; align-items: center; gap: 10px;
+    background: #f6f6f8; border-radius: 13px;
+    padding: 12px 10px 12px 14px; margin-bottom: 8px;
+    font-size: 14.5px; font-weight: 700;
+  }
+  .w-item b { color: var(--yellow-2); }
+  .w-item span { flex: 1; min-width: 0; }
+  .w-item button {
+    flex: 0 0 auto; border: 0; background: #fff; color: var(--grey);
+    font-family: inherit; font-size: 15px; font-weight: 800;
+    width: 32px; height: 32px; border-radius: 10px;
+  }
+  .w-item button:active { transform: scale(.92); }
 
   /* ---- Кеңейтилген чыпка (кайдан → кайда) ----
      Жыйылып турат: экранды ээлеп калбашы үчүн. Чыпка коюлса,
@@ -743,7 +774,7 @@
 <div class="top">
   <div class="top-row">
     <div class="logo"><img class="car" src="/static/icon-192.png" alt="">ТАКСИ<b>роБОТ</b></div>
-    <span class="ver">v40</span>
+    <span class="ver">v43</span>
     <div class="lang">
       <a href="{{ lang_ky_url }}" class="{{ 'on' if lang == 'ky' else '' }}">KG</a>
       <a href="{{ lang_ru_url }}" class="{{ 'on' if lang == 'ru' else '' }}">RU</a>
