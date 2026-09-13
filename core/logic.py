@@ -50,7 +50,7 @@ except ImportError:
 
 SITE_SHORT = SITE_URL.replace("https://", "").replace("http://", "").rstrip("/")
 
-LOGIC_VERSION = "v74-dir-2col"
+LOGIC_VERSION = "v75-push"
 print(f"🧩 core/logic.py жүктөлдү. Версия = {LOGIC_VERSION}")
 
 SESSIONS = {}
@@ -1586,6 +1586,14 @@ def save(messenger, msg, account, st):
             _say(messenger, msg, account, L(
                  "📢 Жарыяңыз каналга да чыкты — жүргүнчүлөр аны ошол жерден көрө алат.",
                  "📢 Объявление также опубликовано в канале — пассажиры увидят его там."))
+        # Ошол багытка жазылгандарга браузердин кабарын жиберебиз.
+        # Ката болсо да жарыя жазылып бүткөн — программа токтобойт.
+        try:
+            from core import push
+            push.notify_route(d.get("from_city"), d.get("to_city"), d)
+        except Exception as e:
+            print("[logic] push катасы:", e)
+
         # Сайтта да көрүнөт — өз багытына түз шилтеме беребиз
         lang = account.get("lang", "ky")
         url = _route_url(d.get("from_city"), d.get("to_city"), lang)
