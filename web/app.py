@@ -25,7 +25,7 @@ web/app.py
 import os
 import re
 import traceback
-from datetime import datetime
+from datetime import datetime, timedelta
 from urllib.parse import quote
 from flask import (Flask, render_template, request, make_response,
                    send_from_directory)
@@ -34,7 +34,7 @@ from core.db import db
 from core import posts
 from core.texts import render as tr_render
 
-WEB_VERSION = "v38-photo"
+WEB_VERSION = "v39-admin"
 print(f"🌐 web/app.py жүктөлдү. Версия = {WEB_VERSION}")
 
 BOT_USERNAME = os.environ.get("BOT_USERNAME", "taxirobot_bot")
@@ -42,6 +42,19 @@ WA_BOT_NUMBER = os.environ.get("WA_BOT_NUMBER", "996227155603")
 CHANNEL_LINK = os.environ.get("CHANNEL_LINK", "https://t.me/taxirobotbot")
 
 app = Flask(__name__)
+
+# Админ панелдин сессиясы үчүн. SECRET_KEY коюлбаса, ар бир кайра
+# жүктөөдө жаңы ачкыч түзүлөт — админ кайра кирүүгө туура келет,
+# бирок коопсуздук бузулбайт.
+app.secret_key = os.environ.get("SECRET_KEY") or os.urandom(32)
+app.permanent_session_lifetime = timedelta(days=7)
+
+# Админ панель — өзүнчө модулда, /admin дареги боюнча
+try:
+    from web.admin import bp as admin_bp
+    app.register_blueprint(admin_bp)
+except Exception as e:
+    print("[web] админ панель жүктөлгөн жок:", e)
 
 
 # ============ ИЗДӨӨНҮ ЖӨНӨКӨЙЛӨТҮҮ ============
