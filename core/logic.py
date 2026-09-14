@@ -50,7 +50,7 @@ except ImportError:
 
 SITE_SHORT = SITE_URL.replace("https://", "").replace("http://", "").rstrip("/")
 
-LOGIC_VERSION = "v80-wa-share-icon"
+LOGIC_VERSION = "v81-kg-phone"
 print(f"🧩 core/logic.py жүктөлдү. Версия = {LOGIC_VERSION}")
 
 SESSIONS = {}
@@ -1485,6 +1485,10 @@ def ask_step(messenger, msg, account, st, step):
 
     if step == "phone":
         ph = account.get("verified_phone")
+        # Эски аккаунттарда КГ эмес номер калып калышы мүмкүн —
+        # аны жарыяга сунуштабайбыз, кол менен сурайбыз.
+        if ph and not normalize_phone(str(ph)):
+            ph = None
         if ph:
             kb = Keyboard.from_flat([Button(f"📱 {ph}", "usephone"), _back_btn()])
             return _say(messenger, msg, account,
