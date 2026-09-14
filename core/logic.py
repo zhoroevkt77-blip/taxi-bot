@@ -50,7 +50,7 @@ except ImportError:
 
 SITE_SHORT = SITE_URL.replace("https://", "").replace("http://", "").rstrip("/")
 
-LOGIC_VERSION = "v84-wa-no-tme"
+LOGIC_VERSION = "v85-arrow"
 print(f"🧩 core/logic.py жүктөлдү. Версия = {LOGIC_VERSION}")
 
 SESSIONS = {}
@@ -172,7 +172,7 @@ def _invite_block(account, platform, lang="ky"):
                     "Нажмите значок ↪ справа от этого сообщения — "
                     "откроется список контактов, выберите друга.\n"
                     "<i>Если значка нет: задержите палец на "
-                    "сообщении ➔ «Переслать».</i>")
+                    "сообщении ↪ «Переслать».</i>")
         return (f"🔗 <b>Ваша ссылка:</b>\n\n"
                 f"📱 WhatsApp:\n{wa_link}\n\n"
                 f"💬 Telegram:\n{tg_link}\n\n"
@@ -188,7 +188,7 @@ def _invite_block(account, platform, lang="ky"):
                 "Ушул кабардын оң жагындагы ↪ белгисин басыңыз — "
                 "контакттарыңыз ачылат, досуңузду тандайсыз.\n"
                 "<i>Белги көрүнбөсө: кабарды манжаңыз менен кармап "
-                "туруңуз ➔ «Переслать».</i>")
+                "туруңуз ↪ «Переслать».</i>")
     return (f"🔗 <b>Сиздин шилтемеңиз:</b>\n\n"
             f"📱 WhatsApp:\n{wa_link}\n\n"
             f"💬 Telegram:\n{tg_link}\n\n"
