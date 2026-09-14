@@ -50,7 +50,7 @@ except ImportError:
 
 SITE_SHORT = SITE_URL.replace("https://", "").replace("http://", "").rstrip("/")
 
-LOGIC_VERSION = "v75-push"
+LOGIC_VERSION = "v76-share"
 print(f"🧩 core/logic.py жүктөлдү. Версия = {LOGIC_VERSION}")
 
 SESSIONS = {}
@@ -154,14 +154,36 @@ def _invite_block(account, platform, lang="ky"):
     acc_id = account["account_id"]
     tg_link = referral_link(acc_id, "telegram")
     wa_link = referral_link(acc_id, "whatsapp")
+    wa_share, tg_share = _share_urls(account, lang)
 
     if lang == "ru":
-        return (f"👇 Отправьте друзьям одну из ссылок:\n\n"
+        head = (f"📤 <b>Отправить друзьям в один клик</b>\n"
+                f"Нажмите — откроется список контактов, останется "
+                f"выбрать, кому отправить:\n"
+                f"WhatsApp: {wa_share}\n"
+                f"Telegram: {tg_share}\n\n")
+        if platform == "telegram":
+            head = ""      # Telegram'да баскычтар бар, шилтеме керек эмес
+        return (head +
+                f"🔗 <b>Или скопируйте ссылку и отправьте сами:</b>\n\n"
                 f"📱 WhatsApp:\n{wa_link}\n\n"
-                f"💬 Telegram:\n{tg_link}")
-    return (f"👇 Досторуңузга ушул шилтемелердин бирин жибериңиз:\n\n"
+                f"💬 Telegram:\n{tg_link}\n\n"
+                f"<i>Друг должен войти именно по вашей ссылке — тогда "
+                f"бонус засчитается.</i>")
+
+    head = (f"📤 <b>Досторго бир басуу менен жиберүү</b>\n"
+            f"Бассаңыз контакттарыңыз ачылат — кимге жиберерди "
+            f"тандайсыз:\n"
+            f"WhatsApp: {wa_share}\n"
+            f"Telegram: {tg_share}\n\n")
+    if platform == "telegram":
+        head = ""
+    return (head +
+            f"🔗 <b>Же шилтемени көчүрүп, өзүңүз жиберсеңиз болот:</b>\n\n"
             f"📱 WhatsApp:\n{wa_link}\n\n"
-            f"💬 Telegram:\n{tg_link}")
+            f"💬 Telegram:\n{tg_link}\n\n"
+            f"<i>Досуңуз так сиздин шилтемеңиз аркылуу кириши керек — "
+            f"ошондо бонус эсептелет.</i>")
 
 
 def _wa_share_link(account, lang="ky"):
@@ -173,13 +195,59 @@ def _wa_share_link(account, lang="ky"):
     return "https://wa.me/?text=" + quote(f"{text}\n{link}")
 
 
-def _share_buttons(account, platform, lang="ky"):
-    """Дос чакыруу баскычтары.
+def _invite_text(account, lang="ky"):
+    """Досуна жиберилчү даяр кабар — шилтемеси менен кошо."""
+    acc_id = account["account_id"]
+    tg = referral_link(acc_id, "telegram")
+    wa = referral_link(acc_id, "whatsapp")
+    if lang == "ru":
+        return (f"Привет! Пользуюсь ботом «ТАКСИ роБОТ» — там водители и "
+                f"пассажиры находят друг друга по всему Кыргызстану.\n\n"
+                f"Telegram: {tg}\n"
+                f"WhatsApp: {wa}")
+    return (f"Салам! «ТАКСИ роБОТ» деген ботту колдонуп жүрөм — "
+            f"Кыргызстан боюнча айдоочулар менен жүргүнчүлөр ошол жерден "
+            f"табышат.\n\n"
+            f"Telegram: {tg}\n"
+            f"WhatsApp: {wa}")
 
-    Азырынча колдонулбайт — шилтемелер тексттин ичинде берилет,
-    ошондуктан кошумча баскыч чаташтырбашы үчүн бош кайтарат.
+
+def _share_urls(account, lang="ky"):
+    """Контакт тандоочу терезени ачуучу шилтемелер.
+
+    МААНИЛҮҮ: кадимки чакыруу шилтемеси (wa.me/НОМЕР) басканда
+    БОТТУН өзү ачылат — ал досуңуз баса турган шилтеме. Ал эми
+    ушулар контакттарыңызды ачат: кимге жиберерди тандайсыз.
+
+        WhatsApp: wa.me/?text=...      (номерсиз!)
+        Telegram: t.me/share/url?...
     """
-    return []
+    from urllib.parse import quote
+    msg = _invite_text(account, lang)
+    tg_link = referral_link(account["account_id"], "telegram")
+    wa_share = f"https://wa.me/?text={quote(msg)}"
+    tg_share = (f"https://t.me/share/url?url={quote(tg_link)}"
+                f"&text={quote(msg.split(chr(10))[0])}")
+    return wa_share, tg_share
+
+
+def _share_buttons(account, platform, lang="ky"):
+    """«Досторго жиберүү» баскычтары.
+
+    Telegram'да URL баскычы болот — басканда контакттар ачылат.
+    WhatsApp'та URL баскычы жок, ошондуктан ал жакта шилтемелер
+    тексттин ичинде берилет (_invite_block'ту караңыз).
+    """
+    if platform != "telegram":
+        return []
+    wa_share, tg_share = _share_urls(account, lang)
+    ru = (lang == "ru")
+    return [
+        Button("📤 Telegram'дагы досторго" if not ru
+               else "📤 Друзьям в Telegram", "noop", tg_share),
+        Button("📤 WhatsApp'тагы досторго" if not ru
+               else "📤 Друзьям в WhatsApp", "noop", wa_share),
+    ]
 
 
 def _digits_only(phone):
@@ -477,10 +545,10 @@ def show_balance(messenger, msg, account):
 
     # Шилтемелер өзүнчө кабар менен — басууга ыңгайлуу болсун
     invite = _invite_block(acc, msg.platform, lang)
-    kb = Keyboard.from_flat([
-        Button("💳 Төлөм төлөймүн", "pay_entry"),
-        Button("🏠 Башкы меню", "menu:home"),
-    ])
+    kb = Keyboard.from_flat(
+        _share_buttons(acc, msg.platform, lang)
+        + [Button("💳 Төлөм төлөймүн", "pay_entry"),
+           Button("🏠 Башкы меню", "menu:home")])
     _say(messenger, msg, account, L(
         "👥 <b>Дос чакырып, акысыз колдонуңуз</b>\n\n" + invite,
         "👥 <b>Приглашайте друзей и пользуйтесь бесплатно</b>\n\n"
@@ -2374,56 +2442,4 @@ def _show_hashtag_results(messenger, msg, account, tag, frm, to, only_role=None,
 
     if passengers:
         _say(messenger, msg, account,
-             L(f"🧳 <b>Жүргүнчүлөр</b> ({len(passengers)})",
-               f"🧳 <b>Пассажиры</b> ({len(passengers)})"))
-        for p in passengers:
-            _say(messenger, msg, account,
-                 post_card(p) + "\n\n" + contact_lines(p["phone"]))
-
-    _say(messenger, msg, account, L("⬇️ Кайтуу үчүн:", "⬇️ Чтобы вернуться:"), back_kb())
-
-
-def register_referral(messenger, newbie, inviter_id):
-    if inviter_id == newbie["account_id"]:
-        return
-    if newbie.get("referred_by"):
-        return
-    inviter = db.get_account(inviter_id)
-    if not inviter:
-        return
-
-    db.update_account(newbie["account_id"], referred_by=inviter_id)
-    new_count = (inviter["ref_count"] or 0) + 1
-    granted = inviter.get("gate_bonus", 0) or 0   # канча жолу бонус берилди
-
-    # ---- Жүргүнчү бонусу: ар бир дос ----
-    old_free = inviter.get("free_posts", 0) or 0
-    add_posts = PASSENGER_FIRST_BONUS if new_count == 1 else PASSENGER_NEXT_BONUS
-    db.update_account(inviter_id, ref_count=new_count,
-                      free_posts=old_free + add_posts)
-
-    pid = db.platform_id_of(inviter_id)
-    if not pid:
-        return
-
-    def tell(text):
-        try:
-            messenger.send_text(pid, text)
-        except Exception:
-            pass
-
-    tell(f"✅ Жаңы дос кошулду! Жалпы: {new_count} дос.\n"
-         f"🧳 Жүргүнчү катары +{add_posts} акысыз пост.")
-
-    # ---- Айдоочу бонусу: ар 3 дос сайын ----
-    earned = new_count // REQUIRED_REFERRALS      # канча бонус татыктуу
-    if earned > granted:
-        days = GATE_BONUS_DAYS if granted == 0 else REFERRAL_BONUS_DAYS
-
-        grant_days(inviter_id, days)
-        db.update_account(inviter_id, gate_bonus=earned)
-        if granted == 0:
-            tell(f"🎉 Куттуктайбыз! Платформа толук ачылды!\n"
-                 f"🎁 {days} күн акысыз жарыя бере аласыз.")
-        else:
-            tell(f"🎁 Дагы {days} күн акысыз кошулду!")
+   
