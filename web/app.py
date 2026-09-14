@@ -585,6 +585,13 @@ def route():
     return _with_lang(make_response(html))
 
 
+@app.route("/myposts")
+def myposts_page():
+    """«📋 Менин жарыяларым» — эки ботко өтүү."""
+    html = render_template("myposts.html", **_base_ctx())
+    return _with_lang(make_response(html))
+
+
 @app.route("/post")
 def post_page():
     """«➕ Жарыя берүү» — эки ботко өтүү."""
