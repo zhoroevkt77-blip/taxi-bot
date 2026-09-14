@@ -284,6 +284,12 @@ def _ensure_phone(uid, phone):
     """WhatsApp колдонуучусунун номерин бир жолу базага жазат."""
     try:
         from core import db
+        from core.logic import normalize_phone
+        # Кыргызстандын номери эмес болсо — жазбайбыз. Жарыядагы
+        # номерге Кыргызстандан чалынышы керек, антпесе жарыя пайдасыз.
+        phone = normalize_phone(str(phone or ""))
+        if not phone:
+            return
         acc = db.get_or_create_account(uid, "whatsapp")
         if not acc.get("verified_phone"):
             existing = db.find_account_by_phone(phone)
