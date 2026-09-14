@@ -50,7 +50,7 @@ except ImportError:
 
 SITE_SHORT = SITE_URL.replace("https://", "").replace("http://", "").rstrip("/")
 
-LOGIC_VERSION = "v83-route-search"
+LOGIC_VERSION = "v84-wa-no-tme"
 print(f"🧩 core/logic.py жүктөлдү. Версия = {LOGIC_VERSION}")
 
 SESSIONS = {}
@@ -441,6 +441,14 @@ def _say(messenger, msg, account, text, keyboard=None, hint=False):
             out = strip_html(out)
     else:
         out = render(text, lang, messenger.platform_name)
+
+    # WhatsApp кабардын биринчи шилтемесине превью тартат. Telegram
+    # шилтемеси турса, «Join group chat on Telegram» деген пайдасыз
+    # карточка чыгат. WhatsApp колдонуучусу Telegram'га өтпөйт да —
+    # ошондуктан ал сапты бул жерде алып салабыз.
+    if messenger.platform_name == "whatsapp" and "t.me/+" in out:
+        out = "\n".join(ln for ln in out.split("\n")
+                        if "t.me/+" not in ln)
     if keyboard:
         if lang != "ky":
             for row in keyboard.rows:
