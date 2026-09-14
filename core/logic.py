@@ -50,7 +50,7 @@ except ImportError:
 
 SITE_SHORT = SITE_URL.replace("https://", "").replace("http://", "").rstrip("/")
 
-LOGIC_VERSION = "v77-clean-invite"
+LOGIC_VERSION = "v79-wa-forward"
 print(f"🧩 core/logic.py жүктөлдү. Версия = {LOGIC_VERSION}")
 
 SESSIONS = {}
