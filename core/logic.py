@@ -50,7 +50,7 @@ except ImportError:
 
 SITE_SHORT = SITE_URL.replace("https://", "").replace("http://", "").rstrip("/")
 
-LOGIC_VERSION = "v81-kg-phone"
+LOGIC_VERSION = "v82-myposts"
 print(f"🧩 core/logic.py жүктөлдү. Версия = {LOGIC_VERSION}")
 
 SESSIONS = {}
@@ -75,6 +75,9 @@ PAY_TEXT = "Төлөм төлөймүн"
 
 # Сайттын «Кабинет» бетинен балансты көрүү үчүн
 BALANCE_TEXT = "Менин балансым"
+
+# Сайттын «Кабинет» бетинен өз жарыяларын көрүү үчүн
+MYPOSTS_TEXT = "Менин жарыяларым"
 
 # Башкы менюнун кыска аталышы. Толук WELCOME тексти /start деп КОЛ МЕНЕН
 # жазылганда гана чыгат — ал биринчи таанышуу үчүн. Каналдан ботко
@@ -822,6 +825,16 @@ def handle_update(messenger, msg):
         elif len(parts) > 1 and parts[1] == "balance":
             # Сайттын «Кабинет» бетинен балансты көрүүгө келди
             return show_balance(messenger, msg, account)
+        elif len(parts) > 1 and parts[1] == "myposts":
+            # Сайттын «Кабинет» бетинен өз жарыяларын көрүүгө келди
+            kb = Keyboard.from_flat([
+                Button("🚗 Айдоочу катары", "d_my"),
+                Button("🧳 Жүргүнчү катары", "p_my"),
+                Button("🏠 Башкы меню", "menu:home"),
+            ])
+            return _say(messenger, msg, account, L(
+                "📄 <b>Менин жарыяларым</b>\n\nКайсы ролдогу жарыяларыңыз?",
+                "📄 <b>Мои объявления</b>\n\nОбъявления в какой роли?"), kb)
         elif len(parts) > 1 and parts[1] == "pay":
             # Сайттын «Кабинет» бетинен төлөмгө түз келди
             return pay_entry(messenger, msg, account)
@@ -865,6 +878,19 @@ def handle_update(messenger, msg):
                 return _show_hashtag_results(messenger, msg, account,
                                              f"{frm}_{to}", frm, to,
                                              only_role="driver")
+
+    # Сайттын «Кабинет» бетинен WhatsApp ботко жарыяларын көрүүгө келгендер
+    if text.strip().lower() == MYPOSTS_TEXT.lower():
+        SESSIONS.pop(msg.user_id, None)
+        NAV.pop(msg.user_id, None)
+        kb = Keyboard.from_flat([
+            Button("🚗 Айдоочу катары", "d_my"),
+            Button("🧳 Жүргүнчү катары", "p_my"),
+            Button("🏠 Башкы меню", "menu:home"),
+        ])
+        return _say(messenger, msg, account, L(
+            "📄 <b>Менин жарыяларым</b>\n\nКайсы ролдогу жарыяларыңыз?",
+            "📄 <b>Мои объявления</b>\n\nОбъявления в какой роли?"), kb)
 
     # Сайттын «Кабинет» бетинен WhatsApp ботко баланс көрүүгө келгендер
     if text.strip().lower() == BALANCE_TEXT.lower():

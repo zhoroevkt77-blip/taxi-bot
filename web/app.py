@@ -381,6 +381,9 @@ def _base_ctx():
         "wa_post_passenger": (f"https://wa.me/{WA_BOT_NUMBER}"
                               f"?text={quote('Жарыя берем: жүргүнчү')}"),
         # «Кабинет» бетинен ботко төлөм бөлүмүнө түз кирүү
+        "tg_myposts": f"https://t.me/{BOT_USERNAME}?start=myposts",
+        "wa_myposts": (f"https://wa.me/{WA_BOT_NUMBER}"
+                       f"?text={quote('Менин жарыяларым')}"),
         "tg_balance": f"https://t.me/{BOT_USERNAME}?start=balance",
         "wa_balance": (f"https://wa.me/{WA_BOT_NUMBER}"
                        f"?text={quote('Менин балансым')}"),
