@@ -50,7 +50,7 @@ except ImportError:
 
 SITE_SHORT = SITE_URL.replace("https://", "").replace("http://", "").rstrip("/")
 
-LOGIC_VERSION = "v85-arrow"
+LOGIC_VERSION = "v86-wa-home"
 print(f"🧩 core/logic.py жүктөлдү. Версия = {LOGIC_VERSION}")
 
 SESSIONS = {}
@@ -449,6 +449,16 @@ def _say(messenger, msg, account, text, keyboard=None, hint=False):
     if messenger.platform_name == "whatsapp" and "t.me/+" in out:
         out = "\n".join(ln for ln in out.split("\n")
                         if "t.me/+" not in ln)
+    # WhatsApp адаптери ар бир кабардын аягына «0 — Башкы меню»
+    # эскертүүсүн өзү кошот. Клавиатурада да ошондой баскыч турса,
+    # эки жолу кайталанып чыгат — ошондуктан бул жерде алып салабыз.
+    if keyboard and messenger.platform_name == "whatsapp":
+        rows = [[b for b in row if b.action != "menu:home"]
+                for row in keyboard.rows]
+        keyboard.rows = [r for r in rows if r]
+        if not keyboard.rows:
+            keyboard = None
+
     if keyboard:
         if lang != "ky":
             for row in keyboard.rows:
