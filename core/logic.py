@@ -50,7 +50,7 @@ except ImportError:
 
 SITE_SHORT = SITE_URL.replace("https://", "").replace("http://", "").rstrip("/")
 
-LOGIC_VERSION = "v86-wa-home"
+LOGIC_VERSION = "v87-short-url"
 print(f"🧩 core/logic.py жүктөлдү. Версия = {LOGIC_VERSION}")
 
 SESSIONS = {}
@@ -1617,9 +1617,13 @@ def _route_url(frm, to, lang="ky"):
     Айдоочу жарыясын жазып бүткөндө, ага дал ушул шилтемени беребиз —
     издеп отурбай, өз жарыясын дароо көрөт.
     """
-    from urllib.parse import quote
-    return (f"{SITE_URL}/route?from={quote(frm or '')}"
-            f"&to={quote(to or '')}&lang={lang}")
+    # Кириллицаны кодолбойбуз: ошондо шилтеме «?from=Бишкек&to=Манас»
+    # болуп окулат. Кодолсо «%D0%91%D0%B8...» болуп чубалып кетет.
+    # Бош орун гана кодолушу керек — калганын браузер өзү түшүнөт.
+    def _q(x):
+        return (x or "").replace(" ", "%20").replace("&", "%26")
+    return (f"{SITE_URL}/route?from={_q(frm)}"
+            f"&to={_q(to)}&lang={lang}")
 
 
 def _publish(messenger, text, links, photo=None):
