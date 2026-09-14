@@ -25,6 +25,7 @@ web/app.py
 import os
 import re
 import traceback
+from datetime import datetime, timedelta
 from urllib.parse import quote
 from flask import (Flask, render_template, request, make_response,
                    send_from_directory)
@@ -33,7 +34,7 @@ from core.db import db
 from core import posts
 from core.texts import render as tr_render
 
-WEB_VERSION = "v33-local-only"
+WEB_VERSION = "v42-watch"
 print(f"🌐 web/app.py жүктөлдү. Версия = {WEB_VERSION}")
 
 BOT_USERNAME = os.environ.get("BOT_USERNAME", "taxirobot_bot")
@@ -41,6 +42,33 @@ WA_BOT_NUMBER = os.environ.get("WA_BOT_NUMBER", "996227155603")
 CHANNEL_LINK = os.environ.get("CHANNEL_LINK", "https://t.me/taxirobotbot")
 
 app = Flask(__name__)
+
+# Админ панелдин сессиясы үчүн. SECRET_KEY коюлбаса, ар бир кайра
+# жүктөөдө жаңы ачкыч түзүлөт — админ кайра кирүүгө туура келет,
+# бирок коопсуздук бузулбайт.
+app.secret_key = os.environ.get("SECRET_KEY") or os.urandom(32)
+app.permanent_session_lifetime = timedelta(days=7)
+
+# Кабарлардын таблицасы (жок болсо түзүлөт).
+# Ката болсо толук жазабыз — логдон себебин так көрүү үчүн.
+try:
+    from core import push
+    starter = getattr(push, "init", None) or getattr(push, "init_push_table", None)
+    if starter:
+        starter()
+    else:
+        print("[web] push модулунда init() жок — таблица түзүлгөн жок.")
+except Exception as e:
+    import traceback
+    print("[web] push жүктөлгөн жок:", repr(e))
+    traceback.print_exc()
+
+# Админ панель — өзүнчө модулда, /admin дареги боюнча
+try:
+    from web.admin import bp as admin_bp
+    app.register_blueprint(admin_bp)
+except Exception as e:
+    print("[web] админ панель жүктөлгөн жок:", e)
 
 
 # ============ ИЗДӨӨНҮ ЖӨНӨКӨЙЛӨТҮҮ ============
@@ -273,9 +301,39 @@ def _category_of(r):
     return "local"
 
 
+def _ago(ts, lang="ky"):
+    """«2 саат мурун» деген кыска жазуу.
+
+    Базада created_at TIMESTAMP болуп турат. Убакыт өтпөсө «азыр эле».
+    """
+    if not ts:
+        return ""
+    try:
+        if isinstance(ts, str):
+            ts = datetime.fromisoformat(ts)
+        secs = (datetime.now() - ts).total_seconds()
+    except Exception:
+        return ""
+    if secs < 60:
+        return "азыр эле" if lang != "ru" else "только что"
+    mins = int(secs // 60)
+    if mins < 60:
+        return f"{mins} мүнөт мурун" if lang != "ru" else f"{mins} мин. назад"
+    hours = mins // 60
+    if hours < 24:
+        return f"{hours} саат мурун" if lang != "ru" else f"{hours} ч. назад"
+    days = hours // 24
+    return f"{days} күн мурун" if lang != "ru" else f"{days} дн. назад"
+
+
 def _card(p):
     d = _digits(p.get("phone"))
+    lang = _lang()
     return {
+        "id": p.get("id"),
+        "photo": bool(p.get("photo_id") or p.get("photo_url")),
+        "ago": _ago(p.get("created_at"), lang),
+        "views": p.get("views") or 0,
         "name": p.get("name") or "",
         "car": p.get("car") or "",
         "date": _v(p.get("date_text")),
@@ -323,6 +381,9 @@ def _base_ctx():
         "wa_post_passenger": (f"https://wa.me/{WA_BOT_NUMBER}"
                               f"?text={quote('Жарыя берем: жүргүнчү')}"),
         # «Кабинет» бетинен ботко төлөм бөлүмүнө түз кирүү
+        "tg_balance": f"https://t.me/{BOT_USERNAME}?start=balance",
+        "wa_balance": (f"https://wa.me/{WA_BOT_NUMBER}"
+                       f"?text={quote('Менин балансым')}"),
         "tg_pay": f"https://t.me/{BOT_USERNAME}?start=pay",
         "wa_pay": (f"https://wa.me/{WA_BOT_NUMBER}"
                    f"?text={quote('Төлөм төлөймүн')}"),
@@ -494,6 +555,8 @@ def index():
                            fo_opts=fo_opts, fc_opts=fc_opts,
                            to_opts=to_opts, tc_opts=tc_opts,
                            has_filter=has_filter,
+                           all_cities=ALL_CITIES,
+                           oblast_list=OBLAST_LIST,
                            filter_n=filter_n,
                            box_open=box_open,
                            show_filter=show_filter,
@@ -523,6 +586,141 @@ def route():
 def post_page():
     """«➕ Жарыя берүү» — эки ботко өтүү."""
     html = render_template("post.html", **_base_ctx())
+    return _with_lang(make_response(html))
+
+
+# Telegram шилтемеси ~1 саат жашайт, ошондуктан кештейбиз
+_PHOTO_CACHE = {}      # post_id -> (url, качан алынды)
+_PHOTO_TTL = 45 * 60   # 45 мүнөт
+
+
+@app.route("/photo/<int:post_id>")
+def post_photo(post_id):
+    """Жарыянын сүрөтүн көрсөтөт.
+
+    Эки булак болушу мүмкүн:
+      photo_url — WhatsApp берген ачык шилтеме, түз багыттайбыз
+      photo_id  — Telegram'дын file_id'си, браузер аны түшүнбөйт.
+                  Ошондуктан getFile аркылуу түз шилтеме алабыз.
+
+    Боттун токени эч качан браузерге чыкпайт: биз шилтемени өзүбүз
+    алып, колдонуучуну ошого багыттайбыз.
+    """
+    import time
+    from flask import redirect, abort
+
+    p = posts.get_post(post_id)
+    if not p or not p.get("active"):
+        abort(404)
+
+    if p.get("photo_url"):
+        return redirect(p["photo_url"], code=302)
+
+    fid = p.get("photo_id")
+    if not fid:
+        abort(404)
+
+    hit = _PHOTO_CACHE.get(post_id)
+    now = time.time()
+    if hit and now - hit[1] < _PHOTO_TTL:
+        return redirect(hit[0], code=302)
+
+    from core import channel
+    url = channel.file_url(fid)
+    if not url:
+        abort(404)
+    _PHOTO_CACHE[post_id] = (url, now)
+    return redirect(url, code=302)
+
+
+@app.route("/push/key")
+def push_key():
+    """Браузерге ачык VAPID ачкычын берет.
+
+    Ачкыч ачык болушу керек — браузер аны жазылуу үчүн колдонот.
+    Жашыруун ачкыч бул жерде эч качан чыкпайт.
+    """
+    from flask import jsonify
+    try:
+        from core import push
+        return jsonify({"key": push.VAPID_PUBLIC, "on": push.enabled()})
+    except Exception:
+        return jsonify({"key": "", "on": False})
+
+
+@app.route("/push/routes", methods=["POST"])
+def push_routes():
+    """Ушул браузер кайсы багыттарга жазылган."""
+    data = request.get_json(silent=True) or {}
+    ep = (data.get("endpoint") or "").strip()
+    if not ep:
+        return jsonify({"routes": []})
+    from core import push
+    return jsonify({"routes": push.routes_of(ep)})
+
+
+@app.route("/push/subscribe", methods=["POST"])
+def push_subscribe():
+    """Багытка жазылуу."""
+    from flask import jsonify
+    data = request.get_json(silent=True) or {}
+    sub = data.get("sub") or {}
+    frm = (data.get("from") or "").strip()
+    to = (data.get("to") or "").strip()
+    if not (sub and frm and to):
+        return jsonify({"ok": False}), 400
+    from core import push
+    ok = push.subscribe(sub, frm, to, _lang())
+    return jsonify({"ok": bool(ok)})
+
+
+@app.route("/push/unsubscribe", methods=["POST"])
+def push_unsubscribe():
+    """Жазылуудан баш тартуу."""
+    from flask import jsonify
+    data = request.get_json(silent=True) or {}
+    ep = (data.get("endpoint") or "").strip()
+    if not ep:
+        return jsonify({"ok": False}), 400
+    frm = (data.get("from") or "").strip() or None
+    to = (data.get("to") or "").strip() or None
+    from core import push
+    return jsonify({"ok": bool(push.unsubscribe(ep, frm, to))})
+
+
+@app.route("/view/<int:post_id>", methods=["POST"])
+def view_post(post_id):
+    """Көрүү эсептегичи.
+
+    Браузер ар бир жарыяны БИР ЖОЛУ гана билдирет — ал жагы
+    route.html'деги кичине скриптте (localStorage) чечилет.
+    Ошондуктан бетти жаңырткан сайын сан өспөйт.
+    """
+    posts.bump_views(post_id)
+    return "", 204
+
+
+@app.route("/favorites")
+def favorites_page():
+    """«❤️ Тандалгандар» — телефондун өзүндө сакталат.
+
+    Каттоо жок болгондуктан сервер эч нерсе билбейт: тизме
+    браузердин эсинде (localStorage) турат жана ошол жерден
+    чыгарылат.
+    """
+    html = render_template("favorites.html", **_base_ctx())
+    return _with_lang(make_response(html))
+
+
+@app.route("/balance")
+def balance_page():
+    """«💼 Менин балансым» — ботко багыттайт.
+
+    Сайт колдонуучуну тааныбайт (каттоо жок), ошондуктан балансты
+    өзү көрсөтө албайт. Ботто болсо номер ырасталган — ал бардыгын
+    билет.
+    """
+    html = render_template("balance.html", **_base_ctx())
     return _with_lang(make_response(html))
 
 
@@ -556,7 +754,8 @@ def help_page():
     try:
         from core.texts import (GUIDE, FAQ_HOWTO, FAQ_POST, FAQ_FREE,
                                 FAQ_SEARCH, FAQ_PAY, FAQ_CONTACT,
-                                FAQ_SAFETY, DRIVER_SAFETY)
+                                FAQ_SAFETY, FAQ_TROUBLE, FAQ_RULES,
+                                FAQ_PRIVACY, DRIVER_SAFETY)
         blocks = [
             (_t("📖 Нускама", "📖 Инструкция"), tr_render(GUIDE, lang)),
             (_t("➕ Жарыя кантип берем?", "➕ Как дать объявление?"),
@@ -570,6 +769,12 @@ def help_page():
             (_t("🛡 Коопсуздук", "🛡 Безопасность"), tr_render(FAQ_SAFETY, lang)),
             (_t("🚦 Айдоочунун коопсуздугу", "🚦 Безопасность водителя"),
              tr_render(DRIVER_SAFETY, lang)),
+            (_t("🛠 Көйгөйлөр жана чечими", "🛠 Проблемы и решения"),
+             tr_render(FAQ_TROUBLE, lang)),
+            (_t("📜 Колдонуу эрежелери", "📜 Правила использования"),
+             tr_render(FAQ_RULES, lang)),
+            (_t("🔒 Купуялык", "🔒 Конфиденциальность"),
+             tr_render(FAQ_PRIVACY, lang)),
         ]
     except Exception as e:
         print("[web] жардам текстин алуу катасы:", e)

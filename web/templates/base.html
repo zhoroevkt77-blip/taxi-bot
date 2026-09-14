@@ -19,7 +19,7 @@
 <style>
   /* ============================================================
      ТАКСИ роБОТ — сайттын стили
-     WEB_VERSION = v34-qr
+     WEB_VERSION = v43-watch-text
      Түстөр: кара (тилке), сары (акцент), ак (карточкалар).
      ============================================================ */
   :root {
@@ -134,16 +134,16 @@
   form.search button:active { transform: scale(.96); }
 
   /* ---- Категория карточкалары ---- */
+  /* Төртөө тең бир экранга батат — сүрүүнүн кереги жок */
   .cats {
-    display: flex; gap: 11px; overflow-x: auto;
-    padding: 18px 16px 6px; -webkit-overflow-scrolling: touch;
-    scrollbar-width: none;
+    display: flex; gap: 7px;
+    padding: 14px 12px 4px;
+    max-width: 640px; margin: 0 auto;
   }
-  .cats::-webkit-scrollbar { display: none; }
   .cat {
-    flex: 0 0 126px; min-height: 138px;
-    background: var(--card); border-radius: var(--r);
-    padding: 16px 10px 15px; text-align: center;
+    flex: 1 1 0; min-width: 0;
+    background: var(--card); border-radius: 16px;
+    padding: 11px 4px 12px; text-align: center;
     border: 0;
     box-shadow: var(--shadow);
     display: flex; flex-direction: column; align-items: center;
@@ -156,13 +156,15 @@
     box-shadow: var(--glow);
   }
   .cat .ico {
-    font-size: 26px; line-height: 1;
-    width: 56px; height: 56px; border-radius: 17px;
+    font-size: 20px; line-height: 1;
+    width: 42px; height: 42px; border-radius: 13px;
     background: linear-gradient(135deg, var(--yellow) 0%, var(--yellow-2) 100%);
     display: flex; align-items: center; justify-content: center;
-    margin-bottom: 11px; overflow: hidden;
-    box-shadow: 0 3px 10px rgba(255,183,3,.3);
+    margin-bottom: 8px; overflow: hidden; flex: 0 0 auto;
+    box-shadow: 0 3px 9px rgba(255,183,3,.3);
   }
+  .cat .ico svg { width: 21px; height: 21px; }
+  .cat .ico.photo .fallback { width: 22px; height: 22px; }
   /* Тандалганда белги ак болот — сары фондо көрүнсүн */
   .cat.on .ico {
     background: #fff;
@@ -170,7 +172,6 @@
   }
   .cat .ico.photo { background: var(--black); padding: 0; position: relative; }
   .cat.on .ico.photo { background: var(--black); }
-  .cat .ico.photo .fallback { width: 30px; height: 30px; display: block; }
   .cat .ico.photo img {
     position: absolute; top: 0; left: 0;
     width: 100%; height: 100%; object-fit: cover; display: block;
@@ -178,12 +179,13 @@
   .cat .ico svg { display: block; }
 
   .cat .nm {
-    font-size: 12.5px; font-weight: 700; line-height: 1.3;
-    letter-spacing: -.1px; color: var(--ink);
+    font-size: 10px; font-weight: 800; line-height: 1.25;
+    letter-spacing: -.2px; color: var(--ink);
+    word-break: break-word; hyphens: auto;
   }
   .cat .n {
-    display: block; margin-top: 6px;
-    font-size: 13px; font-weight: 800; color: var(--grey);
+    display: block; margin-top: 5px;
+    font-size: 12px; font-weight: 900; color: var(--grey);
   }
   .cat.on .nm { color: var(--black); }
   .cat.on .n { color: #7a5a00; }
@@ -195,6 +197,37 @@
     margin-left: auto; font-size: 13.5px; font-weight: 700; color: var(--grey);
     white-space: nowrap; padding-left: 10px;
   }
+
+  /* ---- Башкы беттеги «Кабар алуу» блогу ---- */
+  .watch-box summary svg { color: var(--yellow-2); }
+  .w-list { padding-bottom: 4px; }
+  /* Блоктун башындагы түшүндүрмө */
+  .w-lead {
+    margin: 14px 0 2px; padding: 14px 15px;
+    background: #fff8e6; border-radius: 14px;
+  }
+  .w-lead b {
+    display: block; font-size: 14.5px; font-weight: 800;
+    color: #7a5a00; line-height: 1.45; letter-spacing: -.2px;
+  }
+  .w-lead span {
+    display: block; margin-top: 8px; font-size: 13px;
+    line-height: 1.55; color: #96742a;
+  }
+  .w-item {
+    display: flex; align-items: center; gap: 10px;
+    background: #f6f6f8; border-radius: 13px;
+    padding: 12px 10px 12px 14px; margin-bottom: 8px;
+    font-size: 14.5px; font-weight: 700;
+  }
+  .w-item b { color: var(--yellow-2); }
+  .w-item span { flex: 1; min-width: 0; }
+  .w-item button {
+    flex: 0 0 auto; border: 0; background: #fff; color: var(--grey);
+    font-family: inherit; font-size: 15px; font-weight: 800;
+    width: 32px; height: 32px; border-radius: 10px;
+  }
+  .w-item button:active { transform: scale(.92); }
 
   /* ---- Кеңейтилген чыпка (кайдан → кайда) ----
      Жыйылып турат: экранды ээлеп калбашы үчүн. Чыпка коюлса,
@@ -359,6 +392,78 @@
     box-shadow: 0 4px 16px rgba(255,183,3,.22);
   }
 
+  /* ---- Карточканын үстүнкү катары: бөлүшүү жана тандалгандар ---- */
+  .p-top {
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 10px; margin: -4px -4px 12px;
+  }
+  .p-act {
+    display: inline-flex; align-items: center; gap: 6px;
+    border: 0; background: #f4f4f7; color: var(--grey);
+    font-family: inherit; font-size: 12.5px; font-weight: 800;
+    padding: 8px 12px; border-radius: 11px;
+    transition: transform .12s, background .15s, color .15s;
+  }
+  .p-act svg { width: 16px; height: 16px; flex: 0 0 auto; }
+  .p-act:active { transform: scale(.94); }
+  .p-act.done { background: #eef7ee; color: #3d7a41; }
+  /* Жүрөкчө — тандалганда кызыл болуп толот */
+  .p-act.fav { padding: 8px 10px; }
+  .p-act.fav.on { background: #ffeaea; color: #e0344a; }
+  .p-act.fav.on svg { fill: #e0344a; stroke: #e0344a; }
+
+  /* ---- Ылдыйкы катар: качан коюлду, канча көрүлдү ---- */
+  .p-meta {
+    display: flex; align-items: center; gap: 14px;
+    margin-top: 13px; padding-top: 12px;
+    border-top: 1px solid var(--line);
+    font-size: 12.5px; font-weight: 700; color: var(--grey-2);
+  }
+  .p-meta span { display: inline-flex; align-items: center; gap: 5px; }
+  .p-meta svg { width: 14px; height: 14px; flex: 0 0 auto; }
+  .p-meta .p-views { margin-left: auto; }
+  .p-meta b { color: var(--grey); font-weight: 800; }
+
+  /* ---- Кабарга жазылуу ---- */
+  .watch { margin: 4px 0 16px; }
+  .watch-btn {
+    width: 100%; display: flex; align-items: center; justify-content: center;
+    gap: 9px; border: 0; font-family: inherit;
+    background: var(--card); color: var(--ink);
+    font-size: 14.5px; font-weight: 800; letter-spacing: -.2px;
+    padding: 15px 16px; border-radius: 16px; box-shadow: var(--shadow);
+    transition: transform .12s;
+  }
+  .watch-btn svg { width: 19px; height: 19px; flex: 0 0 auto; }
+  .watch-btn:active { transform: scale(.98); }
+  .watch-btn:disabled { opacity: .6; }
+  /* Күйүк турганда — сары */
+  .watch-btn.on {
+    background: linear-gradient(135deg, var(--yellow) 0%, var(--yellow-2) 100%);
+    color: var(--black); box-shadow: var(--glow);
+  }
+  .watch-note {
+    margin-top: 10px; font-size: 13px; line-height: 1.55; color: var(--grey);
+    text-align: center;
+  }
+  .watch-note.ok { color: #3d7a41; }
+  .watch-note.bad { color: #b5642c; }
+  /* iPhone'до алгач орнотуу керек */
+  .watch.hint .watch-btn {
+    background: #fff8e6; color: #7a5a00; box-shadow: none;
+  }
+  .watch.hint .watch-note { color: #7a5a00; }
+
+  /* ---- Унаанын сүрөтү ---- */
+  .p-photo {
+    display: block; margin: 0 0 13px; border-radius: 14px;
+    overflow: hidden; background: #f1f1f4;
+    aspect-ratio: 4 / 3;
+  }
+  .p-photo img {
+    width: 100%; height: 100%; object-fit: cover; display: block;
+  }
+
   .vip-tag {
     display: inline-flex; align-items: center; gap: 5px;
     background: linear-gradient(135deg, var(--yellow) 0%, var(--yellow-2) 100%);
@@ -502,6 +607,8 @@
     margin-top: 16px; box-shadow: var(--shadow);
   }
   .info-card b { color: var(--ink); }
+  /* Кабинеттеги «эмне көрүнөт» тизмеси — саптарды сактайбыз */
+  .info-card { white-space: pre-line; }
 
   /* Кабинеттеги саптар */
   .row-item {
@@ -667,7 +774,7 @@
 <div class="top">
   <div class="top-row">
     <div class="logo"><img class="car" src="/static/icon-192.png" alt="">ТАКСИ<b>роБОТ</b></div>
-    <span class="ver">v34</span>
+    <span class="ver">v43</span>
     <div class="lang">
       <a href="{{ lang_ky_url }}" class="{{ 'on' if lang == 'ky' else '' }}">KG</a>
       <a href="{{ lang_ru_url }}" class="{{ 'on' if lang == 'ru' else '' }}">RU</a>

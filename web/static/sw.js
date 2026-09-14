@@ -6,11 +6,13 @@
    2. Жарыяларды ЭЧ КАЧАН кештебейт — алар ар дайым жаңы болушу
       керек. Ошондуктан HTML беттери түз серверден алынат.
    3. Интернет жок болсо — кыска эскертүү бети чыгат.
+   4. ЖАҢЫ: браузердин кабарларын кабыл алат (Web Push) —
+      ошол багытта жаңы айдоочу чыкканда телефонго кабар келет.
 
    Версияны өзгөрткөндө эски кеш автоматтык өчөт.
    ============================================================ */
 
-const CACHE = "taxirobot-v1";
+const CACHE = "taxirobot-v2";
 
 // Алдын ала сакталуучу файлдар (жарыялар кирбейт!)
 const ASSETS = [
@@ -57,7 +59,7 @@ self.addEventListener("install", (e) => {
   e.waitUntil(
     caches.open(CACHE)
       .then((c) => c.addAll(ASSETS))
-      .catch(() => null)          // бир файл жүктөлбөсө да орнотуу бузулбасын
+      .catch(() => null)        // бир файл жүктөлбөсө да орнотуу бузулбасын
       .then(() => self.skipWaiting())
   );
 });
@@ -109,5 +111,54 @@ self.addEventListener("fetch", (e) => {
         return res;
       }).catch(() => hit);
     })
+  );
+});
+
+/* ============================================================
+   КАБАРЛАР (Web Push)
+   ============================================================
+   Сервер жаңы жарыя чыкканда кабар жиберет. Ал ушул жерге
+   келет — сайт жабык болсо да, браузер аны ойготот.
+   ============================================================ */
+
+self.addEventListener("push", (e) => {
+  let d = {};
+  try {
+    d = e.data ? e.data.json() : {};
+  } catch (err) {
+    d = { title: "ТАКСИ роБОТ", body: e.data ? e.data.text() : "" };
+  }
+
+  const title = d.title || "ТАКСИ роБОТ";
+  const opts = {
+    body: d.body || "",
+    icon: "/static/icon-192.png",
+    badge: "/static/icon-192.png",
+    tag: d.tag || "taxirobot",
+    renotify: true,
+    data: { url: d.url || "/" },
+    vibrate: [80, 40, 80]
+  };
+
+  e.waitUntil(self.registration.showNotification(title, opts));
+});
+
+// ---- Кабарды басканда: ачык турган терезени табабыз, же жаңысын ачабыз ----
+self.addEventListener("notificationclick", (e) => {
+  e.notification.close();
+  const target = (e.notification.data && e.notification.data.url) || "/";
+
+  e.waitUntil(
+    clients.matchAll({ type: "window", includeUncontrolled: true })
+      .then((list) => {
+        for (const c of list) {
+          // Ушул сайттын терезеси ачык болсо — ошону колдонобуз
+          if (c.url.indexOf(self.location.origin) === 0 && "focus" in c) {
+            c.navigate(target);
+            return c.focus();
+          }
+        }
+        if (clients.openWindow) return clients.openWindow(target);
+      })
   );
 });

@@ -66,6 +66,71 @@
 
 {% block content %}
 
+{# ============ КАБАРГА ЖАЗЫЛУУ ============ #}
+{# Багытты өзү тандайт — жарыя бар-жогуна карабай. Ошол багытта
+   айдоочу жарыя жазса, телефонго кабар келет. #}
+<details class="flt-box watch-box" id="watchBox">
+  <summary>
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+         stroke-linecap="round" stroke-linejoin="round">
+      <path d="M18 8.5a6 6 0 1 0-12 0c0 6-2.2 7.5-2.2 7.5h16.4S18 14.5 18 8.5z"/>
+      <path d="M13.7 19.5a2 2 0 0 1-3.4 0"/>
+    </svg>
+    <span class="s-t">{{ t('Айдоочулар жөнүндө кабар алам',
+                           'Уведомления о водителях') }}</span>
+    <span class="s-n" id="watchN" style="display:none">0</span>
+    <span class="s-x"></span>
+  </summary>
+
+  <div class="flt">
+    <div class="w-lead">
+      <b>{{ t('Жүргүнчүмүн — төмөндөгүдөй багытка айдоочулардын жаңы жарыялары жөнүндө билдирүү алгым келет.',
+              'Я пассажир — хочу получать уведомления о новых объявлениях водителей по этому направлению.') }}</b>
+      <span>{{ t('Багытты тандап, баскычты бассаңыз болду. Ошол багытка айдоочу жарыя жазганда заматта телефонуңузга кабар келет — сайт жабык турса да. Жарыя азыр жок болсо да жазылса болот.',
+                 'Выберите направление и нажмите кнопку. Как только по этому маршруту появится водитель, вам придёт уведомление — даже если сайт закрыт. Подписаться можно, даже если объявлений пока нет.') }}</span>
+    </div>
+
+    <div class="sec"><span>{{ t('Кайдан', 'Откуда') }}</span></div>
+    <div class="fld">
+      <div class="sel">
+        <select id="wFrom">
+          <option value="">{{ t('— тандаңыз —', '— выберите —') }}</option>
+          {% for o in oblast_list %}
+            <optgroup label="{{ o }}">
+              {% for key, label in all_cities.get(o, []) %}
+                <option value="{{ label }}">{{ label }}</option>
+              {% endfor %}
+            </optgroup>
+          {% endfor %}
+        </select>
+      </div>
+    </div>
+
+    <div class="sec"><span>{{ t('Кайда', 'Куда') }}</span></div>
+    <div class="fld">
+      <div class="sel">
+        <select id="wTo">
+          <option value="">{{ t('— тандаңыз —', '— выберите —') }}</option>
+          {% for o in oblast_list %}
+            <optgroup label="{{ o }}">
+              {% for key, label in all_cities.get(o, []) %}
+                <option value="{{ label }}">{{ label }}</option>
+              {% endfor %}
+            </optgroup>
+          {% endfor %}
+        </select>
+      </div>
+    </div>
+
+    <button class="go" type="button" id="wAdd">
+      🔔 {{ t('Ушул багытка кабар алам', 'Получать по этому направлению') }}
+    </button>
+    <div class="watch-note" id="wNote"></div>
+
+    <div id="wList" class="w-list"></div>
+  </div>
+</details>
+
 {# ============ КЕҢЕЙТИЛГЕН ЧЫПКА ============ #}
 {# Тизмелердеги сандар калган чыпкаларды эске алып эсептелет —
    адам бош жыйынтыкка чейин барбашы үчүн. #}
@@ -261,5 +326,167 @@
     {% endif %}
   </div>
 {% endif %}
+
+<script>
+/* ============================================================
+   Багытка жазылуу (браузердин кабарлары)
+   Бир браузер каалаганча багытка жазыла алат.
+   ============================================================ */
+(function () {
+  var box = document.getElementById("watchBox");
+  if (!box) return;
+
+  var L = {{ 'true' if lang == 'ru' else 'false' }};
+  function s(ky, ru) { return L ? ru : ky; }
+
+  var fromSel = document.getElementById("wFrom");
+  var toSel = document.getElementById("wTo");
+  var addBtn = document.getElementById("wAdd");
+  var note = document.getElementById("wNote");
+  var list = document.getElementById("wList");
+  var badge = document.getElementById("watchN");
+
+  function say(m, cls) {
+    note.textContent = m || "";
+    note.className = "watch-note" + (cls ? " " + cls : "");
+  }
+
+  /* ---- Колдоо барбы? ---- */
+  var standalone = window.matchMedia("(display-mode: standalone)").matches
+                   || window.navigator.standalone === true;
+  var isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+  var ok = ("serviceWorker" in navigator) && ("PushManager" in window);
+
+  if (!ok) {
+    addBtn.disabled = true;
+    if (isIOS && !standalone) {
+      say(s("iPhone'до кабар алуу үчүн сайтты телефонго орнотуңуз: " +
+            "ылдыйдагы «Бөлүшүү» ➔ «Башкы экранга кошуу». Ошондон кийин " +
+            "ушул бөлүм иштейт.",
+            "На iPhone для уведомлений установите сайт на телефон: " +
+            "«Поделиться» внизу ➔ «На экран Домой». После этого раздел " +
+            "заработает."), "warn");
+    } else {
+      say(s("Бул браузер кабарларды колдобойт.",
+            "Этот браузер не поддерживает уведомления."), "warn");
+    }
+    return;
+  }
+
+  var reg = null, sub = null;
+
+  function b64(str) {
+    var pad = "=".repeat((4 - str.length % 4) % 4);
+    var b = (str + pad).replace(/-/g, "+").replace(/_/g, "/");
+    var raw = atob(b);
+    var out = new Uint8Array(raw.length);
+    for (var i = 0; i < raw.length; ++i) out[i] = raw.charCodeAt(i);
+    return out;
+  }
+
+  /* ---- Жазылган багыттарды чыгаруу ---- */
+  function draw(routes) {
+    routes = routes || [];
+    badge.style.display = routes.length ? "" : "none";
+    badge.textContent = routes.length;
+
+    if (!routes.length) { list.innerHTML = ""; return; }
+
+    list.innerHTML =
+      '<div class="sec"><span>' +
+      s("Жазылган багыттарыңыз", "Ваши подписки") + '</span></div>' +
+      routes.map(function (r) {
+        return '<div class="w-item">' +
+          '<span>' + r.from_city + ' <b>→</b> ' + r.to_city + '</span>' +
+          '<button type="button" data-f="' + r.from_city +
+          '" data-t="' + r.to_city + '">✕</button></div>';
+      }).join("");
+
+    list.querySelectorAll("button").forEach(function (b) {
+      b.addEventListener("click", function () {
+        b.disabled = true;
+        fetch("/push/unsubscribe", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            endpoint: sub.endpoint, from: b.dataset.f, to: b.dataset.t
+          })
+        }).then(refresh);
+      });
+    });
+  }
+
+  function refresh() {
+    if (!sub) { draw([]); return; }
+    fetch("/push/routes", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ endpoint: sub.endpoint })
+    }).then(function (r) { return r.json(); })
+      .then(function (d) { draw(d.routes); })
+      .catch(function () {});
+  }
+
+  navigator.serviceWorker.ready.then(function (r) {
+    reg = r;
+    return r.pushManager.getSubscription();
+  }).then(function (existing) {
+    sub = existing;
+    refresh();
+  }).catch(function () {});
+
+  /* ---- Жазылуу ---- */
+  addBtn.addEventListener("click", function () {
+    var f = fromSel.value, t = toSel.value;
+    if (!f || !t) {
+      say(s("Эки жерди тең тандаңыз.", "Выберите оба пункта."), "warn");
+      return;
+    }
+    if (f === t) {
+      say(s("Чыгуу жана баруу жери бирдей болбошу керек.",
+            "Пункты отправления и назначения должны отличаться."), "warn");
+      return;
+    }
+
+    addBtn.disabled = true;
+    say(s("Күтө туруңуз…", "Подождите…"));
+
+    Promise.resolve(sub || Notification.requestPermission().then(function (p) {
+      if (p !== "granted") throw new Error("denied");
+      return fetch("/push/key").then(function (r) { return r.json(); })
+        .then(function (d) {
+          if (!d.on) throw new Error("off");
+          return reg.pushManager.subscribe({
+            userVisibleOnly: true,
+            applicationServerKey: b64(d.key)
+          });
+        });
+    })).then(function (newSub) {
+      sub = newSub;
+      return fetch("/push/subscribe", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          subscription: sub.toJSON ? sub.toJSON() : sub, from: f, to: t
+        })
+      });
+    }).then(function () {
+      say("✅ " + s("Жазылдыңыз: ", "Подписка оформлена: ") + f + " → " + t, "ok");
+      fromSel.value = ""; toSel.value = "";
+      refresh();
+    }).catch(function (e) {
+      if (String(e.message) === "denied") {
+        say(s("Кабарга уруксат берилген жок. Браузердин жөндөөлөрүнөн " +
+              "уруксат берип, кайра аракет кылыңыз.",
+              "Разрешение не выдано. Включите уведомления в настройках " +
+              "браузера и попробуйте снова."), "warn");
+      } else {
+        say(s("Кабар кызматы азырынча жеткиликсиз.",
+              "Сервис уведомлений пока недоступен."), "warn");
+      }
+    }).then(function () { addBtn.disabled = false; });
+  });
+})();
+</script>
 
 {% endblock %}

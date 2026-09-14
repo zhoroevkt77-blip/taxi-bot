@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="ky">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>ТАКСИ роБОТ — Админ</title>
+<style>
+  :root {
+    --black: #16161a;
+    --ink: #1b1b20;
+    --yellow: #ffc61a;
+    --yellow-2: #ffb703;
+    --grey: #8a8a95;
+    --grey-2: #b9b9c2;
+    --line: #f0f0f3;
+    --bg: #fafafa;
+    --glow: 0 6px 18px rgba(255,183,3,.28);
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  body {
+    margin: 0; min-height: 100vh; background: var(--bg); color: var(--ink);
+    font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI",
+                 Roboto, Arial, sans-serif;
+    display: flex; align-items: center; justify-content: center; padding: 24px;
+    -webkit-font-smoothing: antialiased;
+  }
+  .box {
+    width: 100%; max-width: 380px; background: #fff; border-radius: 22px;
+    padding: 30px 24px; box-shadow: 0 8px 30px rgba(20,20,30,.08);
+  }
+  .logo {
+    display: flex; align-items: center; gap: 9px;
+    font-size: 20px; font-weight: 900; letter-spacing: -.4px;
+    margin-bottom: 6px;
+  }
+  .logo img {
+    width: 32px; height: 32px; border-radius: 10px;
+    box-shadow: 0 2px 7px rgba(20,20,30,.14);
+  }
+  .logo b { color: var(--yellow-2); }
+  .sub { font-size: 13.5px; color: var(--grey); margin-bottom: 24px; }
+  label {
+    display: block; font-size: 11.5px; font-weight: 800; letter-spacing: .6px;
+    color: var(--grey); text-transform: uppercase; margin-bottom: 7px;
+  }
+  input {
+    width: 100%; border: 1.5px solid var(--line); border-radius: 16px;
+    padding: 16px; font-family: inherit; font-size: 16px;
+    outline: 0; background: #fafbfd; color: var(--ink);
+  }
+  input:focus { border-color: var(--yellow-2); background: #fff; }
+  button {
+    width: 100%; margin-top: 14px; border: 0; border-radius: 16px;
+    background: linear-gradient(135deg, var(--yellow) 0%, var(--yellow-2) 100%);
+    color: var(--black); font-family: inherit;
+    font-size: 16px; font-weight: 800; padding: 17px;
+    box-shadow: var(--glow);
+  }
+  button:active { transform: scale(.985); }
+  .err {
+    margin-top: 14px; padding: 13px 15px; border-radius: 13px;
+    background: #ffeaea; color: #c0293c; font-size: 13.5px; font-weight: 700;
+  }
+  .warn {
+    padding: 15px 16px; border-radius: 14px; background: #fff8e6;
+    color: #7a5a00; font-size: 13.5px; line-height: 1.55;
+  }
+  .warn code {
+    background: rgba(0,0,0,.06); padding: 2px 6px; border-radius: 5px;
+  }
+  .back {
+    display: block; text-align: center; margin-top: 20px;
+    font-size: 13px; font-weight: 700; color: var(--grey);
+  }
+</style>
+</head>
+<body>
+
+<div class="box">
+  <div class="logo">
+    <img src="/static/icon-192.png" alt="">ТАКСИ<b>роБОТ</b>
+  </div>
+  <div class="sub">Админ панель</div>
+
+  {% if no_pass %}
+    <div class="warn">
+      ⚠️ Панель өчүк.<br><br>
+      Railway'дин <b>Variables</b> бөлүмүнө <code>ADMIN_PASSWORD</code>
+      өзгөрмөсүн кошуп, сырсөз коюңуз. Ансыз панель ачылбайт —
+      кокустан ачык калбашы үчүн ушундай кылынган.
+    </div>
+  {% else %}
+    <form method="post">
+      <label>Сырсөз</label>
+      <input type="password" name="password" autocomplete="current-password"
+             autofocus required>
+      <button type="submit">Кирүү</button>
+    </form>
+    {% if err %}<div class="err">{{ err }}</div>{% endif %}
+  {% endif %}
+
+  <a class="back" href="/">← Сайтка кайтуу</a>
+</div>
+
+</body>
+</html>

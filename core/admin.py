@@ -10,6 +10,11 @@ core/admin.py
     Колдонуучу «💳 Төлөдүм» басып, чектин скриншотун жиберет.
     Чек админдин Telegram'ына [✅ Ырастоо] [❌ Четке кагуу] баскычтары
     менен барат. Админ ырастаса — мөөнөт автоматтык кошулат.
+
+ЖАҢЫ (v2):
+    Сайттагы админ панель үчүн messenger'сиз иштеген функциялар:
+    notify_account() жана broadcast(). Браузерден чакырылганда бот
+    объектиси жок болот, ошондуктан түз API'ге кайрылабыз.
 """
 
 import os
@@ -18,6 +23,9 @@ import requests
 
 from core import db, posts
 from core.messenger import Keyboard, Button
+
+ADMIN_VERSION = "v2-web"
+print(f"🎛 core/admin.py жүктөлдү. Версия = {ADMIN_VERSION}")
 
 ADMIN_ACCOUNT = int(os.environ.get("ADMIN_ACCOUNT", "0"))
 
@@ -41,15 +49,15 @@ def is_admin(account):
 
 
 def admin_kb():
-    return Keyboard.from_flat([
-        Button("📊 Статистика", "adm:stats"),
-        Button("👥 Акыркы колдонуучулар", "adm:users"),
-        Button("📢 Жалпы билдирүү", "adm:broadcast"),
-        Button("🚫 Бөгөттөө", "adm:ban"),
-        Button("✅ Бөгөттөн чыгаруу", "adm:unban"),
-        Button("🧪 Referral коюу (тест)", "adm:setref"),
-        Button("🎁 Мөөнөт кошуу (тест)", "adm:grant"),
-        Button("⚡ Мага толук уруксат", "adm:me"),
+    return Keyboard(rows=[
+        [Button("📊 Статистика", "adm:stats"),
+         Button("👥 Акыркы колдонуучулар", "adm:users")],
+        [Button("📢 Жалпы билдирүү", "adm:broadcast")],
+        [Button("🚫 Бөгөттөө", "adm:ban"),
+         Button("✅ Бөгөттөн чыгаруу", "adm:unban")],
+        [Button("🧪 Referral коюу (тест)", "adm:setref"),
+         Button("🎁 Мөөнөт кошуу (тест)", "adm:grant")],
+        [Button("⚡ Мага толук уруксат", "adm:me")],
     ])
 
 
@@ -181,7 +189,7 @@ def _payment_decision(messenger, msg, account, say, a):
         return True
 
     from core import logic
-    
+
     if kind == "post":
         acc = db.get_account(acc_id)
         old = acc.get("free_posts", 0) or 0
@@ -336,15 +344,7 @@ def handle_text(messenger, msg, account, say):
     text = (msg.text or "").strip()
 
     if state == "broadcast":
-        ids = db.all_platform_ids()
-        sent, failed = 0, 0
-        for pid in ids:
-            try:
-                messenger.send_text(pid, text)
-                sent += 1
-            except Exception:
-                failed += 1
-            time.sleep(0.05)
+        sent, failed = broadcast(text)
         say(messenger, msg, account,
             f"✅ <b>Жиберилди</b>\n\n{sent} колдонуучуга жеткирилди.\n"
             f"❌ Жеткен жок: {failed}")
@@ -399,23 +399,69 @@ def handle_text(messenger, msg, account, say):
         ok = db.set_banned(target, True)
         say(messenger, msg, account,
             f"🚫 {target} бөгөттөлдү." if ok else "❌ Колдонуучу табылган жок.")
-        pid = db.platform_id_of(target)
-        if pid:
-            try:
-                messenger.send_text(pid, "🚫 Сиз бул платформада бөгөттөлдүңүз.")
-            except Exception:
-                pass
+        notify_account(target, "🚫 Сиз бул платформада бөгөттөлдүңүз.")
     else:
         ok = db.set_banned(target, False)
         say(messenger, msg, account,
             f"✅ {target} бөгөттөн чыгарылды." if ok else "❌ Колдонуучу табылган жок.")
-        pid = db.platform_id_of(target)
-        if pid:
-            try:
-                messenger.send_text(pid,
-                    "✅ Бөгөттөн чыгарылдыңыз. Платформаны кайра колдонсоңуз болот.")
-            except Exception:
-                pass
+        notify_account(target,
+                       "✅ Бөгөттөн чыгарылдыңыз. Платформаны кайра "
+                       "колдонсоңуз болот.")
 
     return True
 
+
+# ============ САЙТТАГЫ АДМИН ПАНЕЛЬ ҮЧҮН ============
+# Бул функциялар messenger'сиз иштейт: сайттан чакырылганда бот
+# объектиси жок болот, ошондуктан түз API'ге кайрылабыз.
+
+
+def _tg_send(chat_id, text):
+    """Telegram'га түз кабар."""
+    if not BOT_TOKEN:
+        return False
+    try:
+        r = requests.post(f"{TG_API}/sendMessage", json={
+            "chat_id": chat_id, "text": text, "parse_mode": "HTML",
+            "disable_web_page_preview": True,
+        }, timeout=20)
+        return bool(r.json().get("ok"))
+    except Exception as e:
+        print("TG кабар катасы:", e)
+        return False
+
+
+def send_to_platform(pid, text):
+    """platform_id боюнча кабар жиберет: tg: же wa:"""
+    if not pid:
+        return False
+    if pid.startswith("wa:"):
+        _wa_send(pid, text)
+        return True
+    if pid.startswith("tg:"):
+        return _tg_send(pid.split(":", 1)[1], text)
+    return False
+
+
+def notify_account(account_id, text):
+    """Аккаунтка кабар жиберет — кайсы платформада болсо да."""
+    return send_to_platform(db.platform_id_of(account_id), text)
+
+
+def broadcast(text):
+    """Бардык колдонуучуларга кабар. (жиберилди, жеткен жок) кайтарат.
+
+    Бөгөттөлгөндөр эске алынбайт. Ар бир кабардан кийин кичине
+    тыныгуу — Telegram да, Green API да көп кабарды бир заматта
+    кабыл албайт.
+    """
+    ids = db.all_platform_ids()
+    sent = failed = 0
+    for pid in ids:
+        if send_to_platform(pid, text):
+            sent += 1
+        else:
+            failed += 1
+        time.sleep(0.06)
+    print(f"📢 Жалпы билдирүү: {sent} жиберилди, {failed} жеткен жок.")
+    return sent, failed

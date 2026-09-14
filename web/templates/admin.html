@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+<html lang="ky">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>ТАКСИ роБОТ — Админ</title>
+<style>
+  /* ТАКСИ роБОТ — админ панель. Сайттын өңү: ак фон, сары акцент. */
+  :root {
+    --black: #16161a;
+    --ink: #1b1b20;
+    --yellow: #ffc61a;
+    --yellow-2: #ffb703;
+    --grey: #8a8a95;
+    --grey-2: #b9b9c2;
+    --line: #f0f0f3;
+    --bg: #fafafa;
+    --card: #fff;
+    --red: #e0344a;
+    --green: #2f9e5f;
+    --sh: 0 3px 14px rgba(20,20,30,.055);
+    --glow: 0 6px 18px rgba(255,183,3,.28);
+    --r: 20px;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink); font-size: 15px;
+    font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI",
+                 Roboto, Arial, sans-serif;
+    -webkit-font-smoothing: antialiased; overflow-x: hidden;
+  }
+  a { text-decoration: none; color: inherit; }
+
+  /* ---- Башкы тилке ---- */
+  .top {
+    background: var(--bg); padding: 16px 16px 10px;
+    display: flex; align-items: center; gap: 9px;
+    max-width: 720px; margin: 0 auto;
+  }
+  .top img {
+    width: 30px; height: 30px; border-radius: 9px; flex: 0 0 auto;
+    box-shadow: 0 2px 7px rgba(20,20,30,.14);
+  }
+  .top .t {
+    font-size: 19px; font-weight: 900; letter-spacing: -.4px;
+  }
+  .top .t b { color: var(--yellow-2); }
+  .top .badge {
+    font-size: 9.5px; font-weight: 800; color: #9a7400; letter-spacing: .4px;
+    background: rgba(255,198,26,.22); border-radius: 7px; padding: 2px 6px;
+  }
+  .top .out {
+    margin-left: auto; font-size: 13px; font-weight: 800; color: var(--grey);
+    background: #f1f1f4; padding: 8px 14px; border-radius: 20px;
+  }
+
+  /* ---- Өтмөктөр ---- */
+  .tabs {
+    display: flex; gap: 8px; overflow-x: auto; padding: 6px 16px 14px;
+    scrollbar-width: none; max-width: 720px; margin: 0 auto;
+  }
+  .tabs::-webkit-scrollbar { display: none; }
+  .tab {
+    flex: 0 0 auto; padding: 11px 18px; border-radius: 22px;
+    background: var(--card); box-shadow: var(--sh);
+    font-size: 14px; font-weight: 700; white-space: nowrap; color: var(--ink);
+  }
+  .tab.on {
+    background: linear-gradient(135deg, var(--yellow) 0%, var(--yellow-2) 100%);
+    color: var(--black); box-shadow: var(--glow);
+  }
+
+  main { padding: 4px 16px 60px; max-width: 720px; margin: 0 auto; }
+  h2 { font-size: 22px; font-weight: 900; letter-spacing: -.5px; margin: 8px 0 16px; }
+  h3 {
+    font-size: 12px; font-weight: 800; letter-spacing: .8px; color: var(--grey);
+    text-transform: uppercase; margin: 26px 0 12px;
+  }
+
+  /* ---- Сан карточкалары ---- */
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 11px; }
+  .kpi {
+    background: var(--card); border-radius: 16px; padding: 15px 16px;
+    box-shadow: var(--sh);
+  }
+  .kpi .k { font-size: 13px; color: var(--grey); font-weight: 700; }
+  .kpi .v {
+    font-size: 27px; font-weight: 900; letter-spacing: -1px; margin-top: 5px;
+  }
+  .kpi.warn { background: #fff8e6; }
+  .kpi.warn .k, .kpi.warn .v { color: #9a7400; }
+  .kpi.bad { background: #ffeaea; }
+  .kpi.bad .k, .kpi.bad .v { color: var(--red); }
+
+  /* ---- Тизме ---- */
+  .list {
+    background: var(--card); border-radius: 16px; overflow: hidden;
+    box-shadow: var(--sh);
+  }
+  .li {
+    display: flex; align-items: center; gap: 10px;
+    padding: 14px 16px; border-bottom: 1px solid var(--line);
+    font-size: 14.5px; font-weight: 600;
+  }
+  .li:last-child { border-bottom: 0; }
+  .li .n { margin-left: auto; font-weight: 900; }
+
+  /* ---- Карточка ---- */
+  .row {
+    background: var(--card); border-radius: var(--r); padding: 16px;
+    margin-bottom: 11px; box-shadow: var(--sh);
+  }
+  .row.flag { background: #fff8e6; }
+  .row.off { opacity: .55; }
+  .rt {
+    display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+    font-size: 15.5px; font-weight: 800; letter-spacing: -.2px;
+  }
+  .rt .id {
+    font-size: 11.5px; font-weight: 800; color: var(--grey);
+    background: #f1f1f4; padding: 3px 8px; border-radius: 7px;
+  }
+  .meta {
+    margin-top: 9px; font-size: 13.5px; color: var(--grey); line-height: 1.65;
+  }
+  .meta b { color: var(--ink); font-weight: 700; }
+  .tag {
+    display: inline-block; font-size: 11.5px; font-weight: 800;
+    padding: 4px 10px; border-radius: 9px; margin: 4px 5px 0 0;
+  }
+  .tag.dr { background: #eaf4ff; color: #1f6fb2; }
+  .tag.ps { background: #eef7ee; color: #3d7a41; }
+  .tag.vip {
+    background: linear-gradient(135deg, var(--yellow) 0%, var(--yellow-2) 100%);
+    color: var(--black);
+  }
+  .tag.ph { background: #f0edff; color: #5b4bb5; }
+  .tag.no { background: #ffeaea; color: var(--red); }
+  .tag.ban { background: var(--red); color: #fff; }
+
+  .acts { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 13px; }
+  .acts form { display: inline-flex; gap: 6px; }
+  .btn {
+    border: 0; background: #f1f1f4; color: var(--ink);
+    font-family: inherit; font-size: 13px; font-weight: 800;
+    padding: 10px 15px; border-radius: 12px;
+  }
+  .btn.red { background: var(--red); color: #fff; }
+  .btn.green { background: var(--green); color: #fff; }
+  .btn.navy {
+    background: linear-gradient(135deg, var(--yellow) 0%, var(--yellow-2) 100%);
+    color: var(--black); box-shadow: var(--glow);
+  }
+  .btn:active { transform: scale(.96); }
+  .num {
+    width: 62px; border: 1.5px solid var(--line); border-radius: 12px;
+    padding: 10px; font-family: inherit; font-size: 13px; outline: 0;
+    background: #fff;
+  }
+
+  /* ---- Издөө жана чыпка ---- */
+  .bar { display: flex; gap: 5px; margin-bottom: 14px;
+         background: #f1f1f4; border-radius: 30px; padding: 5px; }
+  .bar input {
+    flex: 1; min-width: 0; border: 0; background: transparent;
+    padding: 12px 15px; font-family: inherit; font-size: 15px; outline: 0;
+  }
+  .bar input::placeholder { color: var(--grey-2); }
+  .bar button {
+    border: 0; color: var(--black); font-family: inherit;
+    background: linear-gradient(135deg, var(--yellow) 0%, var(--yellow-2) 100%);
+    font-size: 14px; font-weight: 800; padding: 12px 22px; border-radius: 24px;
+    box-shadow: var(--glow);
+  }
+  .chips { display: flex; gap: 7px; flex-wrap: wrap; margin-bottom: 16px; }
+  .chip {
+    padding: 9px 15px; border-radius: 20px; background: var(--card);
+    box-shadow: var(--sh); font-size: 13px; font-weight: 700;
+  }
+  .chip.on {
+    background: linear-gradient(135deg, var(--yellow) 0%, var(--yellow-2) 100%);
+    color: var(--black); box-shadow: var(--glow);
+  }
+
+  textarea {
+    width: 100%; border: 1.5px solid var(--line); border-radius: 16px;
+    padding: 16px; font-family: inherit; font-size: 15px; outline: 0;
+    min-height: 170px; resize: vertical; background: #fff;
+  }
+  textarea:focus { border-color: var(--yellow-2); }
+  .note {
+    margin-top: 14px; padding: 14px 16px; border-radius: 14px;
+    background: #fff8e6; color: #7a5a00; font-size: 13.5px; line-height: 1.55;
+  }
+  .note code {
+    background: rgba(0,0,0,.06); padding: 2px 6px; border-radius: 5px;
+  }
+  .ok {
+    padding: 14px 16px; border-radius: 14px; background: #eef7ee;
+    color: #3d7a41; font-size: 14.5px; font-weight: 700; margin-bottom: 16px;
+  }
+  .empty {
+    text-align: center; padding: 46px 20px; color: var(--grey);
+    font-size: 14.5px; line-height: 1.5;
+  }
+</style>
+</head>
+<body>
+
+<div class="top">
+  <img src="/static/icon-192.png" alt="">
+  <div class="t">ТАКСИ<b>роБОТ</b></div>
+  <span class="badge">АДМИН</span>
+  <a class="out" href="/admin/logout">Чыгуу</a>
+</div>
+
+<div class="tabs">
+  <a class="tab {{ 'on' if tab == 'stats' else '' }}" href="/admin/?tab=stats">Статистика</a>
+  <a class="tab {{ 'on' if tab == 'posts' else '' }}" href="/admin/?tab=posts">Жарыялар</a>
+  <a class="tab {{ 'on' if tab == 'mod' else '' }}" href="/admin/?tab=mod">Модерация</a>
+  <a class="tab {{ 'on' if tab == 'users' else '' }}" href="/admin/?tab=users">Колдонуучулар</a>
+  <a class="tab {{ 'on' if tab == 'send' else '' }}" href="/admin/?tab=send">Билдирүү</a>
+</div>
+
+<main>
+
+{# ================= СТАТИСТИКА ================= #}
+{% if tab == 'stats' %}
+  <h2>Статистика</h2>
+
+  <div class="grid">
+    <div class="kpi"><div class="k">Жалпы жарыя</div><div class="v">{{ s.total }}</div></div>
+    <div class="kpi"><div class="k">Активдүү</div><div class="v">{{ s.active }}</div></div>
+    <div class="kpi"><div class="k">Бүгүн коюлду</div><div class="v">{{ s.today }}</div></div>
+    <div class="kpi"><div class="k">Мөөнөтү бүткөн</div><div class="v">{{ s.expired }}</div></div>
+    <div class="kpi {{ 'warn' if s.suspicious else '' }}">
+      <div class="k">⚠️ Шектүү</div><div class="v">{{ s.suspicious }}</div>
+    </div>
+    <div class="kpi"><div class="k">Жалпы көрүү</div><div class="v">{{ s.views }}</div></div>
+    <div class="kpi"><div class="k">Колдонуучулар</div><div class="v">{{ s.users }}</div></div>
+    <div class="kpi"><div class="k">Бүгүн кошулду</div><div class="v">{{ s.new_users }}</div></div>
+    <div class="kpi"><div class="k">📷 Сүрөтү бар</div><div class="v">{{ s.photos }}</div></div>
+    <div class="kpi {{ 'bad' if s.banned else '' }}">
+      <div class="k">⛔ Бөгөттөлгөн</div><div class="v">{{ s.banned }}</div>
+    </div>
+  </div>
+
+  <h3>Ролдор (активдүү)</h3>
+  <div class="list">
+    <div class="li">🚖 Айдоочулар <span class="n">{{ s.by_role.get('driver', 0) }}</span></div>
+    <div class="li">🧳 Жүргүнчүлөр <span class="n">{{ s.by_role.get('passenger', 0) }}</span></div>
+  </div>
+
+  <h3>Эң көп багыттар</h3>
+  {% if s.by_route %}
+    <div class="list">
+      {% for r in s.by_route %}
+        <div class="li">{{ r.from_city }} → {{ r.to_city }}<span class="n">{{ r.n }}</span></div>
+      {% endfor %}
+    </div>
+  {% else %}
+    <div class="empty">Азырынча жарыя жок.</div>
+  {% endif %}
+{% endif %}
+
+{# ================= ЖАРЫЯЛАР ================= #}
+{% if tab == 'posts' %}
+  <h2>Жарыялар</h2>
+
+  <form class="bar" method="get" action="/admin/">
+    <input type="hidden" name="tab" value="posts">
+    <input type="hidden" name="state" value="{{ state }}">
+    <input type="hidden" name="role" value="{{ role }}">
+    <input type="text" name="q" value="{{ q }}" placeholder="Шаар, аты же номер">
+    <button type="submit">Изде</button>
+  </form>
+
+  <div class="chips">
+    <a class="chip {{ 'on' if state == 'active' else '' }}"
+       href="/admin/?tab=posts&state=active&role={{ role }}&q={{ q }}">Активдүү</a>
+    <a class="chip {{ 'on' if state == 'off' else '' }}"
+       href="/admin/?tab=posts&state=off&role={{ role }}&q={{ q }}">Өчкөн</a>
+    <a class="chip {{ 'on' if state == 'all' else '' }}"
+       href="/admin/?tab=posts&state=all&role={{ role }}&q={{ q }}">Баары</a>
+    <a class="chip {{ 'on' if role == 'driver' else '' }}"
+       href="/admin/?tab=posts&state={{ state }}&role=driver&q={{ q }}">🚖 Айдоочу</a>
+    <a class="chip {{ 'on' if role == 'passenger' else '' }}"
+       href="/admin/?tab=posts&state={{ state }}&role=passenger&q={{ q }}">🧳 Жүргүнчү</a>
+    {% if role %}
+      <a class="chip" href="/admin/?tab=posts&state={{ state }}&q={{ q }}">✕ Рол</a>
+    {% endif %}
+  </div>
+
+  {% if rows %}
+    {% for p in rows %}
+      {% include "_admin_post.html" %}
+    {% endfor %}
+  {% else %}
+    <div class="empty">Эч нерсе табылган жок.</div>
+  {% endif %}
+{% endif %}
+
+{# ================= МОДЕРАЦИЯ ================= #}
+{% if tab == 'mod' %}
+  <h2>Модерация</h2>
+  <div class="note">
+    Бул жерге <b>шектүү</b> жарыялар өзү түшөт: Кыргызстандыкы эмес номер,
+    комментарийдеги шилтеме, шектүү ат, бирдей багыт, же бир адамдын
+    үчтөн ашык жарыясы. Автоматтык өчүрүлбөйт — өзүңүз чечесиз.
+  </div>
+  <div style="height:16px"></div>
+
+  {% if rows %}
+    {% for p in rows %}
+      {% include "_admin_post.html" %}
+    {% endfor %}
+  {% else %}
+    <div class="empty">✅ Шектүү жарыя жок.</div>
+  {% endif %}
+{% endif %}
+
+{# ================= КОЛДОНУУЧУЛАР ================= #}
+{% if tab == 'users' %}
+  <h2>Колдонуучулар</h2>
+
+  <form class="bar" method="get" action="/admin/">
+    <input type="hidden" name="tab" value="users">
+    <input type="text" name="q" value="{{ q }}" placeholder="ID, аты же номер">
+    <button type="submit">Изде</button>
+  </form>
+
+  {% if rows %}
+    {% for u in rows %}
+      <div class="row {{ 'off' if u.banned else '' }}">
+        <div class="rt">
+          <span class="id">#{{ u.account_id }}</span>
+          {{ u.first_name or '—' }}
+          {% if u.banned %}<span class="tag ban">Бөгөттө</span>{% endif %}
+        </div>
+        <div class="meta">
+          📞 <b>{{ u.verified_phone or 'номерсиз' }}</b><br>
+          👥 Дос: <b>{{ u.ref_count or 0 }}</b> ·
+          🧳 Акысыз жарыя: <b>{{ u.free_posts or 0 }}</b> ·
+          📄 Жалпы жарыя: <b>{{ u.posts_n }}</b><br>
+          ⏳ Мөөнөт: <b>{{ u.access_until[:16] if u.access_until else '—' }}</b> ·
+          🌐 {{ u.lang or 'ky' }}
+        </div>
+        <div class="acts">
+          {% if u.banned %}
+            <form method="post" action="/admin/user/{{ u.account_id }}/unban">
+              <button class="btn green" type="submit">Бөгөттөн чыгаруу</button>
+            </form>
+          {% else %}
+            <form method="post" action="/admin/user/{{ u.account_id }}/ban"
+                  onsubmit="return confirm('Бөгөттөйбүзбү?')">
+              <button class="btn red" type="submit">Бөгөттөө</button>
+            </form>
+          {% endif %}
+          <form method="post" action="/admin/user/{{ u.account_id }}/grant">
+            <input class="num" type="number" name="days" value="30" min="1">
+            <button class="btn navy" type="submit">күн кошуу</button>
+          </form>
+          <form method="post" action="/admin/user/{{ u.account_id }}/posts">
+            <input class="num" type="number" name="n" value="1" min="1">
+            <button class="btn" type="submit">жарыя кошуу</button>
+          </form>
+        </div>
+      </div>
+    {% endfor %}
+  {% else %}
+    <div class="empty">Эч нерсе табылган жок.</div>
+  {% endif %}
+{% endif %}
+
+{# ================= БИЛДИРҮҮ ================= #}
+{% if tab == 'send' %}
+  <h2>Жалпы билдирүү</h2>
+
+  {% if sent is defined %}
+    <div class="ok">✅ {{ sent }} колдонуучуга жиберилди. Жеткен жок: {{ failed }}</div>
+  {% endif %}
+
+  <form method="post" action="/admin/broadcast"
+        onsubmit="return confirm('Баарына жиберилсинби?')">
+    <textarea name="text" placeholder="Кабардын текстин жазыңыз…" required></textarea>
+    <div class="acts">
+      <button class="btn navy" type="submit">Баарына жиберүү</button>
+    </div>
+  </form>
+
+  <div class="note">
+    Кабар <b>Telegram жана WhatsApp</b> колдонуучуларынын баарына барат.
+    Бөгөттөлгөндөр эске алынбайт. Жиберүү бир аз убакыт алат —
+    бетти жаппаңыз.<br><br>
+    Telegram'да <code>&lt;b&gt;калың&lt;/b&gt;</code> сыяктуу белгилер
+    иштейт, WhatsApp аларды кадимки текст катары көрсөтөт.
+  </div>
+{% endif %}
+
+</main>
+
+</body>
+</html>
