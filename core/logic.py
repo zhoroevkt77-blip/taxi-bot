@@ -50,7 +50,7 @@ except ImportError:
 
 SITE_SHORT = SITE_URL.replace("https://", "").replace("http://", "").rstrip("/")
 
-LOGIC_VERSION = "v82-myposts"
+LOGIC_VERSION = "v83-route-search"
 print(f"🧩 core/logic.py жүктөлдү. Версия = {LOGIC_VERSION}")
 
 SESSIONS = {}
@@ -315,9 +315,9 @@ def contact_links(phone, post_id=None, from_city=None, to_city=None):
         # Эки издөө баскычы БИР КАТАРДА — пост кыскараак көрүнөт.
         # Аттары кыска: жанындагы 🔍 белгиси эмне кыларын билдирет.
         rows.append([
-            ("✈️ Издөө / Поиск",
+            ("✈️ Маршрут издөө",
              f"https://t.me/{BOT_USERNAME}?start=ht{post_id}"),
-            ("🟢 Издөө / Поиск",
+            ("🟢 Маршрут издөө",
              f"https://wa.me/{WA_BOT_NUMBER}?text={quote(wa_text)}"),
         ])
     # Ботту ачуу — эки платформа үчүн өзүнчө. Колдонуучу кайсынысын
