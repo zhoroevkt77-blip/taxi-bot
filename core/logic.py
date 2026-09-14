@@ -50,7 +50,7 @@ except ImportError:
 
 SITE_SHORT = SITE_URL.replace("https://", "").replace("http://", "").rstrip("/")
 
-LOGIC_VERSION = "v76-share"
+LOGIC_VERSION = "v77-clean-invite"
 print(f"🧩 core/logic.py жүктөлдү. Версия = {LOGIC_VERSION}")
 
 SESSIONS = {}
@@ -154,34 +154,36 @@ def _invite_block(account, platform, lang="ky"):
     acc_id = account["account_id"]
     tg_link = referral_link(acc_id, "telegram")
     wa_link = referral_link(acc_id, "whatsapp")
-    wa_share, tg_share = _share_urls(account, lang)
 
+    # МААНИЛҮҮ: контакт ачуучу шилтемелер (wa.me/?text=…) бул жерге
+    # ЖАЗЫЛБАЙТ. Алардын ичине бүт кабар кодолуп кетет да, экранда
+    # жүздөгөн белгилүү «%D0%A1%D0%B0…» болуп созулуп калат.
+    # Telegram'да алар БАСКЫЧ болуп чыгат (_share_buttons), ал эми
+    # WhatsApp'та колдонуучу кабарды кармап туруп «Переслать» кылат.
     if lang == "ru":
-        head = (f"📤 <b>Отправить друзьям в один клик</b>\n"
-                f"Нажмите — откроется список контактов, останется "
-                f"выбрать, кому отправить:\n"
-                f"WhatsApp: {wa_share}\n"
-                f"Telegram: {tg_share}\n\n")
         if platform == "telegram":
-            head = ""      # Telegram'да баскычтар бар, шилтеме керек эмес
-        return (head +
-                f"🔗 <b>Или скопируйте ссылку и отправьте сами:</b>\n\n"
+            tail = ("<i>Нажмите кнопку ниже — откроется список "
+                    "контактов.</i>")
+        else:
+            tail = ("<i>Это сообщение можно переслать другу: задержите "
+                    "на нём палец и выберите «Переслать».</i>")
+        return (f"🔗 <b>Ваша ссылка:</b>\n\n"
                 f"📱 WhatsApp:\n{wa_link}\n\n"
                 f"💬 Telegram:\n{tg_link}\n\n"
+                f"{tail}\n"
                 f"<i>Друг должен войти именно по вашей ссылке — тогда "
                 f"бонус засчитается.</i>")
 
-    head = (f"📤 <b>Досторго бир басуу менен жиберүү</b>\n"
-            f"Бассаңыз контакттарыңыз ачылат — кимге жиберерди "
-            f"тандайсыз:\n"
-            f"WhatsApp: {wa_share}\n"
-            f"Telegram: {tg_share}\n\n")
     if platform == "telegram":
-        head = ""
-    return (head +
-            f"🔗 <b>Же шилтемени көчүрүп, өзүңүз жиберсеңиз болот:</b>\n\n"
+        tail = ("<i>Төмөнкү баскычты бассаңыз, контакттарыңыз "
+                "ачылат.</i>")
+    else:
+        tail = ("<i>Ушул кабарды досуңузга жөнөтсөңүз болот: манжаңызды "
+                "кармап туруп, «Переслать» тандаңыз.</i>")
+    return (f"🔗 <b>Сиздин шилтемеңиз:</b>\n\n"
             f"📱 WhatsApp:\n{wa_link}\n\n"
             f"💬 Telegram:\n{tg_link}\n\n"
+            f"{tail}\n"
             f"<i>Досуңуз так сиздин шилтемеңиз аркылуу кириши керек — "
             f"ошондо бонус эсептелет.</i>")
 
@@ -201,15 +203,10 @@ def _invite_text(account, lang="ky"):
     tg = referral_link(acc_id, "telegram")
     wa = referral_link(acc_id, "whatsapp")
     if lang == "ru":
-        return (f"Привет! Пользуюсь ботом «ТАКСИ роБОТ» — там водители и "
-                f"пассажиры находят друг друга по всему Кыргызстану.\n\n"
-                f"Telegram: {tg}\n"
-                f"WhatsApp: {wa}")
-    return (f"Салам! «ТАКСИ роБОТ» деген ботту колдонуп жүрөм — "
-            f"Кыргызстан боюнча айдоочулар менен жүргүнчүлөр ошол жерден "
-            f"табышат.\n\n"
-            f"Telegram: {tg}\n"
-            f"WhatsApp: {wa}")
+        return (f"«ТАКСИ роБОТ» — водители и пассажиры по всему "
+                f"Кыргызстану.\n{tg}")
+    return (f"«ТАКСИ роБОТ» — Кыргызстан боюнча айдоочулар менен "
+            f"жүргүнчүлөр.\n{tg}")
 
 
 def _share_urls(account, lang="ky"):
@@ -223,11 +220,20 @@ def _share_urls(account, lang="ky"):
         Telegram: t.me/share/url?...
     """
     from urllib.parse import quote
-    msg = _invite_text(account, lang)
-    tg_link = referral_link(account["account_id"], "telegram")
-    wa_share = f"https://wa.me/?text={quote(msg)}"
+    acc_id = account["account_id"]
+    tg_link = referral_link(acc_id, "telegram")
+    wa_link = referral_link(acc_id, "whatsapp")
+
+    if lang == "ru":
+        head = "«ТАКСИ роБОТ» — водители и пассажиры по всему Кыргызстану."
+    else:
+        head = "«ТАКСИ роБОТ» — Кыргызстан боюнча айдоочулар менен жүргүнчүлөр."
+
+    # WhatsApp досторуна WhatsApp шилтемеси, Telegram досторуна —
+    # Telegram шилтемеси кетет. Ошондо дос өз колдонмосунда калат.
+    wa_share = f"https://wa.me/?text={quote(head + chr(10) + wa_link)}"
     tg_share = (f"https://t.me/share/url?url={quote(tg_link)}"
-                f"&text={quote(msg.split(chr(10))[0])}")
+                f"&text={quote(head)}")
     return wa_share, tg_share
 
 
