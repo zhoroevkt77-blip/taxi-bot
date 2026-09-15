@@ -78,14 +78,10 @@ def main_reply_kb(lang="ky"):
     kb = types.ReplyKeyboardMarkup(resize_keyboard=True)
     if lang == "ru":
         kb.row("🚗 Я водитель", "🔍 Я пассажир")
-        kb.row("💼 Мой баланс")
-        kb.row("📢 Наш Telegram-канал", "🌐 Сайт")
-        kb.row("🆘 Помощь", "🌐 Тил / Язык")
+        kb.row("⚙️ Ещё")  #MENU2
     else:
         kb.row("🚗 Айдоочумун", "🔍 Жүргүнчүмүн")
-        kb.row("💼 Менин балансым")
-        kb.row("📢 Telegram каналыбыз", "🌐 Сайт")
-        kb.row("🆘 Жардам", "🌐 Тил / Язык")
+        kb.row("⚙️ Дагы")
     return kb
 
 

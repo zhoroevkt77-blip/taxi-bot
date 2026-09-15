@@ -102,7 +102,7 @@ STEP_FIELD = {
 # Тарыхка жазылуучу экрандар (баскыч коддорунун башы)
 SCREEN_PREFIXES = (
     "menu:driver", "menu:passenger", "menu:help", "menu:channel", "menu:lang",
-    "menu:site",
+    "menu:site", "menu:more",
     "menu:faq", "faq:", "menu:guide", "menu:safety",
     "d_search", "p_search", "p_search_bot", "d_my", "p_my", "d_vip",
     "d_pay", "p_pay", "pay_entry", "menu:balance",
@@ -718,13 +718,21 @@ def main_menu_kb(platform="telegram"):
     return Keyboard(rows=[
         [Button("🚗 Айдоочумун", "menu:driver"),
          Button("🔍 Жүргүнчүмүн", "menu:passenger")],
+        [Button("⚙️ Дагы", "menu:more")],  #MENU2
+    ])
+
+
+def more_kb():
+    """«Дагы» — сейрек колдонулган баскычтар."""
+    channel_label = "📣 Telegram каналыбыз"
+    return Keyboard(rows=[
         [Button("💼 Менин балансым", "menu:balance")],
         [Button(channel_label, "menu:channel"),
          Button("🌐 Сайт", "menu:site")],
         [Button("🆘 Жардам", "menu:help"),
          Button("🌐 Тил / Язык", "menu:lang")],
+        [_back_btn()],
     ])
-
 
 def lang_kb():
     return Keyboard(rows=[
@@ -1024,6 +1032,8 @@ def _dispatch(messenger, msg, account, a):
             passenger_menu_kb())
     if a.startswith("pay:start:"):
         return start_payment(messenger, msg, account, a.split(":")[2])
+    if a == "menu:more":  #MORE1
+        return _say(messenger, msg, account, MENU_TITLE, more_kb())
     if a == "menu:help":
         return help_menu(messenger, msg, account)
     if a == "menu:balance":
