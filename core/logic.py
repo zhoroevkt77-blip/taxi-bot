@@ -50,7 +50,7 @@ except ImportError:
 
 SITE_SHORT = SITE_URL.replace("https://", "").replace("http://", "").rstrip("/")
 
-LOGIC_VERSION = "v87-short-url"
+LOGIC_VERSION = "v88-phone-lock"
 print(f"🧩 core/logic.py жүктөлдү. Версия = {LOGIC_VERSION}")
 
 SESSIONS = {}
@@ -1547,8 +1547,8 @@ def ask_step(messenger, msg, account, st, step):
             kb = Keyboard.from_flat([Button(f"📱 {ph}", "usephone"), _back_btn()])
             return _say(messenger, msg, account,
                 "📞 Байланыш номериңиз:\n\n"
-                "Ырасталган номериңизди колдонсоңуз — төмөнкү баскычты басыңыз.\n"
-                "Башка номер жазам десеңиз — башка номер жазып жибериңиз.", kb)
+                "Жарыяга ырасталган номериңиз жазылат.\n"
+                "Улантуу үчүн төмөнкү баскычты басыңыз.", kb)
         return _say(messenger, msg, account, "📞 Мобилдик телефон номериңиз:", back_kb())
 
     prompts = {
@@ -1987,6 +1987,14 @@ def _wizard_text(messenger, msg, account, st):
     # Жарыяга жазылуучу номер — КГ форматында гана болушу керек.
     # Болбосо жарыяга чет өлкө номери түшүп, аны эч ким чала албай калат.
     if step == "phone":
+        # Ырасталган номери бар болсо — башка номер жаздырбайбыз.
+        # Антпесе жарыяга өзүнө таандык эмес номер түшүп калат.
+        if account.get("verified_phone"):
+            return _say(messenger, msg, account, L(
+                "📱 Жарыяга ырасталган номериңиз гана жазылат.\n"
+                "Төмөнкү баскычты басыңыз.",
+                "📱 В объявлении указывается только ваш подтверждённый "
+                "номер.\nНажмите кнопку ниже."), hint=True)
         ok = normalize_phone(text)
         if not ok:
             return _say(messenger, msg, account, L(
