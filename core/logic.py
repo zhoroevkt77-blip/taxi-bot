@@ -50,7 +50,7 @@ except ImportError:
 
 SITE_SHORT = SITE_URL.replace("https://", "").replace("http://", "").rstrip("/")
 
-LOGIC_VERSION = "v88-phone-lock"
+LOGIC_VERSION = "v89-taxi-hint"
 print(f"🧩 core/logic.py жүктөлдү. Версия = {LOGIC_VERSION}")
 
 SESSIONS = {}
@@ -1991,10 +1991,10 @@ def _wizard_text(messenger, msg, account, st):
         # Антпесе жарыяга өзүнө таандык эмес номер түшүп калат.
         if account.get("verified_phone"):
             return _say(messenger, msg, account, L(
-                "📱 Жарыяга ырасталган номериңиз гана жазылат.\n"
+                "📱 Жарыяга ырасталган номериңиз гана жазылат.\n👉 Башка адам үчүн такси издесеңиз, анын номерин комментарийге жазыңыз.\n"
                 "Төмөнкү баскычты басыңыз.",
                 "📱 В объявлении указывается только ваш подтверждённый "
-                "номер.\nНажмите кнопку ниже."), hint=True)
+                "номер.\n👉 Если ищете такси для другого человека, укажите его номер в комментарии.\nНажмите кнопку ниже."), hint=True)
         ok = normalize_phone(text)
         if not ok:
             return _say(messenger, msg, account, L(
