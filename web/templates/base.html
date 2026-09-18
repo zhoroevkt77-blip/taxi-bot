@@ -19,7 +19,7 @@
 <style>
   /* ============================================================
      ТАКСИ роБОТ — сайттын стили
-     WEB_VERSION = v43-watch-text
+     WEB_VERSION = v44-deep-shadow
      Түстөр: кара (тилке), сары (акцент), ак (карточкалар).
      ============================================================ */
   :root {
@@ -34,13 +34,13 @@
     --bg: #fafafa;          /* дээрлик ак — «Эбони» стили */
     --card: #ffffff;
     /* Сары блоктордун жумшак жарыгы */
-    --glow: 0 7px 20px rgba(255,183,3,.45);/*DEEPSH*/
+    --glow: 0 7px 20px rgba(255,183,3,.55);/*DEEPSH*/
     --wa: #25d366;
     --wa-2: #1da851;
     --tg: #34a9e0;
     --tg-2: #1d8ec4;
-    --shadow: 0 4px 16px rgba(20,20,30,.28);
-    --shadow-lg: 0 10px 30px rgba(20,20,30,.38);
+    --shadow: 0 5px 18px rgba(20,20,30,.40);
+    --shadow-lg: 0 12px 34px rgba(20,20,30,.52);
     --r: 20px;              /* негизги тегеректик */
   }
   * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
@@ -774,7 +774,7 @@
 <div class="top">
   <div class="top-row">
     <div class="logo"><img class="car" src="/static/icon-192.png" alt="">ТАКСИ<b>роБОТ</b></div>
-    <span class="ver">v43</span>
+    <span class="ver">v44</span>
     <div class="lang">
       <a href="{{ lang_ky_url }}" class="{{ 'on' if lang == 'ky' else '' }}">KG</a>
       <a href="{{ lang_ru_url }}" class="{{ 'on' if lang == 'ru' else '' }}">RU</a>
