@@ -50,7 +50,7 @@ except ImportError:
 
 SITE_SHORT = SITE_URL.replace("https://", "").replace("http://", "").rstrip("/")
 
-LOGIC_VERSION = "v91-wa-private"
+LOGIC_VERSION = "v92-wa-old-number"
 print(f"🧩 core/logic.py жүктөлдү. Версия = {LOGIC_VERSION}")
 
 SESSIONS = {}
@@ -58,7 +58,7 @@ _SEARCH_CACHE = {}
 PAY_WAIT = {}     # user_id -> "access" | "vip" (чек күтүлүүдө)
 NAV = {}          # user_id -> [экран действиелери] — "Артка" үчүн тарых
 BOT_USERNAME = "taxirobot_bot"
-WA_BOT_NUMBER = os.environ.get("WA_BOT_NUMBER", "996700034054")
+WA_BOT_NUMBER = os.environ.get("WA_BOT_NUMBER", "996227155603")
 CHANNEL_LINK = os.environ.get("CHANNEL_LINK", "https://t.me/taxirobotbot")
 
 # WhatsApp'тагы «издөө» кабарынын башталышы. Каналдагы баскыч ушул
