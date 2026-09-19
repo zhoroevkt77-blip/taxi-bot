@@ -410,7 +410,7 @@ def _no_cache(resp):
 
 # ============ БЕТТЕР ============
 
-def _row_ok(r, cat, obl, fo, fc, to, tc, q):
+def _row_ok(r, cat, obl, fo, fc, to, tc, q, city=""):
     """Багыт ушул чыпкалардын баарына дал келеби?"""
     if cat != "all" and r["cat"] != cat:
         return False
@@ -424,6 +424,8 @@ def _row_ok(r, cat, obl, fo, fc, to, tc, q):
         return False
     if tc and norm(r["to_city"]) != tc:
         return False
+    if city and city not in (norm(r["from_city"]), norm(r["to_city"])):
+        return False
     if q and not _matches(q, r["from_city"], r["to_city"]):
         return False
     return True
@@ -434,6 +436,7 @@ def index():
     cat = request.args.get("cat") or "all"
     obl = (request.args.get("obl") or "").strip()
     q = (request.args.get("q") or "").strip()
+    city = (request.args.get("city") or "").strip()
     # Кеңейтилген чыпка: кайдан → кайда
     f_obl = (request.args.get("fobl") or "").strip()
     f_city = (request.args.get("fcity") or "").strip()
@@ -473,7 +476,7 @@ def index():
         чейин барбашы үчүн.
         """
         st = dict(cat=cat, obl=obl, fo=f_obl, fc=f_city,
-                  to=t_obl, tc=t_city, q=q)
+                  to=t_obl, tc=t_city, q=q, city=city)
         st.update(over)
         return sum(r["n"] for r in rows if _row_ok(r, **st))
 
@@ -504,10 +507,21 @@ def index():
     # Облус чиптери — БАРДЫГЫ ар дайым көрүнөт, жарыясы жок болсо «0».
     obl_counts = {name: cnt(obl=name) for name in ALL_OBLASTS}
     oblasts = sorted(obl_counts.items(), key=lambda kv: (-kv[1], kv[0]))
+    districts = []
+    if cat == "local":
+        src = ALL_CITIES.get(obl, []) if obl else [p for v in ALL_CITIES.values() for p in v]
+        seen = set()
+        for key, label in src:
+            if key in seen:
+                continue
+            seen.add(key)
+            c = cnt(city=key)
+            if obl or c:
+                districts.append((key, label, c))
 
     # Акыркы тизме — бардык чыпкалар кошо
     sel = [r for r in rows
-           if _row_ok(r, cat, obl, f_obl, f_city, t_obl, t_city, q)]
+           if _row_ok(r, cat, obl, f_obl, f_city, t_obl, t_city, q, city=city)]
 
     # Издөө боюнча эч нерсе табылбаса — жакын аталыштарды сунуштайбыз
     suggest = []
@@ -539,7 +553,7 @@ def index():
 
     def link(**over):
         """Учурдагы чыпкаларды сактап, бирөөнү гана алмаштырган шилтеме."""
-        st = {"cat": cat, "obl": obl, "fobl": f_obl, "fcity": f_city,
+        st = {"cat": cat, "obl": obl, "city": city, "fobl": f_obl, "fcity": f_city,
               "tobl": t_obl, "tcity": t_city, "q": q, "lang": _lang()}
         st.update(over)
         parts = [f"{k}={quote(str(v))}" for k, v in st.items() if v]
@@ -549,7 +563,7 @@ def index():
                            routes=sel,
                            cat=cat,
                            cat_counts=cat_counts,
-                           oblasts=oblasts,
+                           oblasts=oblasts, districts=districts, city=city,
                            obl=obl,
                            q=q,
                            suggest=suggest,

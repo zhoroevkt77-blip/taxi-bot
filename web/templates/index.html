@@ -243,9 +243,18 @@
      href="{{ link(obl='') }}">{{ t('Баары', 'Все') }}</a>
   {% for name, n in oblasts %}
     <a class="chip {{ 'on' if obl == name else '' }} {{ 'zero' if n == 0 else '' }}"
-       href="{{ link(obl=name) }}">
+       href="{{ link(obl=name, city="") }}">
       {{ name }}<span class="n num">{{ n }}</span>
     </a>
+  {% endfor %}
+</div>
+{% endif %}
+
+{% if districts %}
+<div class="chips">
+  <a class="chip {{ "on" if not city else "" }}" href="{{ link(city="") }}">{{ t("Баары", "Все") }}</a>
+  {% for key, label, n in districts %}
+  <a class="chip {{ "on" if city == key else "" }} {{ "zero" if n == 0 else "" }}" href="{{ link(city=key) }}">{{ label }}<span class="n num">{{ n }}</span></a>
   {% endfor %}
 </div>
 {% endif %}
