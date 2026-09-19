@@ -238,7 +238,7 @@
 </div>
 
 {% if oblasts %}
-<div class="chips">
+<div class="chips wrap">
   <a class="chip {{ 'on' if not obl else '' }}"
      href="{{ link(obl='') }}">{{ t('Баары', 'Все') }}</a>
   {% for name, n in oblasts %}
