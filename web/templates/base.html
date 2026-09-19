@@ -19,7 +19,7 @@
 <style>
   /* ============================================================
      ТАКСИ роБОТ — сайттын стили
-     WEB_VERSION = v46-districts
+     WEB_VERSION = v47-grid
      Түстөр: кара (тилке), сары (акцент), ак (карточкалар).
      ============================================================ */
   :root {
@@ -316,7 +316,9 @@
     padding: 2px 2px 14px; scrollbar-width: none;
   }
   .chips::-webkit-scrollbar { display: none; }
-  .chips.wrap { flex-wrap: wrap; overflow-x: visible; row-gap: 10px; padding-bottom: 4px; }
+  .chips.wrap { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; overflow-x: visible; padding-bottom: 4px; }
+  .chips.wrap .chip { display: flex; align-items: center; justify-content: center; gap: 6px; padding: 12px 10px; min-width: 0; }
+  .chips.wrap .chip .n { margin-left: 0; }
   .chip {
     flex: 0 0 auto; background: var(--card);
     border: 0; border-radius: 22px;
@@ -775,7 +777,7 @@
 <div class="top">
   <div class="top-row">
     <div class="logo"><img class="car" src="/static/icon-192.png" alt="">ТАКСИ<b>роБОТ</b></div>
-    <span class="ver">v46</span>
+    <span class="ver">v47</span>
     <div class="lang">
       <a href="{{ lang_ky_url }}" class="{{ 'on' if lang == 'ky' else '' }}">KG</a>
       <a href="{{ lang_ru_url }}" class="{{ 'on' if lang == 'ru' else '' }}">RU</a>
