@@ -191,8 +191,16 @@ def _contact(m):
     # Контакт баскычын алып салып, башкы менюну кайтарабыз
     bot.send_message(m.chat.id, "✅ Рахмат!",
                      reply_markup=main_reply_kb(_lang_of(m.from_user.id)))
+    # Бөлүшүлгөн контакт ӨЗҮНҮКҮ болушу керек. Telegram'да башка
+    # адамдын карточкасын да жөнөтүүгө болот — аны кабыл алсак,
+    # бирөө башканын аккаунтуна кирип алат.
+    if getattr(m.contact, "user_id", None) != m.from_user.id:
+        bot.send_message(m.chat.id,
+                         "⚠️ Өз номериңизди гана бөлүшө аласыз.")
+        return
     msg = IncomingMessage(user_id=make_uid("telegram", m.from_user.id),
-                          platform="telegram", text=m.contact.phone_number)
+                          platform="telegram", text=m.contact.phone_number,
+                          verified=True)
     logic.handle_update(messenger, msg)
 
 

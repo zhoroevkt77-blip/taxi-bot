@@ -50,7 +50,7 @@ except ImportError:
 
 SITE_SHORT = SITE_URL.replace("https://", "").replace("http://", "").rstrip("/")
 
-LOGIC_VERSION = "v92-wa-old-number"
+LOGIC_VERSION = "v93-phone-verify"
 print(f"🧩 core/logic.py жүктөлдү. Версия = {LOGIC_VERSION}")
 
 SESSIONS = {}
@@ -2013,6 +2013,18 @@ def _wizard_text(messenger, msg, account, st):
 
 
 def verify_phone(messenger, msg, account, st, raw):
+    # Номер платформадан келиши керек: Telegram'да «номеримди
+    # бөлүшөм» баскычы, WhatsApp'та өз номери. Колго жазылган
+    # номерди кабыл алсак, бирөө башканын номерин жазып, ошол
+    # адамдын аккаунтуна кирип алат.
+    if not getattr(msg, "verified", False):
+        lang = account.get("lang", "ky")
+        messenger.ask_phone_contact(msg.user_id, render(
+            "⚠️ Номерди колго жазууга болбойт.\n"
+            "Төмөнкү «📱 Номеримди бөлүшөм» баскычын басыңыз.",
+            lang, messenger.platform_name))
+        return
+
     phone = normalize_phone(raw)
     if not phone:
         return _say(messenger, msg, account, L(

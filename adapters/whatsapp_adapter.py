@@ -270,9 +270,21 @@ def _handle(body):
     # Телефонду автоматтык ырастап коёбуз (WhatsApp'та ал белгилүү)
     _ensure_phone(uid, phone)
 
+    # Колдонуучу жазган текст өзүнүн WhatsApp номери менен дал
+    # келсе — ал ырасталган болот. Башканын номерин жазса, дал
+    # келбейт, ошондуктан аккаунт уурдоо мүмкүн эмес.
+    verified = False
+    try:
+        from core.logic import normalize_phone
+        typed = normalize_phone(text or "")
+        own = normalize_phone(phone or "")
+        verified = bool(typed and own and typed == own)
+    except Exception:
+        verified = False
+
     # Сүрөт келсе — түз логикага беребиз (меню номерлерин карабайбыз)
     if photo_ref:
-        msg = IncomingMessage(user_id=uid, platform="whatsapp",
+        msg = IncomingMessage(user_id=uid, verified=verified, platform="whatsapp",
                               photo_id=photo_ref, text=text)
         try:
             logic.handle_update(messenger, msg)
@@ -283,7 +295,7 @@ def _handle(body):
     # "0" — WhatsApp'та универсалдуу "башкы менюга кайтуу".
     # Меню көрүнбөй турган кадамдарда да (аты, баа, комментарий) иштейт.
     if text == HOME_KEY:
-        msg = IncomingMessage(user_id=uid, platform="whatsapp",
+        msg = IncomingMessage(user_id=uid, verified=verified, platform="whatsapp",
                               is_button=True, button_action="menu:home")
         try:
             logic.handle_update(messenger, msg)
@@ -293,7 +305,7 @@ def _handle(body):
 
     # "99" — универсалдуу "артка". Меню көрүнбөй турган кадамдарда да иштейт.
     if text == BACK_KEY:
-        msg = IncomingMessage(user_id=uid, platform="whatsapp",
+        msg = IncomingMessage(user_id=uid, verified=verified, platform="whatsapp",
                               is_button=True, button_action=BACK_ACTION)
         try:
             logic.handle_update(messenger, msg)
@@ -304,10 +316,10 @@ def _handle(body):
     # Номер басылдыбы? Ошондо аны баскычка айландырабыз
     mapping = LAST_MENU.get(uid, {})
     if text in mapping:
-        msg = IncomingMessage(user_id=uid, platform="whatsapp",
+        msg = IncomingMessage(user_id=uid, verified=verified, platform="whatsapp",
                               is_button=True, button_action=mapping[text])
     else:
-        msg = IncomingMessage(user_id=uid, platform="whatsapp", text=text)
+        msg = IncomingMessage(user_id=uid, verified=verified, platform="whatsapp", text=text)
 
     try:
         logic.handle_update(messenger, msg)

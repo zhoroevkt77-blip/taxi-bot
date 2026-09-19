@@ -50,6 +50,10 @@ class IncomingMessage:
     button_action: str = ""
     contact_phone: str = None
     photo_id: str = None   # Telegram: file_id | WhatsApp: downloadUrl
+    # Номер платформа тарабынан ырасталганбы? Telegram'дагы контакт
+    # баскычы же WhatsApp'тын өз номери гана True берет. Колго
+    # жазылган текст эч качан ырасталган болуп эсептелбейт.
+    verified: bool = False
 
 
 class Messenger(ABC):
