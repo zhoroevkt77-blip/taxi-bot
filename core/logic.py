@@ -50,10 +50,11 @@ except ImportError:
 
 SITE_SHORT = SITE_URL.replace("https://", "").replace("http://", "").rstrip("/")
 
-LOGIC_VERSION = "v93-phone-verify"
+LOGIC_VERSION = "v94-ttl"
 print(f"🧩 core/logic.py жүктөлдү. Версия = {LOGIC_VERSION}")
 
-SESSIONS = {}
+from core.ttldict import TTLDict
+SESSIONS = TTLDict(ttl=2 * 3600)  # 2 саат тийилбесе өчөт
 _SEARCH_CACHE = {}
 PAY_WAIT = {}     # user_id -> "access" | "vip" (чек күтүлүүдө)
 NAV = {}          # user_id -> [экран действиелери] — "Артка" үчүн тарых

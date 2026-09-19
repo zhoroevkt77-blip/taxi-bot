@@ -36,7 +36,7 @@ import requests
 from core.messenger import Messenger, IncomingMessage, make_uid
 from core import logic, db
 
-WA_ADAPTER_VERSION = "v2-photo"
+WA_ADAPTER_VERSION = "v3-ttl"
 print(f"🟡 whatsapp_adapter модулу жүктөлдү. Версия = {WA_ADAPTER_VERSION}, "
       f"PID={os.getpid()}, module={id(sys.modules[__name__])}")
 
@@ -54,7 +54,8 @@ BACK_KEY = "99"
 BACK_ACTION = "wback"
 
 # Ар бир колдонуучунун акыркы менюсу: uid -> {"1": "menu:driver", ...}
-LAST_MENU = {}
+from core.ttldict import TTLDict
+LAST_MENU = TTLDict(ttl=2 * 3600)  # 2 саат тийилбесе өчөт
 
 # Иштелип бүткөн кабарлардын id'си — кайталанып келгенин өткөрбөйт
 SEEN_IDS = []
