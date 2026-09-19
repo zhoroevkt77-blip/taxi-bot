@@ -50,7 +50,19 @@ def _run_web():
     run_site()
 
 
+def _log_versions():
+    """Орнотулган пакеттердин версиялары — requirements.txt'ти бекитүү үчүн."""
+    from importlib.metadata import version, PackageNotFoundError
+    for pkg in ("pyTelegramBotAPI", "python-dotenv", "Flask", "requests",
+                "psycopg2-binary", "pywebpush", "waitress"):
+        try:
+            print(f"📦 {pkg}=={version(pkg)}")
+        except PackageNotFoundError:
+            print(f"📦 {pkg} табылган жок")
+
+
 def main():
+    _log_versions()
     # Эскирген жарыяларды тазалоочу — фондук thread'де иштейт
     start_cleanup_scheduler()
 
