@@ -34,7 +34,7 @@ import threading
 import requests
 
 from core.messenger import Messenger, IncomingMessage, make_uid
-from core import logic
+from core import logic, db
 
 WA_ADAPTER_VERSION = "v2-photo"
 print(f"🟡 whatsapp_adapter модулу жүктөлдү. Версия = {WA_ADAPTER_VERSION}, "
@@ -195,9 +195,40 @@ class WhatsAppMessenger(Messenger):
 messenger = WhatsAppMessenger()
 
 
+def _own_outgoing(body):
+    """Ээси телефондон жазса — ал чат жеке болуп калат.
+    «#bot» деп жазса — чат кайра ботко кайтат."""
+    chat = body.get("senderData", {}).get("chatId", "")
+    if not chat.endswith("@c.us"):
+        return
+    md = body.get("messageData", {})
+    t = md.get("typeMessage")
+    if t == "textMessage":
+        txt = md.get("textMessageData", {}).get("textMessage", "")
+    elif t == "extendedTextMessage":
+        txt = md.get("extendedTextMessageData", {}).get("text", "")
+    else:
+        txt = ""
+    if txt.strip().lower() == "#bot":
+        db.wa_private_remove(chat)
+        print(f"🤖 {chat} — бот кайра иштейт")
+    else:
+        db.wa_private_add(chat)
+
+
 def _handle(body):
     """Бир webhook кабарын иштетет."""
-    if body.get("typeWebhook") != "incomingMessageReceived":
+    wtype = body.get("typeWebhook")
+
+    # Ээси өзү жазган чат — бот ал жерде унчукпайт
+    if wtype == "outgoingMessageReceived":
+        try:
+            _own_outgoing(body)
+        except Exception as e:
+            print(f"\u26a0\ufe0f outgoing иштетүү катасы: {e}")
+        return
+
+    if wtype != "incomingMessageReceived":
         return
 
     # Кайталанган кабарды экинчи жолу иштетпейбиз
@@ -208,6 +239,10 @@ def _handle(body):
     sender = body.get("senderData", {}).get("chatId", "")
     if not sender.endswith("@c.us"):
         return   # группалар азырынча эске алынбайт
+
+    # Ээси өзү баштаган жеке чат — бот унчукпайт
+    if db.wa_is_private(sender):
+        return
 
     phone = sender.replace("@c.us", "")
     uid = make_uid("whatsapp", phone)
@@ -318,6 +353,12 @@ def _check_settings():
     if hook_url.strip():
         print("⚠️ webhookUrl коюлган! Кабарлар кезекке түшпөйт. "
               "Console'до webhookUrl'ди бош калтырыңыз.")
+
+    outgoing = str(st.get("outgoingMessageWebhook", "")).lower()
+    print(f"ℹ️ outgoingMessageWebhook = {outgoing}")
+    if outgoing != "yes":
+        print("⚠️ Жеке чат режими иштебейт! Console'до "
+              "'Получать уведомления об исходящих сообщениях' күйгүзүңүз.")
 
     state = _get("getStateInstance")
     if state:

@@ -222,3 +222,39 @@ def set_banned(account_id, banned=True):
                     (1 if banned else 0, account_id))
         conn.commit()
         return cur.rowcount > 0
+
+
+# ---- WhatsApp жеке чаттар: бот унчукпай турган чаттар ----
+
+def _wa_private_table(cur):
+    cur.execute("""CREATE TABLE IF NOT EXISTS wa_private (
+                     chat_id TEXT PRIMARY KEY,
+                     added_at TIMESTAMP DEFAULT NOW())""")
+
+
+def wa_private_add(chat_id):
+    """Чатты жеке кыл — бот ал жерде жооп бербейт."""
+    with db() as conn:
+        cur = conn.cursor()
+        _wa_private_table(cur)
+        cur.execute("""INSERT INTO wa_private (chat_id) VALUES (%s)
+                       ON CONFLICT (chat_id) DO NOTHING""", (chat_id,))
+        conn.commit()
+
+
+def wa_private_remove(chat_id):
+    """Чатты кайра ботко кайтар."""
+    with db() as conn:
+        cur = conn.cursor()
+        _wa_private_table(cur)
+        cur.execute("DELETE FROM wa_private WHERE chat_id = %s", (chat_id,))
+        conn.commit()
+
+
+def wa_is_private(chat_id):
+    """Бул чат жекеби?"""
+    with db() as conn:
+        cur = conn.cursor()
+        _wa_private_table(cur)
+        cur.execute("SELECT 1 FROM wa_private WHERE chat_id = %s", (chat_id,))
+        return cur.fetchone() is not None
