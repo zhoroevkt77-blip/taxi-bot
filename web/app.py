@@ -34,7 +34,7 @@ from core.db import db
 from core import posts
 from core.texts import render as tr_render
 
-WEB_VERSION = "v42-watch"
+WEB_VERSION = "v43-photo-proxy"
 print(f"🌐 web/app.py жүктөлдү. Версия = {WEB_VERSION}")
 
 BOT_USERNAME = os.environ.get("BOT_USERNAME", "taxirobot_bot")
@@ -647,14 +647,36 @@ def post_photo(post_id):
     hit = _PHOTO_CACHE.get(post_id)
     now = time.time()
     if hit and now - hit[1] < _PHOTO_TTL:
-        return redirect(hit[0], code=302)
+        return _proxy_photo(hit[0])
 
     from core import channel
     url = channel.file_url(fid)
     if not url:
         abort(404)
     _PHOTO_CACHE[post_id] = (url, now)
-    return redirect(url, code=302)
+    return _proxy_photo(url)
+
+
+def _proxy_photo(url):
+    """Сүрөттү сервер өзү берет.
+
+    Мурда браузер Telegram'га багытталчу, бирок ал шилтеменин ичинде
+    боттун токени турат — ар ким көрө алмак. Эми байттарды өзүбүз
+    өткөрөбүз, токен эч качан сыртка чыкпайт.
+    """
+    import requests
+    from flask import Response, abort
+    try:
+        r = requests.get(url, timeout=20, stream=True)
+        if r.status_code != 200:
+            abort(404)
+        return Response(
+            r.iter_content(8192),
+            mimetype=r.headers.get("Content-Type", "image/jpeg"),
+            headers={"Cache-Control": "public, max-age=3600"})
+    except Exception as e:
+        print("[web] сүрөт берүү катасы:", e)
+        abort(404)
 
 
 @app.route("/push/key")
