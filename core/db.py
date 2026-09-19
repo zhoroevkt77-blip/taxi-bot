@@ -20,16 +20,30 @@ core/db.py  (PostgreSQL варианты)
 import os
 import psycopg2
 import psycopg2.extras
+import psycopg2.extensions
 
 DATABASE_URL = os.environ.get("DATABASE_URL")
 
-DB_VERSION = "v4-clean"
+DB_VERSION = "v5-close"
 print(f"🗄 core/db.py жүктөлдү. Версия = {DB_VERSION}")
 
 
+class _ClosingConnection(psycopg2.extensions.connection):
+    """`with db() as conn:` блогунан чыкканда commit/rollback кылып,
+    анан байланышты ЖАБАТ. psycopg2 өзү жаппайт — ошондон
+    Railway Postgres'тин байланыш лимити акырындап толчу."""
+
+    def __exit__(self, exc_type, exc, tb):
+        try:
+            return super().__exit__(exc_type, exc, tb)
+        finally:
+            self.close()
+
+
 def db():
-    conn = psycopg2.connect(DATABASE_URL, cursor_factory=psycopg2.extras.RealDictCursor)
-    return conn
+    return psycopg2.connect(DATABASE_URL,
+                            connection_factory=_ClosingConnection,
+                            cursor_factory=psycopg2.extras.RealDictCursor)
 
 
 # Жаңы мамычалар: (таблица, мамыча, түрү)
@@ -42,6 +56,31 @@ _NEW_COLUMNS = [
     ("posts", "photo_id", "TEXT"),
     ("posts", "photo_url", "TEXT"),
 ]
+
+
+# posts таблицасынын индекстери (бар болсо тийбейт)
+_INDEXES = [
+    # Лента: активдүү посттор ролу боюнча, жаңысы биринчи
+    "CREATE INDEX IF NOT EXISTS idx_posts_feed ON posts (active, role, created_at DESC)",
+    # Тазалоочу: эскирген посттор
+    "CREATE INDEX IF NOT EXISTS idx_posts_created ON posts (created_at)",
+    # Шаар боюнча издөө
+    "CREATE INDEX IF NOT EXISTS idx_posts_from_city ON posts (from_city)",
+    # «Менин посторум» — Postgres FK'га өзү индекс койбойт
+    "CREATE INDEX IF NOT EXISTS idx_posts_account ON posts (account_id)",
+]
+
+
+def _indexes(cur):
+    """Ар бири өз savepoint'инде — бири катуу болсо, транзакция бузулбайт."""
+    for sql in _INDEXES:
+        cur.execute("SAVEPOINT ix")
+        try:
+            cur.execute(sql)
+            cur.execute("RELEASE SAVEPOINT ix")
+        except Exception as e:
+            cur.execute("ROLLBACK TO SAVEPOINT ix")
+            print("[db] индекс катасы:", e)
 
 
 def _migrate(cur):
@@ -104,6 +143,8 @@ def init_db():
         )
         """)
         _migrate(cur)
+        _indexes(cur)
+        _wa_private_table(cur)
         conn.commit()
 
     # Браузердин кабары үчүн таблица — өзүнчө модулда
@@ -236,7 +277,6 @@ def wa_private_add(chat_id):
     """Чатты жеке кыл — бот ал жерде жооп бербейт."""
     with db() as conn:
         cur = conn.cursor()
-        _wa_private_table(cur)
         cur.execute("""INSERT INTO wa_private (chat_id) VALUES (%s)
                        ON CONFLICT (chat_id) DO NOTHING""", (chat_id,))
         conn.commit()
@@ -246,7 +286,6 @@ def wa_private_remove(chat_id):
     """Чатты кайра ботко кайтар."""
     with db() as conn:
         cur = conn.cursor()
-        _wa_private_table(cur)
         cur.execute("DELETE FROM wa_private WHERE chat_id = %s", (chat_id,))
         conn.commit()
 
@@ -255,6 +294,5 @@ def wa_is_private(chat_id):
     """Бул чат жекеби?"""
     with db() as conn:
         cur = conn.cursor()
-        _wa_private_table(cur)
         cur.execute("SELECT 1 FROM wa_private WHERE chat_id = %s", (chat_id,))
         return cur.fetchone() is not None
