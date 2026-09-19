@@ -34,7 +34,7 @@ from core.db import db
 from core import posts
 from core.texts import render as tr_render
 
-WEB_VERSION = "v43-photo-proxy"
+WEB_VERSION = "v44-waitress"
 print(f"🌐 web/app.py жүктөлдү. Версия = {WEB_VERSION}")
 
 BOT_USERNAME = os.environ.get("BOT_USERNAME", "taxirobot_bot")
@@ -881,7 +881,16 @@ def healthz():
 def run(host="0.0.0.0", port=None):
     port = port or int(os.environ.get("PORT", 8080))
     print(f"🌐 Сайт башталды. http://{host}:{port}")
-    app.run(host=host, port=port, threaded=True, use_reloader=False)
+    # Продакшен сервер. waitress жок болсо (мис. Termux) — эски жол
+    try:
+        from waitress import serve
+    except ImportError:
+        serve = None
+    if serve:
+        print("[web] waitress сервери башталды")
+        serve(app, host=host, port=port, threads=8)
+    else:
+        app.run(host=host, port=port, threaded=True, use_reloader=False)
 
 
 if __name__ == "__main__":
