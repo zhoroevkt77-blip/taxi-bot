@@ -22,7 +22,8 @@ Telegram да, WhatsApp да ушул файлды колдонот.
 """
 import os
 import re
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
+from core.ttldict import TTLDict
 from core import db, posts, admin, channel
 from core.messenger import Keyboard, Button
 from core.geo import REGIONS, DISTRICTS, DISTRICT_OBLASTS
@@ -50,14 +51,13 @@ except ImportError:
 
 SITE_SHORT = SITE_URL.replace("https://", "").replace("http://", "").rstrip("/")
 
-LOGIC_VERSION = "v94-ttl"
+LOGIC_VERSION = "v95-tz-phonebtn"
 print(f"🧩 core/logic.py жүктөлдү. Версия = {LOGIC_VERSION}")
 
-from core.ttldict import TTLDict
 SESSIONS = TTLDict(ttl=2 * 3600)  # 2 саат тийилбесе өчөт
-_SEARCH_CACHE = {}
-PAY_WAIT = {}     # user_id -> "access" | "vip" (чек күтүлүүдө)
-NAV = {}          # user_id -> [экран действиелери] — "Артка" үчүн тарых
+_SEARCH_CACHE = TTLDict(ttl=2 * 3600)
+PAY_WAIT = TTLDict(ttl=24 * 3600)     # user_id -> "access" | "vip" (чек күтүлүүдө)
+NAV = TTLDict(ttl=2 * 3600)          # user_id -> [экран действиелери] — "Артка" үчүн тарых
 BOT_USERNAME = "taxirobot_bot"
 WA_BOT_NUMBER = os.environ.get("WA_BOT_NUMBER", "996227155603")
 CHANNEL_LINK = os.environ.get("CHANNEL_LINK", "https://t.me/taxirobotbot")
@@ -358,7 +358,22 @@ def contact_lines(phone, lang="ky"):
 
 
 def _now():
+    """Ички салыштыруулар үчүн (сервер жана база UTC'де)."""
     return datetime.now()
+
+
+# Кыргызстан — UTC+6, жайкы убакыт жок. Railway сервери UTC'де.
+# Колдонуучуга КӨРҮНГӨН даталар/сааттар үчүн гана колдонулат.
+BISHKEK_OFFSET = timedelta(hours=6)
+
+
+def _local_now():
+    return datetime.now(timezone.utc).replace(tzinfo=None) + BISHKEK_OFFSET
+
+
+def _to_local(dt):
+    """Базадагы UTC убакытты Бишкек убактысына которот."""
+    return dt + BISHKEK_OFFSET
 
 
 def has_access(account):
@@ -1357,7 +1372,7 @@ def post_types(messenger, msg, account, role):
     # Айдоочуга суткалык чектөө: спамдын алдын алат
     left, free_at = daily_limit_left(account["account_id"], role)
     if left is not None and left <= 0:
-        when = free_at.strftime("%H:%M") if free_at else ""
+        when = _to_local(free_at).strftime("%H:%M") if free_at else ""
         return _say(messenger, msg, account, L(
             f"🚫 Бир суткада эң көп <b>{DRIVER_DAILY_LIMIT} жарыя</b> бере аласыз.\n\n"
             f"⏰ Кийинки жарыяны саат <b>{when}</b> чамасында бере аласыз.\n\n"
@@ -1422,7 +1437,7 @@ def day_hours():
         Апрель–сентябрь : 06:00 – 21:00
         Октябрь–март    : 07:00 – 19:00
     """
-    month = datetime.now().month
+    month = _local_now().month
     if 4 <= month <= 9:
         start, end = 6, 21
     else:
@@ -1436,7 +1451,7 @@ MONTHS_KY = ["январь", "февраль", "март", "апрель", "ма
 
 def date_label(offset):
     """«Бүгүн · 17-август» / «Эртең · 18-август» — чаташпашы үчүн."""
-    d = datetime.now() + timedelta(days=offset)
+    d = _local_now() + timedelta(days=offset)
     name = "Бүгүн" if offset == 0 else "Эртең"
     return f"{name} · {d.day}-{MONTHS_KY[d.month - 1]}"
 
@@ -1990,12 +2005,15 @@ def _wizard_text(messenger, msg, account, st):
     if step == "phone":
         # Ырасталган номери бар болсо — башка номер жаздырбайбыз.
         # Антпесе жарыяга өзүнө таандык эмес номер түшүп калат.
-        if account.get("verified_phone"):
+        ph = account.get("verified_phone")
+        if ph and normalize_phone(str(ph)):
+            # Баскычтарды кайра чыгарабыз — «төмөнкү баскыч» чындап төмөндө болсун
+            kb = Keyboard.from_flat([Button(f"📱 {ph}", "usephone"), _back_btn()])
             return _say(messenger, msg, account, L(
                 "📱 Жарыяга ырасталган номериңиз гана жазылат.\n👉 Башка адам үчүн такси издесеңиз, анын номерин комментарийге жазыңыз.\n"
                 "Төмөнкү баскычты басыңыз.",
                 "📱 В объявлении указывается только ваш подтверждённый "
-                "номер.\n👉 Если ищете такси для другого человека, укажите его номер в комментарии.\nНажмите кнопку ниже."), hint=True)
+                "номер.\n👉 Если ищете такси для другого человека, укажите его номер в комментарии.\nНажмите кнопку ниже."), kb)
         ok = normalize_phone(text)
         if not ok:
             return _say(messenger, msg, account, L(

@@ -9,7 +9,7 @@ core/ttldict.py
 import threading
 import time
 
-TTLDICT_VERSION = "v1"
+TTLDICT_VERSION = "v2"
 
 
 class TTLDict(dict):
@@ -49,6 +49,12 @@ class TTLDict(dict):
         if dict.__contains__(self, key):
             self._touch(key)
         return dict.get(self, key, default)
+
+    def setdefault(self, key, default=None):
+        if not dict.__contains__(self, key):
+            dict.__setitem__(self, key, default)
+        self._touch(key)
+        return dict.__getitem__(self, key)
 
     def pop(self, key, *default):
         self._seen.pop(key, None)
