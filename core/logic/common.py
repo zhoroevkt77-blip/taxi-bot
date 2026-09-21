@@ -51,7 +51,7 @@ except ImportError:
 
 SITE_SHORT = SITE_URL.replace("https://", "").replace("http://", "").rstrip("/")
 
-LOGIC_VERSION = "v97-mask"
+LOGIC_VERSION = "v98-mask1"
 print(f"🧩 core/logic/ жүктөлдү. Версия = {LOGIC_VERSION}")
 
 SESSIONS = TTLDict(ttl=2 * 3600)  # 2 саат тийилбесе өчөт

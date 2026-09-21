@@ -285,7 +285,7 @@ def channel_text(d, role, tag=None):
             f"👥 Бош орун / Мест: {d.get('seats')}\n"
             f"💰 Баасы / Цена: {d.get('price')}\n"
             f"📝 {(d.get('comment') or '')[:200]}\n"
-            f"📞 {mask_phone(d.get('phone'))} · «📞 Байланышуу» 👇"
+            f"📞 {mask_phone(d.get('phone'))} 👇"
             )
     return ""
 
