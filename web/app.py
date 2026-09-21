@@ -34,7 +34,7 @@ from core.db import db
 from core import posts
 from core.texts import render as tr_render
 
-WEB_VERSION = "v46-wa"
+WEB_VERSION = "v47-left"
 print(f"🌐 web/app.py жүктөлдү. Версия = {WEB_VERSION}")
 
 BOT_USERNAME = os.environ.get("BOT_USERNAME", "taxirobot_bot")
@@ -335,6 +335,68 @@ def _mask_phone(d):
     return "+" + d[:4] + " *** " + d[-2:]
 
 
+# ── Карточка: калган мөөнөт жана «Бүгүн/Эртең»ди кайра эсептөө ──────
+_MONTHS_KY = ["январь", "февраль", "март", "апрель", "май", "июнь",
+              "июль", "август", "сентябрь", "октябрь", "ноябрь", "декабрь"]
+_MONTHS_RU = ["января", "февраля", "марта", "апреля", "мая", "июня",
+              "июля", "августа", "сентября", "октября", "ноября", "декабря"]
+_DAY_WORDS = {-1: ("Кечээ", "Вчера"), 0: ("Бүгүн", "Сегодня"),
+              1: ("Эртең", "Завтра"), 2: ("Бүрсүгүнү", "Послезавтра")}
+_DATE_RE = re.compile(r"^\s*(Бүгүн|Эртең)\s*·\s*(\d{1,2})-([^\s·]+)\s*$")
+_BISHKEK = timedelta(hours=6)          # Кыргызстан: UTC+6, жайкы убакыт жок
+
+
+def _as_dt(ts):
+    if isinstance(ts, str):
+        return datetime.fromisoformat(ts)
+    return ts
+
+
+def _left(ts, lang="ky"):
+    """«⏳ 2 саат калды» — жарыя канча убакыттан кийин өчөт."""
+    try:
+        ts = _as_dt(ts)
+        hours = getattr(posts, "POST_LIFETIME_HOURS", 24)
+        secs = (ts + timedelta(hours=hours) - datetime.now()).total_seconds()
+    except Exception:
+        return ""
+    ru = lang == "ru"
+    if secs <= 0:
+        return "⏳ скоро удалится" if ru else "⏳ жакында өчөт"
+    mins = int(secs // 60)
+    if mins < 60:
+        mins = max(mins, 1)
+        return f"⏳ осталось {mins} мин." if ru else f"⏳ {mins} мүнөт калды"
+    h = mins // 60
+    return f"⏳ осталось {h} ч." if ru else f"⏳ {h} саат калды"
+
+
+def _date_label(text, created, lang="ky"):
+    """«Бүгүн · 20-сентябрь» → бүгүнкү күнгө карата кайра эсептелет.
+
+    Жарыя берилгенде «Бүгүн» деп жазылат да, эртеси да «Бүгүн» бойдон
+    калчу. Эми жол жүрүүчү күн менен бүгүнкү күндүн айырмасы саналат.
+    Туура келбеген текст (кол менен жазылган ж.б.) мурункудай көрсөтүлөт.
+    """
+    m = _DATE_RE.match(str(text or ""))
+    if not m or m.group(3) not in _MONTHS_KY:
+        return None
+    try:
+        day, month = int(m.group(2)), _MONTHS_KY.index(m.group(3)) + 1
+        made = (_as_dt(created) + _BISHKEK).date()
+        trip = made.replace(month=month, day=day)
+        if (trip - made).days < -300:          # декабрда берилген январь сапары
+            trip = trip.replace(year=trip.year + 1)
+        today = (datetime.utcnow() + _BISHKEK).date()
+    except Exception:
+        return None
+    diff = (trip - today).days
+    ru = lang == "ru"
+    word = _DAY_WORDS.get(diff, (None, None))[1 if ru else 0]
+    date = f"{day} {_MONTHS_RU[month - 1]}" if ru else f"{day}-{_MONTHS_KY[month - 1]}"
+    return f"{word} · {date}" if word else date
+
+
 def _card(p):
     d = _digits(p.get("phone"))
     lang = _lang()
@@ -342,10 +404,12 @@ def _card(p):
         "id": p.get("id"),
         "photo": bool(p.get("photo_id") or p.get("photo_url")),
         "ago": _ago(p.get("created_at"), lang),
+        "left": _left(p.get("created_at"), lang),
         "views": p.get("views") or 0,
         "name": p.get("name") or "",
         "car": p.get("car") or "",
-        "date": _v(p.get("date_text")),
+        "date": (_date_label(p.get("date_text"), p.get("created_at"), lang)
+                 or _v(p.get("date_text"))),
         "time": _v(p.get("time_text")),
         "seats": p.get("seats") or "",
         "price": _v(p.get("price")),

@@ -193,7 +193,7 @@
              stroke-linecap="round" stroke-linejoin="round">
           <circle cx="12" cy="12" r="8.5"/><path d="M12 7.2V12l3.2 2.2"/>
         </svg>
-        {{ c.ago }}
+        {{ c.ago }}{% if c.left %} · {{ c.left }}{% endif %}
       </span>
       <span class="p-views">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"
