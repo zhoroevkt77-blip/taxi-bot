@@ -34,7 +34,7 @@ from core.db import db
 from core import posts
 from core.texts import render as tr_render
 
-WEB_VERSION = "v44-waitress"
+WEB_VERSION = "v45-phone"
 print(f"🌐 web/app.py жүктөлдү. Версия = {WEB_VERSION}")
 
 BOT_USERNAME = os.environ.get("BOT_USERNAME", "taxirobot_bot")
@@ -326,6 +326,15 @@ def _ago(ts, lang="ky"):
     return f"{days} күн мурун" if lang != "ru" else f"{days} дн. назад"
 
 
+def _mask_phone(d):
+    """«996777773125» → «+996 777 *** 125»."""
+    if not d:
+        return ""
+    if len(d) == 12 and d.startswith("996"):
+        return f"+996 {d[3:6]} *** {d[-3:]}"
+    return "+" + d[:4] + " *** " + d[-2:]
+
+
 def _card(p):
     d = _digits(p.get("phone"))
     lang = _lang()
@@ -342,10 +351,9 @@ def _card(p):
         "price": _v(p.get("price")),
         "comment": p.get("comment") or "",
         "is_vip": bool(p.get("is_vip")),
-        "phone": f"+{d}" if d else "",
-        "tel_url": f"tel:+{d}" if d else "",
-        "tg_url": f"https://t.me/+{d}" if d else "",
-        "wa_url": f"https://wa.me/{d}" if d else "",
+        # Номердин өзү HTML'ге чыкпайт — /phone/<id> аркылуу гана.
+        "has_phone": bool(d),
+        "phone_mask": _mask_phone(d),
     }
 
 
@@ -744,6 +752,60 @@ def view_post(post_id):
     """
     posts.bump_views(post_id)
     return "", 204
+
+
+# ── Номерди ачуу: скрейперлерден коргоо ─────────────────────────
+# Номер барактын HTML'инде жок; баскыч басылганда ушул жерден алынат.
+# Бир IP'ге саатына PHONE_LIMIT номер — адамга жетет, скрейперге жетпейт.
+import threading as _threading
+import time as _time
+
+PHONE_LIMIT = 30
+_PHONE_HITS = {}
+_PHONE_LOCK = _threading.Lock()
+
+
+def _client_ip():
+    """Railway проксиси чыныгы IP'ни X-Real-IP же X-Forwarded-For'до берет."""
+    ip = request.headers.get("X-Real-IP", "").strip()
+    if not ip:
+        xff = request.headers.get("X-Forwarded-For", "")
+        ip = xff.split(",")[-1].strip() if xff else ""
+    return ip or request.remote_addr or "?"
+
+
+def _phone_allowed(ip):
+    now = _time.time()
+    with _PHONE_LOCK:
+        hits = [t for t in _PHONE_HITS.get(ip, ()) if now - t < 3600]
+        if len(hits) >= PHONE_LIMIT:
+            _PHONE_HITS[ip] = hits
+            return False
+        hits.append(now)
+        _PHONE_HITS[ip] = hits
+        if len(_PHONE_HITS) > 5000:          # эстутум толбосун
+            for k in [k for k, v in _PHONE_HITS.items()
+                      if not v or now - v[-1] > 3600]:
+                _PHONE_HITS.pop(k, None)
+    return True
+
+
+@app.route("/phone/<int:post_id>", methods=["POST"])
+def reveal_phone(post_id):
+    """Жарыянын номерин берет (Чалуу / Telegram / WhatsApp басылганда)."""
+    from flask import jsonify
+    ip = _client_ip()
+    if not _phone_allowed(ip):
+        print(f"[web] номер чеги: {ip}")
+        return jsonify(error="limit"), 429
+    p = posts.get_post(post_id)
+    d = _digits(p.get("phone")) if p and p.get("active") else ""
+    if not d:
+        return jsonify(error="none"), 404
+    resp = jsonify(phone=f"+{d}", tel=f"tel:+{d}",
+                   tg=f"https://t.me/+{d}", wa=f"https://wa.me/{d}")
+    resp.headers["Cache-Control"] = "no-store"
+    return resp
 
 
 @app.route("/favorites")
