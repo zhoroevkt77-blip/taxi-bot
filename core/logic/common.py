@@ -51,7 +51,7 @@ except ImportError:
 
 SITE_SHORT = SITE_URL.replace("https://", "").replace("http://", "").rstrip("/")
 
-LOGIC_VERSION = "v96-split"
+LOGIC_VERSION = "v97-mask"
 print(f"🧩 core/logic/ жүктөлдү. Версия = {LOGIC_VERSION}")
 
 SESSIONS = TTLDict(ttl=2 * 3600)  # 2 саат тийилбесе өчөт
@@ -279,6 +279,14 @@ def _digits_only(phone):
     return digits
 
 
+def mask_phone(phone):
+    """«0777773125» → «+996 777 *** 125». Каналда толук номер чыкпайт."""
+    d = _digits_only(phone)
+    if len(d) == 12 and d.startswith("996"):
+        return f"+996 {d[3:6]} *** {d[-3:]}"
+    return ("+" + d[:4] + " *** " + d[-2:]) if len(d) >= 6 else ""
+
+
 def contact_links(phone, post_id=None, from_city=None, to_city=None):
     """Каналдагы жарыянын астындагы баскычтар.
 
@@ -303,10 +311,12 @@ def contact_links(phone, post_id=None, from_city=None, to_city=None):
     d = _digits_only(phone)
     rows = []
     if len(d) >= 9:
-        rows.append([
-            ("✈️ Telegram", f"https://t.me/+{d}"),
-            ("🟢 WhatsApp", f"https://wa.me/{d}"),
-        ])
+        # Номер шилтемеде ачык турбасын (скрейперлер окуйт) — сайтка
+        # жиберебиз: ал жакта номер баскыч басылганда гана чыгат.
+        # Кириллица кодолот — Telegram баскычы туура эмес URL'ди кабыл албайт.
+        url = (f"{SITE_URL}/route?from={quote(from_city)}&to={quote(to_city)}"
+               if from_city and to_city else SITE_URL)
+        rows.append([("📞 Байланышуу / Связаться", url)])
     if post_id:
         # Багыт белгилүү болсо — адамча суроо, болбосо кыска код
         if from_city and to_city:
