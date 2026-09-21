@@ -47,7 +47,7 @@ BOT_TOKEN = os.environ.get("BOT_TOKEN")
 CHANNEL_ID = os.environ.get("CHANNEL_ID")  # мис. @kanal_aty же -1001234567890
 bot = telebot.TeleBot(BOT_TOKEN, parse_mode="HTML")
 
-TG_ADAPTER_VERSION = "v10-balance"
+TG_ADAPTER_VERSION = "v11-more"
 print(f"📨 telegram_adapter жүктөлдү. Версия = {TG_ADAPTER_VERSION}, "
       f"PID={os.getpid()}")
 
@@ -55,6 +55,8 @@ print(f"📨 telegram_adapter жүктөлдү. Версия = {TG_ADAPTER_VERSI
 MAIN_MENU = {
     "🚗 Айдоочумун": "menu:driver",
     "🔍 Жүргүнчүмүн": "menu:passenger",
+    "⚙️ Дагы": "menu:more",
+    "⚙️ Ещё": "menu:more",
     "📢 Telegram каналыбыз": "menu:channel",
     "🌐 Сайт": "menu:site",
     "💼 Менин балансым": "menu:balance",
@@ -220,7 +222,10 @@ def _photo(m):
 @bot.message_handler(func=lambda m: True, content_types=["text"])
 def _text(m):
     uid = make_uid("telegram", m.from_user.id)
-    action = MAIN_MENU.get(m.text)
+    action = (MAIN_MENU.get(m.text)
+              or MAIN_MENU.get((m.text or "").replace("\ufe0f", ""))
+              or {k.replace("\ufe0f", ""): v for k, v in MAIN_MENU.items()}
+                 .get((m.text or "").replace("\ufe0f", "")))
     if action:
         # Ылдыйкы менюнун баскычы — аны core'го баскыч катары беребиз
         msg = IncomingMessage(user_id=uid, platform="telegram",
