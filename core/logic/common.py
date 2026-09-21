@@ -51,7 +51,7 @@ except ImportError:
 
 SITE_SHORT = SITE_URL.replace("https://", "").replace("http://", "").rstrip("/")
 
-LOGIC_VERSION = "v98-mask1"
+LOGIC_VERSION = "v99-wa"
 print(f"🧩 core/logic/ жүктөлдү. Версия = {LOGIC_VERSION}")
 
 SESSIONS = TTLDict(ttl=2 * 3600)  # 2 саат тийилбесе өчөт
@@ -139,7 +139,7 @@ def referral_link(account_id, platform):
     if platform == "telegram":
         return f"https://t.me/{BOT_USERNAME}?start=ref{account_id}"
     # WhatsApp: чат ачылып, кабар талаасына REF коду даяр турат
-    return f"https://wa.me/{WA_BOT_NUMBER}?text=REF{account_id}"
+    return f"{SITE_URL}/wa?text=REF{account_id}"
 
 
 def _share_link(link, lang="ky"):
@@ -329,7 +329,7 @@ def contact_links(phone, post_id=None, from_city=None, to_city=None):
             ("✈️ Маршрут издөө",
              f"https://t.me/{BOT_USERNAME}?start=ht{post_id}"),
             ("🟢 Маршрут издөө",
-             f"https://wa.me/{WA_BOT_NUMBER}?text={quote(wa_text)}"),
+             f"{SITE_URL}/wa?text={quote(wa_text)}"),
         ])
     # Ботту ачуу — эки платформа үчүн өзүнчө. Колдонуучу кайсынысын
     # колдонсо, ошону басат: экөө тең ошол эле ботко, ошол эле базага
@@ -341,7 +341,7 @@ def contact_links(phone, post_id=None, from_city=None, to_city=None):
         ("✈️ Ботко өтүү",
          f"tg://resolve?domain={BOT_USERNAME}&start=home"),
         ("🟢 Ботко өтүү",
-         f"https://wa.me/{WA_BOT_NUMBER}?text={quote('/start')}"),
+         f"{SITE_URL}/wa?text={quote('/start')}"),
     ])
     return rows or None
 

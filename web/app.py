@@ -34,7 +34,7 @@ from core.db import db
 from core import posts
 from core.texts import render as tr_render
 
-WEB_VERSION = "v45-phone"
+WEB_VERSION = "v46-wa"
 print(f"🌐 web/app.py жүктөлдү. Версия = {WEB_VERSION}")
 
 BOT_USERNAME = os.environ.get("BOT_USERNAME", "taxirobot_bot")
@@ -377,26 +377,26 @@ def _base_ctx():
         "t": _t,
         "bot_url": f"https://t.me/{BOT_USERNAME}?start=home",
         "help_url": f"https://t.me/{BOT_USERNAME}?start=home",
-        "wa_bot_url": f"https://wa.me/{WA_BOT_NUMBER}?text=/start",
+        "wa_bot_url": f"/wa?text=/start",
         "channel_url": CHANNEL_LINK,
         # «Жарыя берүү» бетинен ботко ТҮЗ кирүү — ролу менен кошо.
         # Telegram start-параметрди өзү берет, WhatsApp'та кабар
         # талаасына даяр текст коюлат.
         "tg_post_driver": f"https://t.me/{BOT_USERNAME}?start=postd",
         "tg_post_passenger": f"https://t.me/{BOT_USERNAME}?start=postp",
-        "wa_post_driver": (f"https://wa.me/{WA_BOT_NUMBER}"
+        "wa_post_driver": (f"/wa"
                            f"?text={quote('Жарыя берем: айдоочу')}"),
-        "wa_post_passenger": (f"https://wa.me/{WA_BOT_NUMBER}"
+        "wa_post_passenger": (f"/wa"
                               f"?text={quote('Жарыя берем: жүргүнчү')}"),
         # «Кабинет» бетинен ботко төлөм бөлүмүнө түз кирүү
         "tg_myposts": f"https://t.me/{BOT_USERNAME}?start=myposts",
-        "wa_myposts": (f"https://wa.me/{WA_BOT_NUMBER}"
+        "wa_myposts": (f"/wa"
                        f"?text={quote('Менин жарыяларым')}"),
         "tg_balance": f"https://t.me/{BOT_USERNAME}?start=balance",
-        "wa_balance": (f"https://wa.me/{WA_BOT_NUMBER}"
+        "wa_balance": (f"/wa"
                        f"?text={quote('Менин балансым')}"),
         "tg_pay": f"https://t.me/{BOT_USERNAME}?start=pay",
-        "wa_pay": (f"https://wa.me/{WA_BOT_NUMBER}"
+        "wa_pay": (f"/wa"
                    f"?text={quote('Төлөм төлөймүн')}"),
     }
 
@@ -806,6 +806,20 @@ def reveal_phone(post_id):
                    tg=f"https://t.me/+{d}", wa=f"https://wa.me/{d}")
     resp.headers["Cache-Control"] = "no-store"
     return resp
+
+
+@app.route("/wa")
+def wa_redirect():
+    """WhatsApp ботуна багыттоо — номер шилтемелерде көрүнбөйт.
+
+    /wa?text=REF12 → https://wa.me/<WA_BOT_NUMBER>?text=REF12
+    Номер алмашса, WA_BOT_NUMBER'ди гана өзгөртөсүз — эски
+    шилтемелердин баары жаңы номерге барат.
+    """
+    from flask import redirect
+    qs = request.query_string.decode("utf-8", "ignore")
+    url = f"https://wa.me/{WA_BOT_NUMBER}" + (f"?{qs}" if qs else "")
+    return redirect(url, code=302)
 
 
 @app.route("/favorites")
