@@ -102,6 +102,25 @@ MONTHS_KY = ["январь", "февраль", "март", "апрель", "ма
              "июль", "август", "сентябрь", "октябрь", "ноябрь", "декабрь"]
 
 
+def _time_passed(hhmm, st):
+    """«Бүгүн» тандалып, убакыт өтүп кетсе — True.
+
+    30 мүнөт жеңилдик: 21:20да «21:00» дагы кабыл алынат (айдоочу
+    азыр эле чыгып жатышы мүмкүн). Убакытка окшобогон текст
+    («кечинде» ж.б.) текшерилбейт — мурункудай кабыл алынат.
+    """
+    if st.get("data", {}).get("_date_offset") != 0:
+        return False
+    m = re.match(r"^\s*(\d{1,2})(?:[:.](\d{2}))?\s*$", str(hhmm or ""))
+    if not m:
+        return False
+    h, mi = int(m.group(1)), int(m.group(2) or 0)
+    if h > 23 or mi > 59:
+        return False
+    now = _local_now()
+    return h * 60 + mi < now.hour * 60 + now.minute - 30
+
+
 def date_label(offset):
     """«Бүгүн · 17-август» / «Эртең · 18-август» — чаташпашы үчүн."""
     d = _local_now() + timedelta(days=offset)
@@ -120,7 +139,19 @@ def ask_step(messenger, msg, account, st, step):
         return _say(messenger, msg, account, "📅 Качан жолго чыгасыз?", kb)
 
     if step == "time":
-        hours = day_hours()
+        hours = [h for h in day_hours() if not _time_passed(h, st)]
+        if not hours and st["data"].get("_date_offset") == 0:
+            rows = []
+            if role == "driver":
+                rows.append([Button("🚗 Орун толгондо чыгам", "tm:full")])
+            rows.append([_back_btn()])
+            return _say(messenger, msg, account, L(
+                "⏰ Бүгүнкү сааттар бүттү.\n\n"
+                "Убакытты жазып жибериңиз (мис. 22:30), же «Артка» "
+                "басып «Эртең» тандаңыз.",
+                "⏰ На сегодня время уже прошло.\n\n"
+                "Напишите время (напр. 22:30) или нажмите «Назад» "
+                "и выберите «Завтра»."), Keyboard(rows=rows))
         rows = [[Button(h, f"tm:{h}") for h in hours[k:k + 4]]
                 for k in range(0, len(hours), 4)]
         # Айдоочу так убакыт коё албаганда: орун толгондо жолго чыгат.
@@ -563,7 +594,8 @@ def _wizard_button(messenger, msg, account, st):
         return ask_step(messenger, msg, account, st, steps_of(st["role"])[0])
 
     if a.startswith("dq:"):
-        d["date_text"] = date_label(int(a.split(":")[1]))
+        d["_date_offset"] = int(a.split(":")[1])
+        d["date_text"] = date_label(d["_date_offset"])
         return next_step(messenger, msg, account, st, "date")
 
     if a == "tm:full":
@@ -572,6 +604,14 @@ def _wizard_button(messenger, msg, account, st):
 
     if a.startswith("tm:"):
         t = a.split(":", 1)[1]
+        if _time_passed(t, st):
+            _say(messenger, msg, account, L("⚠️ Бул убакыт өтүп кетти.\n"
+                  "Кийинки убакытты тандаңыз же жазыңыз, болбосо "
+                  "«Артка» басып «Эртең» тандаңыз.",
+                  "⚠️ Это время уже прошло.\n"
+                  "Выберите или напишите более позднее время, либо "
+                  "нажмите «Назад» и выберите «Завтра»."))
+            return ask_step(messenger, msg, account, st, "time")
         d["time_text"] = f"Саат {t}дө жолго чыгам"
         return next_step(messenger, msg, account, st, "time")
 
@@ -652,6 +692,15 @@ def _wizard_text(messenger, msg, account, st):
 
     if step == "await_phone":
         return verify_phone(messenger, msg, account, st, text)
+
+    # «Бүгүн» тандалып, өтүп кеткен убакыт жазылса — кабыл албайбыз
+    if step == "time" and _time_passed(text, st):
+        return _say(messenger, msg, account, L("⚠️ Бул убакыт өтүп кетти.\n"
+                  "Кийинки убакытты тандаңыз же жазыңыз, болбосо "
+                  "«Артка» басып «Эртең» тандаңыз.",
+                  "⚠️ Это время уже прошло.\n"
+                  "Выберите или напишите более позднее время, либо "
+                  "нажмите «Назад» и выберите «Завтра»."), hint=True)
 
     # Жарыяга жазылуучу номер — КГ форматында гана болушу керек.
     # Болбосо жарыяга чет өлкө номери түшүп, аны эч ким чала албай калат.
