@@ -24,7 +24,7 @@ import time
 
 from core import posts, channel
 
-SCHEDULER_VERSION = "v1-cleanup"
+SCHEDULER_VERSION = "v2-backup"
 CHECK_INTERVAL_SECONDS = 5 * 60   # ар 5 мүнөт сайын текшерет
 
 print(f"⏰ core/scheduler.py жүктөлдү. Версия = {SCHEDULER_VERSION}")
@@ -66,6 +66,12 @@ def start_cleanup_scheduler():
     """Фондук thread'де тазалоочуну иштетет. Ботту бөгөттөбөйт."""
     t = threading.Thread(target=_loop, daemon=True)
     t.start()
+    # Күнүмдүк камдык көчүрмө — ката чыкса да тазалоочу иштей берет
+    try:
+        from core import backup
+        backup.start_backup_scheduler()
+    except Exception as e:
+        print("📦 Көчүрмө scheduler'и иштебей калды:", e)
     print(f"⏰ Тазалоочу scheduler иштетилди "
           f"(ар {CHECK_INTERVAL_SECONDS // 60} мүнөт сайын текшерет).")
     return t

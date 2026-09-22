@@ -52,7 +52,8 @@ def admin_kb():
     return Keyboard(rows=[
         [Button("📊 Статистика", "adm:stats"),
          Button("👥 Акыркы колдонуучулар", "adm:users")],
-        [Button("📢 Жалпы билдирүү", "adm:broadcast")],
+        [Button("📢 Жалпы билдирүү", "adm:broadcast"),
+         Button("📦 Базанын көчүрмөсү", "adm:backup")],
         [Button("🚫 Бөгөттөө", "adm:ban"),
          Button("✅ Бөгөттөн чыгаруу", "adm:unban")],
         [Button("🧪 Referral коюу (тест)", "adm:setref"),
@@ -290,6 +291,14 @@ def handle_button(messenger, msg, account, say):
             phone = u.get("verified_phone") or "номерсиз"
             lines.append(f"<code>{u['account_id']}</code> — {name} · {phone}{ban}")
         say(messenger, msg, account, "\n".join(lines))
+
+    elif action == "backup":
+        import threading
+        from core import backup
+        say(messenger, msg, account,
+            "📦 Көчүрмө даярдалып жатат — бир аздан кийин файл келет.")
+        threading.Thread(target=backup.send_backup, args=("кол менен",),
+                         daemon=True).start()
 
     elif action == "broadcast":
         ADMIN_STATE[msg.user_id] = "broadcast"

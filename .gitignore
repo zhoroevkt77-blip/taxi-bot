@@ -7,3 +7,7 @@ venv/
 .DS_Store
 *.bak
 tuzot.py
+# Базанын көчүрмөлөрү — номерлер бар, репого эч качан!
+taxi-backup_*.zip
+*.sql
+*.dump
