@@ -11,3 +11,6 @@ tuzot.py
 taxi-backup_*.zip
 *.sql
 *.dump
+d2.txt
+diag.txt
+patch_*.py
