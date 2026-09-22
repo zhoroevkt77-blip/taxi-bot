@@ -1,0 +1,268 @@
+=== FILES
+.gitignore
+Procfile
+adapters/__init__.py
+adapters/telegram_adapter.py
+adapters/whatsapp_adapter.py
+core/__init__.py
+core/admin.py
+core/channel.py
+core/db.py
+core/geo.py
+core/logic.py
+core/messenger.py
+core/notify.py
+core/posts.py
+core/push.py
+core/scheduler.py
+core/texts.py
+core/translations.py
+main.py
+requirements.txt
+web/admin.py
+web/app.py
+web/templates/_admin_post.html
+web/templates/admin.html
+web/templates/admin_login.html
+web/templates/balance.html
+web/templates/base.html
+web/templates/bots.html
+web/templates/favorites.html
+web/templates/help.html
+web/templates/index.html
+web/templates/me.html
+web/templates/myposts.html
+web/templates/pay.html
+web/templates/post.html
+web/templates/route.html
+=== CONFIG
+--- Procfile
+worker: python main.py
+--- requirements.txt
+pyTelegramBotAPI
+python-dotenv
+Flask
+requests
+psycopg2-binary
+# rebuild 0816
+pywebpush
+=== main.py
+# -*- coding: utf-8 -*-
+"""
+main.py
+=======
+ТАКСИ роБОТ — "бир мээ, үч ооз".
+
+Telegram, WhatsApp жана сайт үч өзүнчө потокто иштейт, бирок үчөө тең
+ошол эле базага жана core/logic.py'ге таянат.
+
+Бир бөлүк кулап калса, калгандары иштей берет — процесс өлбөйт.
+
+Мындан тышкары фондо тазалоочу (core/scheduler.py) иштейт:
+24 сааттан ашкан жарыяларды базадан да, каналдан да автоматтык өчүрөт.
+
+САЙТ ТУУРАЛУУ:
+    web/app.py — жарыяларды көрсөтүүчү бет. Ал база менен окуу
+    режиминде гана иштейт: эч нерсе жазбайт, өзгөртпөйт. Ошондуктан
+    ботко тобокелдик жок.
+
+    Railway'де сайт көрүнүшү үчүн «Settings → Networking → Generate
+    Domain» басылышы керек. PORT өзгөрмөсүн Railway өзү берет.
+"""
+
+import os
+import threading
+import time
+
+from adapters.telegram_adapter import run as run_telegram
+from adapters.whatsapp_adapter import run as run_whatsapp
+from core.scheduler import start_cleanup_scheduler
+
+
+def _guard(fn, name):
+    """Бөлүктү кулатпай кармап турат."""
+    def wrapper():
+        while True:
+            try:
+                fn()
+            except Exception as e:
+                print(f"[{name}] кулады: {e}")
+            print(f"[{name}] 15 секунддан кийин кайра башталат...")
+            time.sleep(15)
+    return wrapper
+
+
+def _run_web():
+    """Сайтты иштетет. Импорт функциянын ичинде — сайт кулап калса,
+    бот ага кошулуп жыгылбашы үчүн."""
+    from web.app import run as run_site
+    run_site()
+
+
+def main():
+    # Эскирген жарыяларды тазалоочу — фондук thread'де иштейт
+    start_cleanup_scheduler()
+
+    threading.Thread(target=_guard(run_telegram, "telegram"),
+                     daemon=True, name="telegram").start()
+    threading.Thread(target=_guard(run_whatsapp, "whatsapp"),
+                     daemon=True, name="whatsapp").start()
+    threading.Thread(target=_guard(_run_web, "web"),
+                     daemon=True, name="web").start()
+
+    # Негизги поток жашап турат — бир да бөлүк процессти өлтүрбөйт
+    while True:
+        time.sleep(60)
+
+
+if __name__ == "__main__":
+    main()
+=== def db
+./core/db.py:30:def db():
+./core/db.py-31-    conn = psycopg2.connect(DATABASE_URL, cursor_factory=psycopg2.extras.RealDictCursor)
+./core/db.py-32-    return conn
+./core/db.py-33-
+./core/db.py-34-
+./core/db.py-35-# Жаңы мамычалар: (таблица, мамыча, түрү)
+./core/db.py-36-_NEW_COLUMNS = [
+./core/db.py-37-    # Сайттагы «👁 Көрүү» эсептегичи
+./core/db.py-38-    ("posts", "views", "INTEGER DEFAULT 0"),
+./core/db.py-39-    # Айдоочунун унаасынын сүрөтү (каалоо боюнча)
+./core/db.py-40-    #   photo_id  — Telegram'дын file_id'си
+./core/db.py-41-    #   photo_url — WhatsApp берген түз шилтеме
+./core/db.py-42-    ("posts", "photo_id", "TEXT"),
+./core/db.py-43-    ("posts", "photo_url", "TEXT"),
+./core/db.py-44-]
+./core/db.py-45-
+./core/db.py-46-
+./core/db.py-47-def _migrate(cur):
+./core/db.py-48-    """Эски базага жаңы мамычаларды кошот. Бар болсо тийбейт."""
+./core/db.py-49-    for table, col, coltype in _NEW_COLUMNS:
+./core/db.py-50-        try:
+./core/db.py-51-            cur.execute(
+./core/db.py-52-                f"ALTER TABLE {table} ADD COLUMN IF NOT EXISTS {col} {coltype}")
+./core/db.py-53-        except Exception as e:
+./core/db.py-54-            print(f"[db] {table}.{col} кошуу катасы:", e)
+./core/db.py-55-
+=== DB imports
+./core/db.py:5:Маалымат-база Railway PostgreSQL'де сакталат — DATABASE_URL керек.
+./core/db.py:21:import psycopg2
+./core/db.py:22:import psycopg2.extras
+./core/db.py:24:DATABASE_URL = os.environ.get("DATABASE_URL")
+./core/db.py:31:    conn = psycopg2.connect(DATABASE_URL, cursor_factory=psycopg2.extras.RealDictCursor)
+=== with db count
+./core/db.py:15
+./core/notify.py:2
+./core/posts.py:14
+./core/push.py:7
+./web/app.py:1
+=== CREATE TABLE
+./core/db.py:15:    CREATE TABLE IF NOT EXISTS эски таблицага жаңы мамыча кошпойт.
+./core/db.py:61:        CREATE TABLE IF NOT EXISTS accounts (
+./core/db.py:81:        CREATE TABLE IF NOT EXISTS platform_identities (
+./core/db.py:90:        CREATE TABLE IF NOT EXISTS posts (
+./core/db.py:230:    cur.execute("""CREATE TABLE IF NOT EXISTS wa_private (
+./core/push.py:57:            CREATE TABLE IF NOT EXISTS push_subs (
+=== posts schema
+./core/db.py:90:        CREATE TABLE IF NOT EXISTS posts (
+./core/db.py-91-            id             SERIAL PRIMARY KEY,
+./core/db.py-92-            account_id     INTEGER REFERENCES accounts(account_id) ON DELETE CASCADE,
+./core/db.py-93-            role           TEXT CHECK (role IN ('driver','passenger')),
+./core/db.py-94-            name           TEXT, car TEXT, from_city TEXT, to_city TEXT,
+./core/db.py-95-            date_text      TEXT, time_text TEXT, seats TEXT, people_count TEXT,
+./core/db.py-96-            baggage        TEXT, price TEXT, comment TEXT, phone TEXT,
+./core/db.py-97-            is_vip         INTEGER DEFAULT 0,
+./core/db.py-98-            active         INTEGER DEFAULT 1,
+./core/db.py-99-            channel_msg_id INTEGER,
+./core/db.py-100-            views          INTEGER DEFAULT 0,
+./core/db.py-101-            photo_id       TEXT,
+./core/db.py-102-            photo_url      TEXT,
+./core/db.py-103-            created_at     TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+./core/db.py-104-        )
+./core/db.py-105-        """)
+./core/db.py-106-        _migrate(cur)
+./core/db.py-107-        conn.commit()
+./core/db.py-108-
+./core/db.py-109-    # Браузердин кабары үчүн таблица — өзүнчө модулда
+./core/db.py-110-
+=== wa_private
+./adapters/whatsapp_adapter.py:213:        db.wa_private_remove(chat)
+./adapters/whatsapp_adapter.py:216:        db.wa_private_add(chat)
+./core/db.py:229:def _wa_private_table(cur):
+./core/db.py:230:    cur.execute("""CREATE TABLE IF NOT EXISTS wa_private (
+./core/db.py:235:def wa_private_add(chat_id):
+./core/db.py:239:        _wa_private_table(cur)
+./core/db.py:240:        cur.execute("""INSERT INTO wa_private (chat_id) VALUES (%s)
+./core/db.py:245:def wa_private_remove(chat_id):
+./core/db.py:249:        _wa_private_table(cur)
+./core/db.py:250:        cur.execute("DELETE FROM wa_private WHERE chat_id = %s", (chat_id,))
+./core/db.py:254:def wa_is_private(chat_id):
+./core/db.py:258:        _wa_private_table(cur)
+./core/db.py:259:        cur.execute("SELECT 1 FROM wa_private WHERE chat_id = %s", (chat_id,))
+=== SESSIONS
+./adapters/whatsapp_adapter.py:57:LAST_MENU = {}
+./adapters/whatsapp_adapter.py:176:        LAST_MENU[user_id] = mapping
+./adapters/whatsapp_adapter.py:317:    mapping = LAST_MENU.get(uid, {})
+./core/logic.py:56:SESSIONS = {}
+./core/logic.py:792:    session = SESSIONS.get(msg.user_id)
+./core/logic.py:797:        st = SESSIONS.get(msg.user_id)
+./core/logic.py:831:        SESSIONS.pop(msg.user_id, None)
+./core/logic.py:884:        SESSIONS.pop(msg.user_id, None)
+./core/logic.py:897:        SESSIONS.pop(msg.user_id, None)
+./core/logic.py:910:        SESSIONS.pop(msg.user_id, None)
+./core/logic.py:923:        SESSIONS.pop(msg.user_id, None)
+./core/logic.py:929:        SESSIONS.pop(msg.user_id, None)
+./core/logic.py:936:        SESSIONS.pop(msg.user_id, None)
+./core/logic.py:944:        SESSIONS.pop(msg.user_id, None)
+./core/logic.py:955:            SESSIONS.pop(msg.user_id, None)
+./core/logic.py:985:        SESSIONS.pop(msg.user_id, None)
+./core/logic.py:1372:        SESSIONS[msg.user_id] = {"step": "await_phone", "role": role, "data": {}}
+./core/logic.py:1379:    SESSIONS[msg.user_id] = {"step": "mode", "role": role, "data": {}}
+./core/logic.py:1704:    SESSIONS.pop(msg.user_id, None)
+./core/logic.py:1973:    SESSIONS.pop(msg.user_id, None)
+=== dt imports
+./adapters/telegram_adapter.py:38:import time
+./adapters/whatsapp_adapter.py:32:import time
+./core/admin.py:21:import time
+./core/logic.py:25:from datetime import datetime, timedelta
+./core/posts.py:12:from datetime import datetime, timedelta
+./core/scheduler.py:23:import time
+./main.py:26:import time
+./web/app.py:28:from datetime import datetime, timedelta
+./web/admin.py:23:from datetime import datetime, timedelta
+=== now count
+./core/admin.py:1
+./core/logic.py:3
+./core/posts.py:2
+./web/app.py:1
+./web/admin.py:2
+=== now lines
+./core/admin.py:241:    base = datetime.now()
+./core/logic.py:360:    return datetime.now()
+./core/logic.py:1424:    month = datetime.now().month
+./core/logic.py:1438:    d = datetime.now() + timedelta(days=offset)
+./core/posts.py:77:    limit = datetime.now() - timedelta(hours=hours)
+./core/posts.py:145:    limit = datetime.now() - timedelta(hours=POST_LIFETIME_HOURS)
+./web/app.py:314:        secs = (datetime.now() - ts).total_seconds()
+./web/admin.py:93:    day_ago = datetime.now() - timedelta(hours=24)
+./web/admin.py:215:        s = (datetime.now() - ts).total_seconds()
+=== SQL time
+./core/db.py:77:            created_at     TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+./core/db.py:86:            created_at   TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+./core/db.py:103:            created_at     TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+./core/db.py:232:                     added_at TIMESTAMP DEFAULT NOW())""")
+./core/push.py:66:                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+=== versions
+./adapters/telegram_adapter.py:50:TG_ADAPTER_VERSION = "v10-balance"
+./adapters/whatsapp_adapter.py:39:WA_ADAPTER_VERSION = "v2-photo"
+./core/admin.py:27:ADMIN_VERSION = "v2-web"
+./core/channel.py:30:CHANNEL_VERSION = "v3-photo"
+./core/db.py:26:DB_VERSION = "v4-clean"
+./core/logic.py:53:LOGIC_VERSION = "v93-phone-verify"
+./core/notify.py:22:NOTIFY_VERSION = "v1"
+./core/posts.py:15:POSTS_VERSION = "v2-views-photo"
+./core/scheduler.py:27:SCHEDULER_VERSION = "v1-cleanup"
+./core/texts.py:28:TEXTS_VERSION = "v33-phone-faq"
+./core/push.py:35:PUSH_VERSION = "v3-multi"
+./web/app.py:37:WEB_VERSION = "v43-photo-proxy"
+./web/admin.py:30:ADMIN_WEB_VERSION = "v1"

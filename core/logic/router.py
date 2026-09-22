@@ -43,6 +43,9 @@ def handle_update(messenger, msg):
             "📷 Фото получено, но сейчас оно не требуется."), hint=True)
 
     text = (msg.text or "").strip()
+    # Айдоочу forward кылган 📍 локация (адаптерлер ушул префикс менен берет)
+    if text.startswith(PICKUP_LOC_PREFIX):
+        return pickup_location(messenger, msg, account, text)
     if text == "/admin" and admin.handle_command(messenger, msg, account, _say):
         return
     if text.startswith("/start") or text in ("старт", "start"):
@@ -166,6 +169,10 @@ def handle_update(messenger, msg):
                                   only_role="driver")
         except ValueError:
             pass
+
+    # «🗺 Жүргүнчүлөрдү чогултуу» баскычтары — визарддан көз карандысыз
+    if msg.is_button and (msg.button_action or "").startswith("pku:"):
+        return pickup_button(messenger, msg, account)
 
     if session:
         # "🏠 Башкы меню" визарддын ичинен да иштеши керек

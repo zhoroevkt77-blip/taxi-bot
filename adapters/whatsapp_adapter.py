@@ -36,7 +36,7 @@ import requests
 from core.messenger import Messenger, IncomingMessage, make_uid
 from core import logic, db
 
-WA_ADAPTER_VERSION = "v3-ttl"
+WA_ADAPTER_VERSION = "v4-loc"
 print(f"🟡 whatsapp_adapter модулу жүктөлдү. Версия = {WA_ADAPTER_VERSION}, "
       f"PID={os.getpid()}, module={id(sys.modules[__name__])}")
 
@@ -261,6 +261,16 @@ def _handle(body):
         fd = md.get("fileMessageData", {})
         photo_ref = fd.get("downloadUrl")
         text = fd.get("caption", "") or ""
+    elif tmsg in ("locationMessage", "liveLocationMessage"):
+        # 📍 «Жүргүнчүлөрдү чогултуу» үчүн — core'го текст катары
+        ld = md.get("locationMessageData") or md.get("liveLocationMessageData") or {}
+        lat, lon = ld.get("latitude"), ld.get("longitude")
+        if lat is None or lon is None:
+            return
+        label = (ld.get("nameLocation") or ld.get("address") or "")
+        label = label.replace("|", " ").replace("\n", " ")
+        prefix = getattr(logic, "PICKUP_LOC_PREFIX", "📍LOC:")
+        text = f"{prefix}{lat},{lon}|{label}"
     else:
         return   # аудио, видео ж.б. — азырынча эске алынбайт
 

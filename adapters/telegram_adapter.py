@@ -47,7 +47,7 @@ BOT_TOKEN = os.environ.get("BOT_TOKEN")
 CHANNEL_ID = os.environ.get("CHANNEL_ID")  # мис. @kanal_aty же -1001234567890
 bot = telebot.TeleBot(BOT_TOKEN, parse_mode="HTML")
 
-TG_ADAPTER_VERSION = "v11-more"
+TG_ADAPTER_VERSION = "v12-loc"
 print(f"📨 telegram_adapter жүктөлдү. Версия = {TG_ADAPTER_VERSION}, "
       f"PID={os.getpid()}")
 
@@ -216,6 +216,38 @@ def _photo(m):
     msg = IncomingMessage(user_id=make_uid("telegram", m.from_user.id),
                           platform="telegram", photo_id=file_id,
                           text=(m.caption or ""))
+    logic.handle_update(messenger, msg)
+
+
+def _pickup_fwd_name(m):
+    """Forward кылынган кабардын ээсинин аты (pyTeleBot'тун ар кандай версиясы үчүн)."""
+    o = getattr(m, "forward_origin", None)
+    if o is not None:
+        u = getattr(o, "sender_user", None)
+        if u is not None:
+            return u.first_name or ""
+        n = getattr(o, "sender_user_name", None)
+        if n:
+            return n
+    u = getattr(m, "forward_from", None)
+    if u is not None:
+        return u.first_name or ""
+    return getattr(m, "forward_sender_name", None) or ""
+
+
+@bot.message_handler(content_types=["location", "venue"])
+def _location(m):
+    """📍 Локация — «Жүргүнчүлөрдү чогултуу» үчүн core'го текст катары беребиз."""
+    loc = m.location
+    parts = [_pickup_fwd_name(m)]
+    venue = getattr(m, "venue", None)
+    if venue is not None and getattr(venue, "title", None):
+        parts.append(venue.title)
+    label = " — ".join(x for x in parts if x).replace("|", " ").replace("\n", " ")
+    prefix = getattr(logic, "PICKUP_LOC_PREFIX", "📍LOC:")
+    msg = IncomingMessage(user_id=make_uid("telegram", m.from_user.id),
+                          platform="telegram",
+                          text=f"{prefix}{loc.latitude},{loc.longitude}|{label}")
     logic.handle_update(messenger, msg)
 
 
