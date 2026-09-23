@@ -56,9 +56,10 @@
     <div style="font-weight:600;margin-bottom:8px">
       {{ t('Жүргүнчүлөргө жөнөтүлүүчү шилтеме', 'Ссылка для пассажиров') }}</div>
     <div class="share" id="plink">{{ share_url }}</div>
-    <button class="btn alt" style="margin-top:10px" id="copy">📋 {{ t('Көчүрүү', 'Копировать') }}</button>
-    <p class="hint">{{ t('Ар бир жүргүнчүгө ушул шилтемени жөнөтүңүз. Алар бир баскыч басканда картага кошулат.',
-                         'Отправьте эту ссылку каждому пассажиру. Одно нажатие — и они на карте.') }}</p>
+    <button class="btn" style="margin-top:10px" id="share">📤 {{ t('Жүргүнчүгө жөнөтүү', 'Отправить пассажиру') }}</button>
+    <button class="btn alt" id="copy">📋 {{ t('Шилтемени көчүрүү', 'Копировать ссылку') }}</button>
+    <p class="hint">{{ t('«Жөнөтүү» басканда даяр кабар WhatsApp же Telegram'"'"'га көчүрүлөт. Ар бир жүргүнчүгө жөнөтсөңүз, алар бир баскыч басып картага кошулат.',
+                         'По кнопке «Отправить» готовое сообщение уходит в WhatsApp или Telegram. Отправьте каждому пассажиру — они отметятся одним нажатием.') }}</p>
   </div>
 </div>
 
@@ -114,11 +115,23 @@ function load(){
 load();
 setInterval(load, 20000);
 
+var LINK = document.getElementById('plink').textContent.trim();
+var MSG = "{{ t('Саламатсызбы! Мен айдоочумун. Ушул шилтемени басып, «Мен ушул жердемин» дегенди тандаңыз — сизди ошол жерден алып кетем:', 'Здравствуйте! Я водитель. Откройте эту ссылку и нажмите «Я нахожусь здесь» — я заберу вас оттуда:') }} " + LINK;
+
 document.getElementById('copy').onclick = function(){
-  var txt = document.getElementById('plink').textContent.trim();
-  navigator.clipboard.writeText(txt).then(function(){
+  navigator.clipboard.writeText(LINK).then(function(){
     document.getElementById('copy').textContent = '✅ {{ t("Көчүрүлдү", "Скопировано") }}';
   });
+};
+
+document.getElementById('share').onclick = function(){
+  if (navigator.share) {
+    navigator.share({text: MSG}).catch(function(){});
+  } else {
+    navigator.clipboard.writeText(MSG).then(function(){
+      document.getElementById('share').textContent = '✅ {{ t("Кабар көчүрүлдү — жүргүнчүгө коюңуз", "Сообщение скопировано — вставьте пассажиру") }}';
+    });
+  }
 };
 </script>
 </body>
