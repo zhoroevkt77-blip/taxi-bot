@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="{{ lang }}">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>{{ t('Жүргүнчүлөрдү чогултуу', 'Сбор пассажиров') }} · ТАКСИ роБОТ</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<style>
+ *{box-sizing:border-box}
+ body{margin:0;background:#fff;color:#111;font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+      padding:16px env(safe-area-inset-right) calc(16px + env(safe-area-inset-bottom)) env(safe-area-inset-left)}
+ .wrap{max-width:560px;margin:0 auto}
+ h1{font-size:20px;font-weight:600;margin:0 0 4px}
+ .sub{color:#666;font-size:14px;margin:0 0 14px}
+ .card{border:1px solid #eee;border-radius:14px;padding:14px;margin-bottom:12px}
+ .route{font-size:17px;font-weight:600}
+ .meta{color:#666;font-size:14px;margin-top:4px}
+ #map{height:300px;border-radius:14px;margin-bottom:12px}
+ ol{padding-left:22px;margin:0}
+ li{padding:8px 0;border-bottom:1px solid #f2f2f2;font-size:16px}
+ li:last-child{border-bottom:0}
+ li .del{float:right;color:#C62828;background:none;border:0;font-size:14px;cursor:pointer;padding:0 4px}
+ a.btn,button.btn{display:block;width:100%;text-align:center;text-decoration:none;border:0;border-radius:14px;
+        padding:15px;font-size:16px;font-weight:600;background:#FFC107;color:#111;margin-bottom:10px;cursor:pointer}
+ a.btn.alt{background:#f5f5f5;font-weight:500}
+ .share{border:1px dashed #ddd;border-radius:14px;padding:12px;font-size:14px;color:#444;word-break:break-all}
+ .hint{color:#666;font-size:13px;line-height:1.5}
+ .empty{color:#666;font-size:15px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>🗺 {{ t('Жүргүнчүлөрдү чогултуу', 'Сбор пассажиров') }}</h1>
+  <p class="sub">{{ t('Жүргүнчүлөр шилтемени ачканда, бул картада көрүнөт.',
+                      'Когда пассажиры откроют ссылку, они появятся на этой карте.') }}</p>
+
+  <div class="card">
+    <div class="route">{{ p.from_city }} ➡️ {{ p.to_city }}</div>
+    <div class="meta">📅 {{ p.date_text or '' }} · ⏰ {{ p.time_text or '' }}</div>
+  </div>
+
+  <div id="map"></div>
+
+  <div class="card">
+    <div style="font-weight:600;margin-bottom:6px">{{ t('Чогултуу тартиби', 'Порядок сбора') }}</div>
+    <ol id="list"></ol>
+    <div id="empty" class="empty" style="display:none">
+      {{ t('Азырынча эч ким жок. Шилтемени жүргүнчүлөргө жөнөтүңүз.',
+            'Пока никого нет. Отправьте ссылку пассажирам.') }}
+    </div>
+  </div>
+
+  <div id="navs"></div>
+
+  <div class="card">
+    <div style="font-weight:600;margin-bottom:8px">
+      {{ t('Жүргүнчүлөргө жөнөтүлүүчү шилтеме', 'Ссылка для пассажиров') }}</div>
+    <div class="share" id="plink">{{ share_url }}</div>
+    <button class="btn alt" style="margin-top:10px" id="copy">📋 {{ t('Көчүрүү', 'Копировать') }}</button>
+    <p class="hint">{{ t('Ар бир жүргүнчүгө ушул шилтемени жөнөтүңүз. Алар бир баскыч басканда картага кошулат.',
+                         'Отправьте эту ссылку каждому пассажиру. Одно нажатие — и они на карте.') }}</p>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script>
+var MT = {{ mtoken|tojson }};
+var map = L.map('map').setView([{{ center[0] }}, {{ center[1] }}], 12);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+            {maxZoom: 19, attribution: '© OpenStreetMap'}).addTo(map);
+var layer = L.layerGroup().addTo(map);
+
+function icon(n){
+  return L.divIcon({className: '', html:
+    '<div style="background:#FFC107;border:2px solid #111;border-radius:50%;width:28px;height:28px;'
+    + 'line-height:24px;text-align:center;font-weight:700;font-size:14px;color:#111">' + n + '</div>',
+    iconSize: [28, 28], iconAnchor: [14, 14]});
+}
+
+function draw(d){
+  layer.clearLayers();
+  var list = document.getElementById('list'), pts = d.points || [];
+  list.innerHTML = '';
+  document.getElementById('empty').style.display = pts.length ? 'none' : 'block';
+  var bounds = [];
+  pts.forEach(function(p, i){
+    L.marker([p.lat, p.lon], {icon: icon(i + 1)}).addTo(layer).bindPopup(p.name);
+    bounds.push([p.lat, p.lon]);
+    var li = document.createElement('li');
+    li.textContent = p.name;
+    var b = document.createElement('button');
+    b.className = 'del'; b.textContent = '✕';
+    b.onclick = function(){
+      fetch('/pickup/m/' + MT + '/del/' + p.id, {method: 'POST'}).then(load);
+    };
+    li.appendChild(b);
+    list.appendChild(li);
+  });
+  if (bounds.length) map.fitBounds(bounds, {padding: [40, 40], maxZoom: 15});
+
+  var navs = document.getElementById('navs');
+  navs.innerHTML = '';
+  if (d.nav && d.nav.yandex) {
+    navs.innerHTML =
+      '<a class="btn" href="' + d.nav.yandex + '" target="_blank" rel="noopener">🧭 Yandex ' +
+      "{{ t('навигатор', 'навигатор') }}" + '</a>' +
+      '<a class="btn alt" href="' + d.nav.google + '" target="_blank" rel="noopener">🧭 Google Maps</a>';
+  }
+}
+
+function load(){
+  fetch('/pickup/m/' + MT + '/data').then(function(r){ return r.json(); }).then(draw);
+}
+load();
+setInterval(load, 20000);
+
+document.getElementById('copy').onclick = function(){
+  var txt = document.getElementById('plink').textContent.trim();
+  navigator.clipboard.writeText(txt).then(function(){
+    document.getElementById('copy').textContent = '✅ {{ t("Көчүрүлдү", "Скопировано") }}';
+  });
+};
+</script>
+</body>
+</html>

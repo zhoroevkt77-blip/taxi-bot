@@ -32,9 +32,10 @@ from flask import (Flask, render_template, request, make_response,
 
 from core.db import db
 from core import posts
+from core import pickup
 from core.texts import render as tr_render
 
-WEB_VERSION = "v47-left"
+WEB_VERSION = "v48-pickup"
 print(f"🌐 web/app.py жүктөлдү. Версия = {WEB_VERSION}")
 
 BOT_USERNAME = os.environ.get("BOT_USERNAME", "taxirobot_bot")
@@ -1011,6 +1012,104 @@ def service_worker():
     # Жаңы версия дароо жетсин
     resp.headers["Cache-Control"] = "no-cache"
     return resp
+
+
+# ============ 🗺 ЖҮРГҮНЧҮЛӨРДҮ ЧОГУЛТУУ ============
+# Айдоочу ботто баскыч басат → эки шилтеме алат:
+#   /pickup/<token>     — жүргүнчүлөргө (бир баскыч: «мен ушул жердемин»)
+#   /pickup/m/<mtoken>  — айдоочунун картасы, ирети жана навигатору
+PICKUP_LIMIT = 15
+_PICKUP_HITS = {}
+
+
+def _pickup_allowed(ip):
+    """Бир IP'ден саатына 15 чекит — бөтөн адам толтуруп салбасын."""
+    now = _time.time()
+    with _PHONE_LOCK:
+        hits = [t for t in _PICKUP_HITS.get(ip, ()) if now - t < 3600]
+        if len(hits) >= PICKUP_LIMIT:
+            _PICKUP_HITS[ip] = hits
+            return False
+        hits.append(now)
+        _PICKUP_HITS[ip] = hits
+    return True
+
+
+def _pickup_post(row):
+    p = posts.get_post(row["post_id"]) if row else None
+    return p or {}
+
+
+@app.route("/pickup/<token>")
+def pickup_page(token):
+    """Жүргүнчүнүн бети."""
+    row = pickup.by_token(token)
+    if not row:
+        return make_response(_t("❌ Шилтеме эскирген же жараксыз.",
+                                "❌ Ссылка устарела или неверна."), 404)
+    html = render_template("pickup.html", token=token,
+                           p=_pickup_post(row), **_base_ctx())
+    return _with_lang(make_response(html))
+
+
+@app.route("/pickup/<token>/point", methods=["POST"])
+def pickup_add_point(token):
+    from flask import jsonify
+    if not _pickup_allowed(_client_ip()):
+        return jsonify(error="limit"), 429
+    if not pickup.by_token(token):
+        return jsonify(error="none"), 404
+    d = request.get_json(silent=True) or {}
+    try:
+        lat, lon = float(d.get("lat")), float(d.get("lon"))
+    except (TypeError, ValueError):
+        return jsonify(error="bad"), 400
+    if not (-90 <= lat <= 90 and -180 <= lon <= 180):
+        return jsonify(error="bad"), 400
+    name = (d.get("name") or "").strip()[:40] or _t("Жүргүнчү", "Пассажир")
+    if not pickup.add_point(token, name, lat, lon):
+        return jsonify(error="full"), 409
+    return jsonify(ok=True)
+
+
+@app.route("/pickup/m/<mtoken>")
+def pickup_map_page(mtoken):
+    """Айдоочунун бети — карта, ирет, навигатор."""
+    row = pickup.by_token(mtoken, manager=True)
+    if not row:
+        return make_response(_t("❌ Шилтеме эскирген же жараксыз.",
+                                "❌ Ссылка устарела или неверна."), 404)
+    p = _pickup_post(row)
+    center = pickup.city_coord(p.get("from_city")) or (42.8746, 74.5698)
+    share = request.url_root.rstrip("/") + "/pickup/" + row["token"]
+    html = render_template("pickup_map.html", mtoken=mtoken, p=p,
+                           center=center, share_url=share, **_base_ctx())
+    return _with_lang(make_response(html))
+
+
+@app.route("/pickup/m/<mtoken>/data")
+def pickup_map_data(mtoken):
+    from flask import jsonify
+    row = pickup.by_token(mtoken, manager=True)
+    if not row:
+        return jsonify(error="none"), 404
+    p = _pickup_post(row)
+    pts = pickup.order_points(pickup.points(row["token"]),
+                              pickup.city_coord(p.get("to_city")))
+    resp = jsonify(points=pts,
+                   nav=pickup.nav_links(pts, pickup.city_coord(p.get("to_city"))))
+    resp.headers["Cache-Control"] = "no-store"
+    return resp
+
+
+@app.route("/pickup/m/<mtoken>/del/<int:point_id>", methods=["POST"])
+def pickup_map_del(mtoken, point_id):
+    from flask import jsonify
+    row = pickup.by_token(mtoken, manager=True)
+    if not row:
+        return jsonify(error="none"), 404
+    pickup.del_point(row["token"], point_id)
+    return jsonify(ok=True)
 
 
 @app.route("/healthz")

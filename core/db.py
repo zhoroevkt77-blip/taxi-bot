@@ -24,7 +24,7 @@ import psycopg2.extensions
 
 DATABASE_URL = os.environ.get("DATABASE_URL")
 
-DB_VERSION = "v5-close"
+DB_VERSION = "v6-pickup"
 print(f"🗄 core/db.py жүктөлдү. Версия = {DB_VERSION}")
 
 
@@ -145,9 +145,36 @@ def init_db():
         _migrate(cur)
         _indexes(cur)
         _wa_private_table(cur)
+        _pickup_tables(cur)
         conn.commit()
 
     # Браузердин кабары үчүн таблица — өзүнчө модулда
+
+
+def _pickup_tables(cur):
+    """«🗺 Жүргүнчүлөрдү чогултуу» — сайттагы шилтеме жана чекиттер.
+
+    token   — жүргүнчүлөргө берилчү шилтеме
+    mtoken  — айдоочунун өз картасы
+    Эски жазуулар core/pickup.py'деги cleanup() менен өчүрүлөт.
+    """
+    cur.execute("""CREATE TABLE IF NOT EXISTS pickups (
+        token      TEXT PRIMARY KEY,
+        mtoken     TEXT UNIQUE,
+        post_id    INTEGER REFERENCES posts(id) ON DELETE CASCADE,
+        account_id INTEGER,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )""")
+    cur.execute("""CREATE TABLE IF NOT EXISTS pickup_points (
+        id         SERIAL PRIMARY KEY,
+        token      TEXT REFERENCES pickups(token) ON DELETE CASCADE,
+        name       TEXT,
+        lat        DOUBLE PRECISION,
+        lon        DOUBLE PRECISION,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )""")
+    cur.execute("CREATE INDEX IF NOT EXISTS idx_pickup_points_token "
+                "ON pickup_points (token)")
 
 
 def get_or_create_account(platform_id, platform, username=None, first_name=None):

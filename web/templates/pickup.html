@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="{{ lang }}">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>{{ t('Жайгашкан жерим', 'Моё местоположение') }} · ТАКСИ роБОТ</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<style>
+ *{box-sizing:border-box}
+ body{margin:0;background:#fff;color:#111;font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+      padding:16px env(safe-area-inset-right) calc(16px + env(safe-area-inset-bottom)) env(safe-area-inset-left)}
+ .wrap{max-width:520px;margin:0 auto}
+ h1{font-size:20px;font-weight:600;margin:0 0 4px}
+ .sub{color:#666;font-size:14px;margin:0 0 16px}
+ .card{border:1px solid #eee;border-radius:14px;padding:14px;margin-bottom:12px}
+ .route{font-size:17px;font-weight:600}
+ .meta{color:#666;font-size:14px;margin-top:4px}
+ button{width:100%;border:0;border-radius:14px;padding:16px;font-size:17px;font-weight:600;
+        background:#FFC107;color:#111;cursor:pointer}
+ button.ghost{background:#f5f5f5;color:#111;font-weight:500;font-size:15px;padding:12px}
+ button[disabled]{opacity:.5}
+ input{width:100%;border:1px solid #ddd;border-radius:12px;padding:12px;font-size:16px;margin-bottom:10px}
+ #map{height:260px;border-radius:14px;margin:12px 0;display:none}
+ .hint{color:#666;font-size:13px;margin-top:10px;line-height:1.5}
+ .ok{background:#E8F5E9;border:1px solid #C8E6C9;border-radius:14px;padding:16px;text-align:center;font-size:16px}
+ .err{color:#C62828;font-size:14px;margin-top:10px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>📍 {{ t('Жайгашкан жериңиз', 'Ваше местоположение') }}</h1>
+  <p class="sub">{{ t('Айдоочу сизди ушул жерден алып кетет.',
+                      'Водитель заберёт вас отсюда.') }}</p>
+
+  <div class="card">
+    <div class="route">{{ p.from_city }} ➡️ {{ p.to_city }}</div>
+    <div class="meta">🚘 {{ p.car or '' }} · 📅 {{ p.date_text or '' }} · ⏰ {{ p.time_text or '' }}</div>
+  </div>
+
+  <div id="form">
+    <input id="name" maxlength="40" placeholder="{{ t('Атыңыз (милдеттүү эмес)', 'Ваше имя (необязательно)') }}">
+    <button id="go">📍 {{ t('Мен ушул жердемин', 'Я нахожусь здесь') }}</button>
+    <div id="map"></div>
+    <div id="confirm" style="display:none">
+      <button id="save">✅ {{ t('Ырастоо', 'Подтвердить') }}</button>
+      <p class="hint">{{ t('Белги туура эмес турса — картадан кармап жылдырыңыз.',
+                           'Если метка стоит неточно — перетащите её на карте.') }}</p>
+    </div>
+    <p class="hint">{{ t('Браузер жайгашкан жериңизди сурайт — «Уруксат берүү» басыңыз. Так болушу үчүн көчөгө чыгып жөнөтүңүз.',
+                         'Браузер запросит доступ к геопозиции — нажмите «Разрешить». Для точности отправляйте на улице.') }}</p>
+    <div id="err" class="err"></div>
+  </div>
+
+  <div id="done" style="display:none">
+    <div class="ok">✅ {{ t('Жөнөтүлдү! Айдоочу сизди картадан көрөт.',
+                           'Отправлено! Водитель увидит вас на карте.') }}</div>
+    <p class="hint">{{ t('Жериңиз өзгөрсө, ушул бетти кайра ачып жаңы жерди жөнөтө аласыз.',
+                         'Если вы перешли в другое место, откройте эту страницу снова и отправьте заново.') }}</p>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script>
+var map, marker;
+var TOKEN = {{ token|tojson }};
+function show(msg){ document.getElementById('err').textContent = msg; }
+
+document.getElementById('go').onclick = function(){
+  if (!navigator.geolocation) { show("{{ t('Браузер геолокацияны колдобойт.', 'Браузер не поддерживает геолокацию.') }}"); return; }
+  this.disabled = true;
+  this.textContent = "⏳ {{ t('Изделүүдө…', 'Определяем…') }}";
+  var btn = this;
+  navigator.geolocation.getCurrentPosition(function(pos){
+    btn.style.display = 'none';
+    var el = document.getElementById('map');
+    el.style.display = 'block';
+    document.getElementById('confirm').style.display = 'block';
+    map = L.map('map').setView([pos.coords.latitude, pos.coords.longitude], 16);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+                {maxZoom: 19, attribution: '© OpenStreetMap'}).addTo(map);
+    marker = L.marker([pos.coords.latitude, pos.coords.longitude], {draggable: true}).addTo(map);
+    setTimeout(function(){ map.invalidateSize(); }, 200);
+  }, function(e){
+    btn.disabled = false;
+    btn.textContent = "📍 {{ t('Мен ушул жердемин', 'Я нахожусь здесь') }}";
+    show("{{ t('Жайгашкан жер алынган жок. Уруксат бериңиз, GPS күйгүзүлсүн.', 'Не удалось получить геопозицию. Разрешите доступ или включите GPS.') }}");
+  }, {enableHighAccuracy: true, timeout: 15000, maximumAge: 0});
+};
+
+document.getElementById('save').onclick = function(){
+  var c = marker.getLatLng();
+  this.disabled = true;
+  fetch('/pickup/' + TOKEN + '/point', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({name: document.getElementById('name').value,
+                          lat: c.lat, lon: c.lng})
+  }).then(function(r){ return r.json(); }).then(function(d){
+    if (d.ok) {
+      document.getElementById('form').style.display = 'none';
+      document.getElementById('done').style.display = 'block';
+    } else {
+      document.getElementById('save').disabled = false;
+      show(d.error || 'Ката');
+    }
+  }).catch(function(){
+    document.getElementById('save').disabled = false;
+    show("{{ t('Интернет жок окшойт.', 'Похоже, нет интернета.') }}");
+  });
+};
+</script>
+</body>
+</html>
