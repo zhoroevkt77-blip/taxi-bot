@@ -942,7 +942,8 @@ def help_page():
         from core.texts import (GUIDE, FAQ_HOWTO, FAQ_POST, FAQ_FREE,
                                 FAQ_SEARCH, FAQ_PAY, FAQ_CONTACT,
                                 FAQ_SAFETY, FAQ_TROUBLE, FAQ_RULES,
-                                FAQ_PRIVACY, DRIVER_SAFETY)
+                                FAQ_PRIVACY, DRIVER_SAFETY,
+                                FAQ_PICKUP, FAQ_PICKUP_RU)
         blocks = [
             (_t("📖 Нускама", "📖 Инструкция"), tr_render(GUIDE, lang)),
             (_t("➕ Жарыя кантип берем?", "➕ Как дать объявление?"),
@@ -952,6 +953,9 @@ def help_page():
             (_t("🔍 Издөө", "🔍 Поиск"), tr_render(FAQ_SEARCH, lang)),
             (_t("💳 Төлөм жана баалар", "💳 Оплата и цены"),
              tr_render(FAQ_PAY, lang)),
+            # Чогултуу — кыргызча/орусча тексттер өзүнчө өзгөрмөдө
+            (_t("🗺 Жүргүнчүлөрдү чогултуу", "🗺 Сбор пассажиров"),
+             FAQ_PICKUP_RU if lang == "ru" else FAQ_PICKUP),
             (_t("📞 Байланыш", "📞 Связь"), tr_render(FAQ_CONTACT, lang)),
             (_t("🛡 Коопсуздук", "🛡 Безопасность"), tr_render(FAQ_SAFETY, lang)),
             (_t("🚦 Айдоочунун коопсуздугу", "🚦 Безопасность водителя"),
