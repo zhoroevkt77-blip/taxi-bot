@@ -69,6 +69,7 @@ var MT = {{ mtoken|tojson }};
 var map = L.map('map').setView([{{ center[0] }}, {{ center[1] }}], 12);
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
             {maxZoom: 19, attribution: '© OpenStreetMap'}).addTo(map);
+map.attributionControl.setPrefix('');
 var layer = L.layerGroup().addTo(map);
 
 function icon(n){

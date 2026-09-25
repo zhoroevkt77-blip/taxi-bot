@@ -78,6 +78,7 @@ document.getElementById('go').onclick = function(){
     map = L.map('map').setView([pos.coords.latitude, pos.coords.longitude], 16);
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
                 {maxZoom: 19, attribution: '© OpenStreetMap'}).addTo(map);
+map.attributionControl.setPrefix('');
     marker = L.marker([pos.coords.latitude, pos.coords.longitude], {draggable: true}).addTo(map);
     setTimeout(function(){ map.invalidateSize(); }, 200);
   }, function(e){
