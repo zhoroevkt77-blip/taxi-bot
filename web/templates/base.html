@@ -811,6 +811,17 @@
   </a>
 
 
+  <a class="tab {{ 'on' if request.path == '/alerts' else '' }}" href="/alerts?lang={{ lang }}">
+    <span class="i">
+      {# Коңгуроо — Кабарлар #}
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+           stroke-linecap="round" stroke-linejoin="round">
+        <path d="M18 8.5a6 6 0 1 0-12 0c0 6-2.2 7.5-2.2 7.5h16.4S18 14.5 18 8.5z"/>
+        <path d="M13.7 19.5a2 2 0 0 1-3.4 0"/>
+      </svg>
+    </span>{{ t('Кабарлар', 'Уведомления') }}
+  </a>
+
   <a class="tab add {{ 'on' if request.path == '/post' else '' }}" href="/post?lang={{ lang }}">
     <span class="i">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6"

@@ -930,6 +930,21 @@ def bots_page():
     return _with_lang(make_response(html))
 
 
+@app.route("/alerts")
+def alerts_page():
+    """🔔 Кабарлар — багытка жазылуу бети.
+
+    Жазылуунун өзү браузерде (push) иштейт, бул жерде тизме гана
+    көрсөтүлөт: /push/key, /push/subscribe, /push/unsubscribe,
+    /push/routes жолдору мурдагыдай колдонулат.
+    """
+    html = render_template("alerts.html",
+                           all_cities=ALL_CITIES,
+                           oblast_list=OBLAST_LIST,
+                           **_base_ctx())
+    return _with_lang(make_response(html))
+
+
 @app.route("/help")
 def help_page():
     """«❓ Жардам» — боттогу нускаманын ошол эле тексти.
