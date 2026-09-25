@@ -1059,6 +1059,14 @@ def _pickup_post(row):
     return p or {}
 
 
+def _https(url):
+    """Браузер жайгашкан жерди https'те гана берет, ошондуктан
+    шилтемени ар дайым https менен түзөбүз (локалдан башкасында)."""
+    if url.startswith("http://") and "localhost" not in url and "127.0.0.1" not in url:
+        return "https://" + url[len("http://"):]
+    return url
+
+
 @app.route("/pickup/<token>")
 def pickup_page(token):
     """Жүргүнчүнүн бети."""
@@ -1100,7 +1108,7 @@ def pickup_map_page(mtoken):
                                 "❌ Ссылка устарела или неверна."), 404)
     p = _pickup_post(row)
     center = pickup.city_coord(p.get("from_city")) or (42.8746, 74.5698)
-    share = request.url_root.rstrip("/") + "/pickup/" + row["token"]
+    share = _https(request.url_root.rstrip("/")) + "/pickup/" + row["token"]
     html = render_template("pickup_map.html", mtoken=mtoken, p=p,
                            center=center, share_url=share, **_base_ctx())
     return _with_lang(make_response(html))
