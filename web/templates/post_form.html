@@ -4,6 +4,23 @@
 
 {% block content %}
 
+<style>
+  /* Жарыя берүү формасы — талаалар толук кең, чиптер ыкчам */
+  #formBox input[type="text"], #formBox input:not([type]) {
+    width: 100%; box-sizing: border-box; font-size: 16px;
+    padding: 12px 14px; border: 1.5px solid var(--mist, #E3E8F0);
+    border-radius: 14px; background: var(--card, #fff);
+  }
+  #formBox .sel { width: 100%; }
+  #formBox .role {
+    flex: 0 0 auto; padding: 9px 14px; font-size: 14px;
+    border-radius: 18px; box-shadow: none;
+  }
+  #formBox .rolerow { display: flex; gap: 8px; flex-wrap: wrap; }
+  #formBox .datecol { display: block; }
+  #formBox .datecol .sel { margin-bottom: 8px; }
+</style>
+
 <div class="page-head">
   <h1>➕ {{ t('Жарыя берүү', 'Подать объявление') }}</h1>
   <p class="lead">
@@ -16,10 +33,11 @@
   <div class="flt">
 
     <div class="sec"><span>{{ t('Ким катары', 'Кто вы') }}</span></div>
-    <div class="fld" style="display:flex;gap:8px">
-      <button type="button" class="go role on" data-role="driver" style="flex:1">
+    <div class="fld rolerow">
+      <button type="button" class="go role on" data-role="driver">
         🚗 {{ t('Айдоочумун', 'Я водитель') }}</button>
-      <button type="button" class="go role" data-role="passenger" style="flex:1;background:#f5f5f5;color:#111">
+      <button type="button" class="go role" data-role="passenger"
+              style="background:#f5f5f5;color:#111">
         🧳 {{ t('Жүргүнчүмүн', 'Я пассажир') }}</button>
     </div>
 
@@ -52,14 +70,14 @@
     </div></div>
 
     <div class="sec"><span>{{ t('Күнү жана убактысы', 'Дата и время') }}</span></div>
-    <div class="fld" style="display:flex;gap:8px">
-      <div class="sel" style="flex:1">
+    <div class="fld datecol">
+      <div class="sel">
         <select id="fDate">
           <option value="0">{{ today_label }}</option>
           <option value="1">{{ tomorrow_label }}</option>
         </select>
       </div>
-      <div class="sel" style="flex:1">
+      <div class="sel">
         <select id="fTime">
           {% for h in hours %}<option value="{{ h }}">{{ h }}</option>{% endfor %}
         </select>
