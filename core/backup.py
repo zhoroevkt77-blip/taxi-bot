@@ -139,6 +139,14 @@ def send_backup(reason="күнүмдүк"):
         _LOCK.release()
 
 
+def _cleanup_pickups():
+    try:
+        from core import pickup
+        pickup.cleanup()
+    except Exception as e:
+        print("[backup] tazaloo katasy:", e)
+
+
 def _loop():
     last_day = None
     while True:
@@ -146,6 +154,7 @@ def _loop():
         if now.hour == BACKUP_HOUR and last_day != now.date():
             last_day = now.date()
             send_backup()
+            _cleanup_pickups()
         time.sleep(10 * 60)
 
 
