@@ -19,6 +19,42 @@
   #formBox .rolerow { display: flex; gap: 8px; flex-wrap: wrap; }
   #formBox .datecol { display: block; }
   #formBox .datecol .sel { margin-bottom: 8px; }
+  /* Шаар тандоо — өз терезебиз, издөө менен */
+  .pick {
+    width: 100%; text-align: left; font-size: 15px; font-weight: 500;
+    padding: 13px 14px; border: 1.5px solid var(--mist, #E3E8F0);
+    border-radius: 14px; background: var(--card, #fff); color: #111;
+    cursor: pointer;
+  }
+  .pick.set { font-weight: 700; }
+  #cityWrap {
+    display: none; position: fixed; inset: 0; z-index: 90;
+    background: rgba(16, 24, 40, .45);
+  }
+  #cityWrap.on { display: block; }
+  #cityPanel {
+    position: absolute; left: 0; right: 0; bottom: 0; max-height: 82vh;
+    display: flex; flex-direction: column;
+    background: #fff; border-radius: 18px 18px 0 0; padding: 12px 14px;
+    padding-bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+  }
+  #cityFind {
+    width: 100%; box-sizing: border-box; font-size: 15px; padding: 11px 13px;
+    border: 1.5px solid #E3E8F0; border-radius: 12px; margin-bottom: 8px;
+  }
+  #cityList { overflow-y: auto; -webkit-overflow-scrolling: touch; }
+  #cityList .og {
+    font-size: 12px; font-weight: 700; color: #8a8f98; text-transform: uppercase;
+    padding: 10px 4px 4px;
+  }
+  #cityList .it {
+    font-size: 15px; padding: 11px 6px; border-bottom: 1px solid #f2f2f2;
+    cursor: pointer;
+  }
+  #cityClose {
+    margin-top: 8px; border: 0; border-radius: 12px; padding: 12px;
+    font-size: 15px; background: #f5f5f5; color: #111; cursor: pointer;
+  }
 </style>
 
 <div class="page-head">
@@ -55,34 +91,18 @@
 
     <div id="boxFrom">
     <div class="sec"><span>{{ t('Кай жактан', 'Откуда') }}</span></div>
-    <div class="fld"><div class="sel">
-      <select id="fFrom">
-        <option value="">{{ t('— тандаңыз —', '— выберите —') }}</option>
-        {% for o in oblast_list %}
-          <optgroup label="{{ o }}">
-            {% for key, label in all_cities.get(o, []) %}
-              <option value="{{ label }}">{{ label }}</option>
-            {% endfor %}
-          </optgroup>
-        {% endfor %}
-      </select>
-    </div></div>
+    <div class="fld">
+      <button type="button" class="pick" id="pickFrom" data-t="from">
+        {{ t('— тандаңыз —', '— выберите —') }}</button>
+    </div>
     </div>
 
     <div id="boxTo">
     <div class="sec"><span>{{ t('Кай жака', 'Куда') }}</span></div>
-    <div class="fld"><div class="sel">
-      <select id="fTo">
-        <option value="">{{ t('— тандаңыз —', '— выберите —') }}</option>
-        {% for o in oblast_list %}
-          <optgroup label="{{ o }}">
-            {% for key, label in all_cities.get(o, []) %}
-              <option value="{{ label }}">{{ label }}</option>
-            {% endfor %}
-          </optgroup>
-        {% endfor %}
-      </select>
-    </div></div>
+    <div class="fld">
+      <button type="button" class="pick" id="pickTo" data-t="to">
+        {{ t('— тандаңыз —', '— выберите —') }}</button>
+    </div>
     </div>
 
     <div class="sec"><span>{{ t('Күнү жана убактысы', 'Дата и время') }}</span></div>
@@ -178,6 +198,14 @@
   </div>
 </div>
 
+<div id="cityWrap">
+  <div id="cityPanel">
+    <input id="cityFind" placeholder="{{ t('Издөө: шаар же район…', 'Поиск: город или район…') }}">
+    <div id="cityList"></div>
+    <button type="button" id="cityClose">{{ t('Жабуу', 'Закрыть') }}</button>
+  </div>
+</div>
+
 <script>
 (function () {
   var L = {{ 'true' if lang == 'ru' else 'false' }};
@@ -205,16 +233,75 @@
 
   function val(id) { var e = document.getElementById(id); return e ? e.value.trim() : ""; }
 
-  /* ---- Багыт: Бишкекке / Бишкектен / район аралык ---- */
+  /* ---- Шаарлардын тизмеси (сервер берген) ---- */
+  var CITIES = [
+    {% for o in oblast_list %}{% for key, label in all_cities.get(o, []) %}
+    {o: {{ o|tojson }}, v: {{ label|tojson }}},{% endfor %}{% endfor %}
+  ];
+
+  var chosen = {from: "", to: ""};
   var mode = "to";
   var BISH = "Бишкек";
-  (function () {
-    var sel = document.getElementById("fFrom");
-    for (var i = 0; i < sel.options.length; i++) {
-      var v = sel.options[i].value;
-      if (v && v.indexOf("Бишкек") === 0) { BISH = v; break; }
+  for (var i = 0; i < CITIES.length; i++) {
+    if (CITIES[i].v.indexOf("Бишкек") === 0) { BISH = CITIES[i].v; break; }
+  }
+
+  /* ---- Шаар тандоо терезеси ---- */
+  var wrap = document.getElementById("cityWrap");
+  var find = document.getElementById("cityFind");
+  var list = document.getElementById("cityList");
+  var target = "from";
+
+  function norm(t) {
+    return (t || "").toLowerCase()
+      .replace(/ө/g, "о").replace(/ү/g, "у").replace(/ң/g, "н");
+  }
+
+  function draw(q) {
+    q = norm(q);
+    var html = "", group = "";
+    for (var i = 0; i < CITIES.length; i++) {
+      var c = CITIES[i];
+      if (q && norm(c.v).indexOf(q) < 0 && norm(c.o).indexOf(q) < 0) continue;
+      if (c.o !== group) {
+        group = c.o;
+        html += '<div class="og">' + c.o + '</div>';
+      }
+      html += '<div class="it" data-v="' + c.v.replace(/"/g, "&quot;") + '">'
+            + c.v + '</div>';
     }
-  })();
+    list.innerHTML = html ||
+      '<div class="og">' + s_("Эч нерсе табылган жок", "Ничего не найдено") + '</div>';
+  }
+
+  function s_(ky, ru) { return L ? ru : ky; }
+
+  function openPick(which) {
+    target = which;
+    find.value = "";
+    draw("");
+    wrap.classList.add("on");
+    list.scrollTop = 0;
+    setTimeout(function () { find.focus(); }, 50);
+  }
+
+  function closePick() { wrap.classList.remove("on"); }
+
+  document.getElementById("pickFrom").addEventListener("click", function () { openPick("from"); });
+  document.getElementById("pickTo").addEventListener("click", function () { openPick("to"); });
+  document.getElementById("cityClose").addEventListener("click", closePick);
+  wrap.addEventListener("click", function (e) { if (e.target === wrap) closePick(); });
+  find.addEventListener("input", function () { draw(find.value); });
+
+  list.addEventListener("click", function (e) {
+    var it = e.target.closest(".it");
+    if (!it) return;
+    chosen[target] = it.dataset.v;
+    var btn = document.getElementById(target === "from" ? "pickFrom" : "pickTo");
+    btn.textContent = it.dataset.v;
+    btn.classList.add("set");
+    closePick();
+  });
 
   function applyMode() {
     document.getElementById("boxFrom").style.display = (mode === "from") ? "none" : "block";
@@ -238,8 +325,8 @@
   document.getElementById("send").addEventListener("click", function () {
     var body = {
       role: role,
-      from_city: (mode === "from") ? BISH : val("fFrom"),
-      to_city: (mode === "to") ? BISH : val("fTo"),
+      from_city: (mode === "from") ? BISH : chosen.from,
+      to_city: (mode === "to") ? BISH : chosen.to,
       date_offset: val("fDate"), time_text: val("fTime"),
       seats: val("fSeats"), car: val("fCar"),
       people_count: val("fPeople"), baggage: val("fBag"),
