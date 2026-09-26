@@ -1009,7 +1009,20 @@ def pay_page():
     админ ырастоосу боттордо жүргүзүлөт. Ошондуктан бул бет жөн
     гана ботко багыттайт.
     """
-    html = render_template("pay.html", **_base_ctx())
+    from core.texts import (PAYMENT_AMOUNT, VIP_PRICE,
+                            PASSENGER_POST_PRICE)
+    tg = "https://t.me/" + BOT_USERNAME + "?start=pay_"
+    wa = "https://wa.me/" + WA_BOT_NUMBER + "?text="
+    html = render_template(
+        "pay.html",
+        pay_amount=PAYMENT_AMOUNT, vip_price=VIP_PRICE,
+        post_price=PASSENGER_POST_PRICE,
+        tg_pay_access=tg + "access", tg_pay_vip=tg + "vip",
+        tg_pay_post=tg + "post",
+        wa_pay_access=wa + quote("ТӨЛӨМ access"),
+        wa_pay_vip=wa + quote("ТӨЛӨМ vip"),
+        wa_pay_post=wa + quote("ТӨЛӨМ post"),
+        **_base_ctx())
     return _with_lang(make_response(html))
 
 

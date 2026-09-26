@@ -49,6 +49,9 @@ def handle_update(messenger, msg):
     # Сайттагы жарыя үчүн Telegram'дан контакт келди
     if msg.user_id in WEB_WAIT and getattr(msg, "verified", False):
         return web_phone(messenger, msg, account, text)
+    # Сайттагы төлөм үчүн контакт келди
+    if msg.user_id in PAY_LINK_WAIT and getattr(msg, "verified", False):
+        return pay_phone(messenger, msg, account, text)
     if text == "/admin" and admin.handle_command(messenger, msg, account, _say):
         return
     if text.startswith("/start") or text in ("старт", "start"):
@@ -85,6 +88,9 @@ def handle_update(messenger, msg):
             return _say(messenger, msg, account, L(
                 "📄 <b>Менин жарыяларым</b>\n\nКайсы ролдогу жарыяларыңыз?",
                 "📄 <b>Мои объявления</b>\n\nОбъявления в какой роли?"), kb)
+        elif len(parts) > 1 and parts[1].startswith("pay_"):
+            # Сайттагы «Төлөм» бетинен түз келди — түрү белгилүү
+            return pay_from_web(messenger, msg, account, parts[1][4:])
         elif len(parts) > 1 and parts[1] == "pay":
             # Сайттын «Кабинет» бетинен төлөмгө түз келди
             return pay_entry(messenger, msg, account)
@@ -165,6 +171,13 @@ def handle_update(messenger, msg):
         who = text[len(POST_PREFIX):].strip().lower()
         role = "driver" if who.startswith("айдооч") else "passenger"
         return post_types(messenger, msg, account, role)
+
+    # Сайттагы төлөм бетинен WhatsApp аркылуу: «ТӨЛӨМ access»
+    _mp = re.match(r"(?i)^\s*т[өо]л[өо]м\s+(access|vip|post)\b", text)
+    if _mp:
+        SESSIONS.pop(msg.user_id, None)
+        NAV.pop(msg.user_id, None)
+        return pay_from_web(messenger, msg, account, _mp.group(1).lower())
 
     # Сайттан берилген жарыяны WhatsApp аркылуу ырастоо: «ЫРАСТОО v_XXXX»
     _mv = re.match(r"(?i)^\s*ырастоо\s+v_(\S+)", text)

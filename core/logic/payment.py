@@ -234,3 +234,46 @@ def receive_receipt(messenger, msg, account, kind):
             "⚠️ Ошибка при отправке чека. Попробуйте ещё раз."), hint=True)
 
 
+# ============ САЙТТАГЫ ТӨЛӨМ БЕТИНЕН КЕЛГЕНДЕ ============
+# Сайтта колдонуучу эмне үчүн төлөөрүн тандап койгон, ошондуктан
+# ботто кайра сурабайбыз: номерди ырастайбыз да, реквизиттерди беребиз.
+
+PAY_LINK_WAIT = {}     # user_id -> kind (Telegram'да номер күтүлүүдө)
+
+
+def pay_from_web(messenger, msg, account, kind):
+    if kind not in PAY_KINDS:
+        return pay_entry(messenger, msg, account)
+
+    if not account.get("verified_phone"):
+        PAY_LINK_WAIT[msg.user_id] = kind
+        lang = account.get("lang", "ky")
+        messenger.ask_phone_contact(msg.user_id, render(
+            "📱 Төлөмдү өз аккаунтуңузга байлашыбыз керек.\n"
+            "Төмөнкү «📱 Номеримди бөлүшөм» баскычын басыңыз.",
+            lang, messenger.platform_name))
+        return
+    return start_payment(messenger, msg, account, kind)
+
+
+def pay_phone(messenger, msg, account, raw):
+    """Telegram'дан контакт келди — номерди байлап, реквизиттерди беребиз."""
+    kind = PAY_LINK_WAIT.pop(msg.user_id, None)
+    phone = normalize_phone(raw)
+    if not phone:
+        return _say(messenger, msg, account, L(
+            "⚠️ Кыргызстандын номери керек.",
+            "⚠️ Нужен номер Кыргызстана."), hint=True)
+
+    existing = db.find_account_by_phone(phone)
+    if existing and existing["account_id"] != account["account_id"]:
+        db.link_second_platform(existing["account_id"], msg.user_id, msg.platform)
+        account = existing
+    else:
+        db.update_account(account["account_id"], verified_phone=phone)
+        account = db.get_account(account["account_id"])
+    _say(messenger, msg, account, f"✅ Номериңиз ырасталды: <b>{phone}</b>")
+
+    if kind in PAY_KINDS:
+        return start_payment(messenger, msg, account, kind)
+    return pay_entry(messenger, msg, account)
