@@ -345,7 +345,7 @@
     this.disabled = true;
     say(s("Күтө туруңуз…", "Подождите…"));
     fetch("/post/create", {
-      method: "POST", headers: { "Content-Type": "application/json" },
+      method: "POST", cache: "no-store", headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body)
     }).then(function (r) { return r.json(); }).then(function (d) {
       document.getElementById("send").disabled = false;
@@ -366,7 +366,9 @@
   var fails = 0;
 
   function poll() {
-    fetch("/post/status/" + token).then(function (r) { return r.json(); })
+    fetch("/post/status/" + token + "?t=" + Date.now(),
+          {cache: "no-store", headers: {"Cache-Control": "no-cache"}})
+      .then(function (r) { return r.json(); })
       .then(function (d) {
         if (d.status === "done") {
           clearInterval(timer);
