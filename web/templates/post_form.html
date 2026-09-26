@@ -363,6 +363,8 @@
     });
   });
 
+  var fails = 0;
+
   function poll() {
     fetch("/post/status/" + token).then(function (r) { return r.json(); })
       .then(function (d) {
@@ -379,7 +381,16 @@
                         "Подтверждение не прошло. Попробуйте снова.");
           document.getElementById("vnote").className = "watch-note warn";
         }
-      }).catch(function () {});
+      }).catch(function () {
+        fails += 1;
+        if (fails >= 5) {
+          clearInterval(timer);
+          document.getElementById("vnote").textContent =
+            s("Байланыш үзүлдү. Жарыя чыкканын ботто текшериңиз.",
+              "Связь прервалась. Проверьте в боте, вышло ли объявление.");
+          document.getElementById("vnote").className = "watch-note warn";
+        }
+      });
   }
 })();
 </script>

@@ -28,6 +28,7 @@ import traceback
 from datetime import datetime, timedelta
 from urllib.parse import quote
 from flask import (Flask, render_template, request, make_response,
+                   jsonify,
                    send_from_directory)
 
 from core.db import db

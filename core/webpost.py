@@ -60,6 +60,7 @@ def get(token):
 
 
 def mark_done(token, post_id):
+    print(f"[webpost] {token} → done (post_id={post_id})")
     _set(token, "done", post_id=post_id)
 
 
