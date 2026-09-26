@@ -192,6 +192,18 @@ def _all_oblasts():
 ALL_OBLASTS = _all_oblasts()
 
 
+def city_key(s):
+    """Тизмеде бир жер эки жолу чыкпашы үчүн жалпы ачкыч.
+
+    «Лейлек (Раззаков)» жана «Лейлек району»  → лейлек
+    «Сүлүктү» жана «Сүлүктү шаары»            → сулукту
+    Кашаанын ичи, куйругу («шаары/району») жана кайталанган
+    тыбыштар («уу» → «у») эске алынбайт.
+    """
+    s = re.sub(r"\(.*?\)", " ", str(s or ""))
+    return re.sub(r"(.)\1+", r"\1", norm(s))
+
+
 def _all_cities():
     """Ар бир облустун шаар/райондорунун тизмеси.
 
@@ -210,7 +222,7 @@ def _all_cities():
             for oblast, cities in src_map.items():
                 bucket = table.setdefault(oblast, {})
                 for c in cities:
-                    key = norm(c)
+                    key = city_key(c)
                     if not key:
                         continue
                     # Эң толук аталышты калтырабыз: «Аксы району»
