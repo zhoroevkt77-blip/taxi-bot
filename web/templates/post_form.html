@@ -41,6 +41,19 @@
         🧳 {{ t('Жүргүнчүмүн', 'Я пассажир') }}</button>
     </div>
 
+    <div class="sec"><span>{{ t('Багыт', 'Направление') }}</span></div>
+    <div class="fld rolerow">
+      <button type="button" class="go mode on" data-mode="to">
+        ➡️ {{ t('Бишкекке барам', 'Еду в Бишкек') }}</button>
+      <button type="button" class="go mode" data-mode="from"
+              style="background:#f5f5f5;color:#111">
+        ⬅️ {{ t('Бишкектен кайтам', 'Еду из Бишкека') }}</button>
+      <button type="button" class="go mode" data-mode="local"
+              style="background:#f5f5f5;color:#111">
+        🗺 {{ t('Район/шаар аралык', 'Между районами') }}</button>
+    </div>
+
+    <div id="boxFrom">
     <div class="sec"><span>{{ t('Кайдан', 'Откуда') }}</span></div>
     <div class="fld"><div class="sel">
       <select id="fFrom">
@@ -54,7 +67,9 @@
         {% endfor %}
       </select>
     </div></div>
+    </div>
 
+    <div id="boxTo">
     <div class="sec"><span>{{ t('Кайда', 'Куда') }}</span></div>
     <div class="fld"><div class="sel">
       <select id="fTo">
@@ -68,6 +83,7 @@
         {% endfor %}
       </select>
     </div></div>
+    </div>
 
     <div class="sec"><span>{{ t('Күнү жана убактысы', 'Дата и время') }}</span></div>
     <div class="fld datecol">
@@ -189,10 +205,41 @@
 
   function val(id) { var e = document.getElementById(id); return e ? e.value.trim() : ""; }
 
+  /* ---- Багыт: Бишкекке / Бишкектен / район аралык ---- */
+  var mode = "to";
+  var BISH = "Бишкек";
+  (function () {
+    var sel = document.getElementById("fFrom");
+    for (var i = 0; i < sel.options.length; i++) {
+      var v = sel.options[i].value;
+      if (v && v.indexOf("Бишкек") === 0) { BISH = v; break; }
+    }
+  })();
+
+  function applyMode() {
+    document.getElementById("boxFrom").style.display = (mode === "from") ? "none" : "block";
+    document.getElementById("boxTo").style.display = (mode === "to") ? "none" : "block";
+  }
+
+  document.querySelectorAll(".mode").forEach(function (b) {
+    b.addEventListener("click", function () {
+      mode = b.dataset.mode;
+      document.querySelectorAll(".mode").forEach(function (x) {
+        var on = x === b;
+        x.classList.toggle("on", on);
+        x.style.background = on ? "" : "#f5f5f5";
+        x.style.color = on ? "" : "#111";
+      });
+      applyMode();
+    });
+  });
+  applyMode();
+
   document.getElementById("send").addEventListener("click", function () {
     var body = {
       role: role,
-      from_city: val("fFrom"), to_city: val("fTo"),
+      from_city: (mode === "from") ? BISH : val("fFrom"),
+      to_city: (mode === "to") ? BISH : val("fTo"),
       date_offset: val("fDate"), time_text: val("fTime"),
       seats: val("fSeats"), car: val("fCar"),
       people_count: val("fPeople"), baggage: val("fBag"),
