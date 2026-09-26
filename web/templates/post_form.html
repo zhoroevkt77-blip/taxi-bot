@@ -1,0 +1,235 @@
+{% extends "base.html" %}
+
+{% block title %}{{ t('Жарыя берүү', 'Подать объявление') }} — ТАКСИ роБОТ{% endblock %}
+
+{% block content %}
+
+<div class="page-head">
+  <h1>➕ {{ t('Жарыя берүү', 'Подать объявление') }}</h1>
+  <p class="lead">
+    {{ t('Форманы толтуруңуз, аягында номериңизди Telegram же WhatsApp аркылуу ырастайсыз.',
+         'Заполните форму, в конце подтвердите номер через Telegram или WhatsApp.') }}
+  </p>
+</div>
+
+<div id="formBox" class="flt-box" style="display:block">
+  <div class="flt">
+
+    <div class="sec"><span>{{ t('Ким катары', 'Кто вы') }}</span></div>
+    <div class="fld" style="display:flex;gap:8px">
+      <button type="button" class="go role on" data-role="driver" style="flex:1">
+        🚗 {{ t('Айдоочумун', 'Я водитель') }}</button>
+      <button type="button" class="go role" data-role="passenger" style="flex:1;background:#f5f5f5;color:#111">
+        🧳 {{ t('Жүргүнчүмүн', 'Я пассажир') }}</button>
+    </div>
+
+    <div class="sec"><span>{{ t('Кайдан', 'Откуда') }}</span></div>
+    <div class="fld"><div class="sel">
+      <select id="fFrom">
+        <option value="">{{ t('— тандаңыз —', '— выберите —') }}</option>
+        {% for o in oblast_list %}
+          <optgroup label="{{ o }}">
+            {% for key, label in all_cities.get(o, []) %}
+              <option value="{{ label }}">{{ label }}</option>
+            {% endfor %}
+          </optgroup>
+        {% endfor %}
+      </select>
+    </div></div>
+
+    <div class="sec"><span>{{ t('Кайда', 'Куда') }}</span></div>
+    <div class="fld"><div class="sel">
+      <select id="fTo">
+        <option value="">{{ t('— тандаңыз —', '— выберите —') }}</option>
+        {% for o in oblast_list %}
+          <optgroup label="{{ o }}">
+            {% for key, label in all_cities.get(o, []) %}
+              <option value="{{ label }}">{{ label }}</option>
+            {% endfor %}
+          </optgroup>
+        {% endfor %}
+      </select>
+    </div></div>
+
+    <div class="sec"><span>{{ t('Күнү жана убактысы', 'Дата и время') }}</span></div>
+    <div class="fld" style="display:flex;gap:8px">
+      <div class="sel" style="flex:1">
+        <select id="fDate">
+          <option value="0">{{ today_label }}</option>
+          <option value="1">{{ tomorrow_label }}</option>
+        </select>
+      </div>
+      <div class="sel" style="flex:1">
+        <select id="fTime">
+          {% for h in hours %}<option value="{{ h }}">{{ h }}</option>{% endfor %}
+        </select>
+      </div>
+    </div>
+
+    <div id="driverFields">
+      <div class="sec"><span>{{ t('Бош орун', 'Свободных мест') }}</span></div>
+      <div class="fld"><div class="sel">
+        <select id="fSeats">
+          {% for n in [1,2,3,4,5,6,7,8] %}<option value="{{ n }}">{{ n }}</option>{% endfor %}
+        </select>
+      </div></div>
+
+      <div class="sec"><span>{{ t('Унаа', 'Машина') }}</span></div>
+      <div class="fld"><input id="fCar" maxlength="40"
+        placeholder="{{ t('Мисалы: Toyota Alphard, ак', 'Например: Toyota Alphard, белая') }}"></div>
+    </div>
+
+    <div id="paxFields" style="display:none">
+      <div class="sec"><span>{{ t('Канча киши', 'Сколько человек') }}</span></div>
+      <div class="fld"><div class="sel">
+        <select id="fPeople">
+          {% for n in [1,2,3,4,5,6,7,8] %}<option value="{{ n }}">{{ n }}</option>{% endfor %}
+        </select>
+      </div></div>
+
+      <div class="sec"><span>{{ t('Жүк', 'Багаж') }}</span></div>
+      <div class="fld"><div class="sel">
+        <select id="fBag">
+          <option value="Жүк жок">{{ t('Жүк жок', 'Без багажа') }}</option>
+          <option value="Кичине сумка">{{ t('Кичине сумка', 'Небольшая сумка') }}</option>
+          <option value="Чоң жүк">{{ t('Чоң жүк', 'Крупный багаж') }}</option>
+        </select>
+      </div></div>
+    </div>
+
+    <div class="sec"><span>{{ t('Баасы', 'Цена') }}</span></div>
+    <div class="fld"><input id="fPrice" maxlength="30"
+      placeholder="{{ t('Мисалы: 1500 сом же келишим', 'Например: 1500 сом или договорная') }}"></div>
+
+    <div class="sec"><span>{{ t('Атыңыз', 'Ваше имя') }}</span></div>
+    <div class="fld"><input id="fName" maxlength="30"
+      placeholder="{{ t('Мисалы: Данияр', 'Например: Данияр') }}"></div>
+
+    <div class="sec"><span>{{ t('Кошумча (милдеттүү эмес)', 'Комментарий (необязательно)') }}</span></div>
+    <div class="fld"><input id="fComment" maxlength="120"
+      placeholder="{{ t('Мисалы: Передача да алам', 'Например: возьму передачу') }}"></div>
+
+    <button class="go" type="button" id="send">
+      ✅ {{ t('Улантуу — номерди ырастоо', 'Продолжить — подтвердить номер') }}</button>
+    <div class="watch-note" id="note"></div>
+  </div>
+</div>
+
+<div id="verifyBox" class="flt-box" style="display:none">
+  <div class="flt">
+    <div class="w-lead">
+      <b>{{ t('Акыркы кадам — номериңизди ырастаңыз', 'Последний шаг — подтвердите номер') }}</b>
+      <span>{{ t('Жарыяга ырасталган номер гана жазылат. Ботту ачып, чыккан кабарды жөнөтсөңүз болду — жарыя ошол замат чыгат.',
+                 'В объявлении указывается только подтверждённый номер. Откройте бота и отправьте готовое сообщение — объявление появится сразу.') }}</span>
+    </div>
+    <a class="go" id="tgBtn" href="#" target="_blank" rel="noopener"
+       style="display:block;text-align:center;text-decoration:none">
+      💬 {{ t('Telegram аркылуу ырастоо', 'Подтвердить через Telegram') }}</a>
+    <a class="go" id="waBtn" href="#" target="_blank" rel="noopener"
+       style="display:block;text-align:center;text-decoration:none;background:#25D366;color:#fff">
+      🟢 {{ t('WhatsApp аркылуу ырастоо', 'Подтвердить через WhatsApp') }}</a>
+    <div class="watch-note" id="vnote">{{ t('Ырастоону күтүп жатабыз…', 'Ожидаем подтверждение…') }}</div>
+  </div>
+</div>
+
+<div id="doneBox" class="flt-box" style="display:none">
+  <div class="flt">
+    <div class="w-lead">
+      <b>✅ {{ t('Жарыяңыз чыкты!', 'Объявление опубликовано!') }}</b>
+      <span>{{ t('Ал 24 саат турат. Боттогу «Менин посторум» бөлүмүнөн көрө аласыз.',
+                 'Оно висит 24 часа. Посмотреть можно в боте, раздел «Мои объявления».') }}</span>
+    </div>
+    <a class="go" id="seeBtn" href="/" style="display:block;text-align:center;text-decoration:none">
+      🌐 {{ t('Багытты көрүү', 'Посмотреть направление') }}</a>
+  </div>
+</div>
+
+<script>
+(function () {
+  var L = {{ 'true' if lang == 'ru' else 'false' }};
+  function s(ky, ru) { return L ? ru : ky; }
+  var role = "driver", token = null, timer = null;
+  var note = document.getElementById("note");
+
+  function say(m, cls) {
+    note.textContent = m || "";
+    note.className = "watch-note" + (cls ? " " + cls : "");
+  }
+
+  document.querySelectorAll(".role").forEach(function (b) {
+    b.addEventListener("click", function () {
+      role = b.dataset.role;
+      document.querySelectorAll(".role").forEach(function (x) {
+        var on = x === b;
+        x.style.background = on ? "" : "#f5f5f5";
+        x.style.color = on ? "" : "#111";
+      });
+      document.getElementById("driverFields").style.display = role === "driver" ? "" : "none";
+      document.getElementById("paxFields").style.display = role === "driver" ? "none" : "";
+    });
+  });
+
+  function val(id) { var e = document.getElementById(id); return e ? e.value.trim() : ""; }
+
+  document.getElementById("send").addEventListener("click", function () {
+    var body = {
+      role: role,
+      from_city: val("fFrom"), to_city: val("fTo"),
+      date_offset: val("fDate"), time_text: val("fTime"),
+      seats: val("fSeats"), car: val("fCar"),
+      people_count: val("fPeople"), baggage: val("fBag"),
+      price: val("fPrice"), name: val("fName"), comment: val("fComment")
+    };
+    if (!body.from_city || !body.to_city) {
+      say(s("Кайдан жана кайда — экөөнү тең тандаңыз.", "Выберите оба пункта."), "warn"); return;
+    }
+    if (body.from_city === body.to_city) {
+      say(s("Чыгуу жана баруу жери бирдей болбошу керек.",
+            "Пункты отправления и назначения должны отличаться."), "warn"); return;
+    }
+    if (!body.name) { say(s("Атыңызды жазыңыз.", "Укажите имя."), "warn"); return; }
+    if (!body.price) { say(s("Баасын жазыңыз.", "Укажите цену."), "warn"); return; }
+
+    this.disabled = true;
+    say(s("Күтө туруңуз…", "Подождите…"));
+    fetch("/post/create", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body)
+    }).then(function (r) { return r.json(); }).then(function (d) {
+      document.getElementById("send").disabled = false;
+      if (!d.ok) { say(d.error || s("Ката кетти.", "Ошибка."), "warn"); return; }
+      token = d.token;
+      document.getElementById("tgBtn").href = d.tg;
+      document.getElementById("waBtn").href = d.wa;
+      document.getElementById("formBox").style.display = "none";
+      document.getElementById("verifyBox").style.display = "block";
+      window.scrollTo(0, 0);
+      timer = setInterval(poll, 3000);
+    }).catch(function () {
+      document.getElementById("send").disabled = false;
+      say(s("Интернет жок окшойт.", "Похоже, нет интернета."), "warn");
+    });
+  });
+
+  function poll() {
+    fetch("/post/status/" + token).then(function (r) { return r.json(); })
+      .then(function (d) {
+        if (d.status === "done") {
+          clearInterval(timer);
+          if (d.url) document.getElementById("seeBtn").href = d.url;
+          document.getElementById("verifyBox").style.display = "none";
+          document.getElementById("doneBox").style.display = "block";
+          window.scrollTo(0, 0);
+        } else if (d.status === "error" || d.status === "expired") {
+          clearInterval(timer);
+          document.getElementById("vnote").textContent =
+            d.note || s("Ырастоо өтпөй калды. Кайра аракет кылыңыз.",
+                        "Подтверждение не прошло. Попробуйте снова.");
+          document.getElementById("vnote").className = "watch-note warn";
+        }
+      }).catch(function () {});
+  }
+})();
+</script>
+
+{% endblock %}

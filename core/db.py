@@ -146,12 +146,27 @@ def init_db():
         _indexes(cur)
         _wa_private_table(cur)
         _pickup_tables(cur)
+        _webdraft_table(cur)
         conn.commit()
 
     # Браузердин кабары үчүн таблица — өзүнчө модулда
 
 
+def _webdraft_table(cur):
+    """Сайттан берилген, бирок номери ырасталбаган жарыялар."""
+    cur.execute("""CREATE TABLE IF NOT EXISTS web_drafts (
+        token      TEXT PRIMARY KEY,
+        role       TEXT,
+        data       TEXT,
+        status     TEXT DEFAULT 'pending',
+        post_id    INTEGER,
+        note       TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )""")
+
+
 def _pickup_tables(cur):
+
     """«🗺 Жүргүнчүлөрдү чогултуу» — сайттагы шилтеме жана чекиттер.
 
     token   — жүргүнчүлөргө берилчү шилтеме

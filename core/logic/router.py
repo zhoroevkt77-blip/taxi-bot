@@ -46,6 +46,9 @@ def handle_update(messenger, msg):
     # Айдоочу forward кылган 📍 локация (адаптерлер ушул префикс менен берет)
     if text.startswith(PICKUP_LOC_PREFIX):
         return pickup_location(messenger, msg, account, text)
+    # Сайттагы жарыя үчүн Telegram'дан контакт келди
+    if msg.user_id in WEB_WAIT and getattr(msg, "verified", False):
+        return web_phone(messenger, msg, account, text)
     if text == "/admin" and admin.handle_command(messenger, msg, account, _say):
         return
     if text.startswith("/start") or text in ("старт", "start"):
@@ -90,6 +93,9 @@ def handle_update(messenger, msg):
             # дароо жарыя жазуу визардын баштайбыз
             role = "driver" if parts[1] == "postd" else "passenger"
             return post_types(messenger, msg, account, role)
+        elif len(parts) > 1 and parts[1].startswith("v_"):
+            # Сайттан берилген жарыяны ырастоо
+            return web_start(messenger, msg, account, parts[1][2:])
         elif len(parts) > 1 and parts[1].startswith("tag_"):
             frm, _, to = parts[1][4:].partition("_")
             if frm and to:
@@ -159,6 +165,13 @@ def handle_update(messenger, msg):
         who = text[len(POST_PREFIX):].strip().lower()
         role = "driver" if who.startswith("айдооч") else "passenger"
         return post_types(messenger, msg, account, role)
+
+    # Сайттан берилген жарыяны WhatsApp аркылуу ырастоо: «ЫРАСТОО v_XXXX»
+    _mv = re.match(r"(?i)^\s*ырастоо\s+v_(\S+)", text)
+    if _mv:
+        SESSIONS.pop(msg.user_id, None)
+        NAV.pop(msg.user_id, None)
+        return web_start(messenger, msg, account, _mv.group(1))
 
     # Эски формат: «HT85» деген кыска код (багыт белгисиз болгон учурда)
     if re.fullmatch(r"(?i)ht\d+", text):

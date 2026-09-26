@@ -33,6 +33,8 @@ from flask import (Flask, render_template, request, make_response,
 from core.db import db
 from core import posts
 from core import pickup
+from core import webpost
+from core import logic as _logic
 from core.texts import render as tr_render
 
 WEB_VERSION = "v48-pickup"
@@ -681,9 +683,85 @@ def myposts_page():
 
 @app.route("/post")
 def post_page():
-    """«➕ Жарыя берүү» — эки ботко өтүү."""
-    html = render_template("post.html", **_base_ctx())
+    """«➕ Жарыя берүү» — сайттагы форма."""
+    html = render_template("post_form.html",
+                           all_cities=ALL_CITIES,
+                           oblast_list=OBLAST_LIST,
+                           hours=_logic.day_hours(),
+                           today_label=_logic.date_label(0),
+                           tomorrow_label=_logic.date_label(1),
+                           **_base_ctx())
     return _with_lang(make_response(html))
+
+
+def _time_gone(hhmm):
+    """«Бүгүн» үчүн: убакыт өтүп кеткенби (30 мүнөт жеңилдик менен)."""
+    m = re.match(r"^\s*(\d{1,2})[:.](\d{2})\s*$", hhmm or "")
+    if not m:
+        return False
+    now = datetime.utcnow() + timedelta(hours=6)     # Бишкек убактысы
+    return int(m.group(1)) * 60 + int(m.group(2)) < now.hour * 60 + now.minute - 30
+
+
+@app.route("/post/create", methods=["POST"])
+def post_create():
+    """Форманы кабыл алып, ырастоо шилтемелерин кайтарат.
+
+    Жарыя бул жерде ЧЫКПАЙТ — адам ботто номерин ырастаганда гана
+    чыгат. Ошондо лимит, төлөм жана каналга чыгаруу боттогудай болот.
+    """
+    from flask import jsonify
+    d = request.get_json(silent=True) or {}
+    role = "driver" if d.get("role") == "driver" else "passenger"
+    frm = (d.get("from_city") or "").strip()[:60]
+    to = (d.get("to_city") or "").strip()[:60]
+    if not frm or not to or frm == to:
+        return jsonify(ok=False, error=_t("Багытты туура тандаңыз.",
+                                          "Выберите направление правильно."))
+    offset = 1 if str(d.get("date_offset")) == "1" else 0
+    time_text = (d.get("time_text") or "").strip()[:20]
+    if offset == 0 and _time_gone(time_text):
+        return jsonify(ok=False,
+                       error=_t("Бул убакыт өтүп кетти — «Эртең» тандаңыз.",
+                                "Это время уже прошло — выберите «Завтра»."))
+    data = {
+        "name": (d.get("name") or "").strip()[:30],
+        "from_city": frm, "to_city": to,
+        "date_text": _logic.date_label(offset),
+        "_date_offset": offset,
+        "time_text": time_text,
+        "price": (d.get("price") or "").strip()[:30],
+        "comment": (d.get("comment") or "").strip()[:120],
+    }
+    if role == "driver":
+        data["car"] = (d.get("car") or "").strip()[:40]
+        data["seats"] = (d.get("seats") or "").strip()[:4]
+    else:
+        data["people_count"] = (d.get("people_count") or "").strip()[:4]
+        data["baggage"] = (d.get("baggage") or "").strip()[:30]
+
+    token = webpost.create(role, data)
+    wa_text = "ЫРАСТОО v_" + token
+    return jsonify(ok=True, token=token,
+                   tg=f"https://t.me/{BOT_USERNAME}?start=v_{token}",
+                   wa=f"https://wa.me/{WA_BOT_NUMBER}?text={quote(wa_text)}")
+
+
+@app.route("/post/status/<token>")
+def post_status(token):
+    from flask import jsonify
+    row = webpost.get(token)
+    if not row:
+        return jsonify(status="expired")
+    url = ""
+    if row.get("status") == "done":
+        p = posts.get_post(row.get("post_id")) or {}
+        if p.get("from_city"):
+            url = ("/route?from=" + quote(p["from_city"]) +
+                   "&to=" + quote(p.get("to_city") or ""))
+    resp = jsonify(status=row.get("status"), note=row.get("note") or "", url=url)
+    resp.headers["Cache-Control"] = "no-store"
+    return resp
 
 
 # Telegram шилтемеси ~1 саат жашайт, ошондуктан кештейбиз

@@ -507,6 +507,7 @@ def save(messenger, msg, account, st):
     _show_hashtag_results(messenger, msg, account, route,
                           d.get("from_city"), d.get("to_city"),
                           only_role=other_role, show_header=False)
+    return post_id
     # Ушуну менен бүтөт. Мурда бул жерде дагы бир «Тандаңыз:» менюсу
     # чыгып, тизменин артынан ашыкча болуп калчу. Telegram'да ылдыйкы
     # клавиатура ансыз да турат, WhatsApp'та «0 — башкы меню» эскертүүсү
@@ -774,4 +775,86 @@ def normalize_phone(raw):
         return digits
     return None
 
+# ============ САЙТТАН БЕРИЛГЕН ЖАРЫЯ ============
+# Сайттагы форма толтурулуп, адам ботко келет: номери ырасталгандан
+# кийин ошол эле save() чакырылат — лимит, төлөм, канал, push баары
+# мурункудай иштейт.
+from core import webpost as _webpost
 
+WEB_WAIT = {}      # user_id -> token (Telegram'да номер күтүлүүдө)
+
+
+def web_start(messenger, msg, account, token):
+    """Сайттагы жарыяны ырастоо: t.me/…?start=v_TOKEN же «ЫРАСТОО v_…»."""
+    row = _webpost.get(token)
+    if not row or row["status"] != "pending":
+        return _say(messenger, msg, account, L(
+            "⚠️ Бул шилтеме эскирген же мурда колдонулган.\n"
+            "Сайттан жарыяны кайра толтуруңуз.",
+            "⚠️ Эта ссылка устарела или уже использована.\n"
+            "Заполните объявление на сайте заново."), back_kb())
+
+    ph = account.get("verified_phone")
+    if not (ph and normalize_phone(str(ph))):
+        WEB_WAIT[msg.user_id] = token
+        lang = account.get("lang", "ky")
+        messenger.ask_phone_contact(msg.user_id, render(
+            "📱 Жарыяны чыгаруу үчүн номериңизди ырастаңыз.\n"
+            "Төмөнкү «📱 Номеримди бөлүшөм» баскычын басыңыз.",
+            lang, messenger.platform_name))
+        return
+    return web_publish(messenger, msg, account, row)
+
+
+def web_phone(messenger, msg, account, raw):
+    """Telegram'дан контакт келди — номерди байлап, жарыяны чыгарабыз."""
+    token = WEB_WAIT.pop(msg.user_id, None)
+    phone = normalize_phone(raw)
+    if not phone:
+        return _say(messenger, msg, account, L(
+            "⚠️ Кыргызстандын номери керек.",
+            "⚠️ Нужен номер Кыргызстана."), hint=True)
+
+    existing = db.find_account_by_phone(phone)
+    if existing and existing["account_id"] != account["account_id"]:
+        db.link_second_platform(existing["account_id"], msg.user_id, msg.platform)
+        account = existing
+    else:
+        db.update_account(account["account_id"], verified_phone=phone)
+        account = db.get_account(account["account_id"])
+    _say(messenger, msg, account, f"✅ Номериңиз ырасталды: <b>{phone}</b>")
+
+    row = _webpost.get(token) if token else None
+    if not row or row["status"] != "pending":
+        return _say(messenger, msg, account, L(
+            "Сайттагы жарыя табылган жок — кайра толтуруңуз.",
+            "Объявление с сайта не найдено — заполните заново."), back_kb())
+    return web_publish(messenger, msg, account, row)
+
+
+def web_publish(messenger, msg, account, row):
+    """Сайттагы долбоорду боттогудай эле эрежелер менен жарыялайт."""
+    role = row["role"]
+    d = dict(row.get("data") or {})
+
+    # Айдоочунун мөөнөтү/гейти — боттогу эле текшерүү
+    if role == "driver" and not has_access(account):
+        _webpost.mark_error(row["token"], "Мөөнөт бүткөн")
+        _say(messenger, msg, account, L(
+            "⏳ Жарыя чыккан жок: акысыз мөөнөтүңүз бүткөн.",
+            "⏳ Объявление не опубликовано: бесплатный период закончился."))
+        return driver_entry(messenger, msg, account)
+
+    left, free_at = daily_limit_left(account["account_id"], role)
+    if left is not None and left <= 0:
+        _webpost.mark_error(row["token"], "Күнүмдүк лимит")
+        return _say(messenger, msg, account, L(
+            "🚦 Бүгүнкү жарыя лимитиңиз бүттү. Бир аздан кийин аракет кылыңыз.",
+            "🚦 Дневной лимит объявлений исчерпан. Попробуйте позже."),
+            back_kb())
+
+    d["phone"] = account["verified_phone"]
+    st = {"data": d, "role": role, "step": "web"}
+    post_id = save(messenger, msg, account, st)
+    _webpost.mark_done(row["token"], post_id)
+    return post_id
