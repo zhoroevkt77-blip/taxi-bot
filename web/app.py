@@ -27,7 +27,7 @@ import re
 import traceback
 from datetime import datetime, timedelta
 from urllib.parse import quote
-from flask import (Flask, render_template, request, make_response,
+from flask import (Flask, render_template, request, make_response, redirect,
                    jsonify,
                    send_from_directory)
 
@@ -35,6 +35,8 @@ from core.db import db
 from core import posts
 from core import pickup
 from core import webpost
+from core import websession
+from core import db as _db
 from core import logic as _logic
 from core.texts import render as tr_render
 
@@ -459,6 +461,7 @@ def _base_ctx():
         "help_url": f"https://t.me/{BOT_USERNAME}?start=home",
         "wa_bot_url": f"/wa?text=/start",
         "channel_url": CHANNEL_LINK,
+        "me": current_account(),
         # «Жарыя берүү» бетинен ботко ТҮЗ кирүү — ролу менен кошо.
         # Telegram start-параметрди өзү берет, WhatsApp'та кабар
         # талаасына даяр текст коюлат.
@@ -1093,7 +1096,68 @@ def help_page():
     return _with_lang(make_response(html))
 
 
+# ============ 🔐 САЙТКА КИРҮҮ ============
+# Браузер cookie аркылуу аккаунтка байланат. Ырастоо бот аркылуу
+# болот: сайт код берет, бот аны таанып, аккаунтту байлайт.
+
+SID_COOKIE = "tr_sid"
+
+
+def current_account():
+    """Кирген колдонуучу (же None)."""
+    try:
+        aid = websession.account_id_of(request.cookies.get(SID_COOKIE))
+        return db.get_account(aid) if aid else None
+    except Exception as e:
+        print("[web] сессия катасы:", e)
+        return None
+
+
+@app.route("/login")
+def login_page():
+    if current_account():
+        return redirect("/me?lang=" + _lang())
+    token = websession.start()
+    wa_text = "КИРҮҮ l_" + token
+    html = render_template(
+        "login.html", token=token,
+        tg_url=f"https://t.me/{BOT_USERNAME}?start=l_{token}",
+        wa_url=f"https://wa.me/{WA_BOT_NUMBER}?text={quote(wa_text)}",
+        **_base_ctx())
+    return _with_lang(make_response(html))
+
+
+@app.route("/login/status/<token>")
+def login_status(token):
+    row = websession.get(token)
+    if not row:
+        return jsonify(status="expired")
+    if row.get("expired"):
+        return jsonify(status="expired")
+    if not row.get("account_id"):
+        resp = jsonify(status="pending")
+        resp.headers["Cache-Control"] = "no-store"
+        return resp
+
+    sid = websession.open_session(row["account_id"])
+    resp = jsonify(status="done")
+    resp.headers["Cache-Control"] = "no-store"
+    resp.set_cookie(SID_COOKIE, sid, max_age=websession.SESSION_DAYS * 86400,
+                    httponly=True, samesite="Lax", secure=True, path="/")
+    return resp
+
+
+@app.route("/logout")
+def logout_page():
+    sid = request.cookies.get(SID_COOKIE)
+    websession.close_session(sid)
+    resp = redirect("/me?lang=" + _lang())
+    resp.delete_cookie(SID_COOKIE, path="/")
+    return resp
+
+
 @app.route("/me")
+
 def me_page():
     """«👤 Кабинет» — тил, шилтемелер, платформа тууралуу."""
     html = render_template("me.html", **_base_ctx())

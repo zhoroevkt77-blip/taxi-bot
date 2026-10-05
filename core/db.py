@@ -146,6 +146,7 @@ def init_db():
         _indexes(cur)
         _wa_private_table(cur)
         _pickup_tables(cur)
+        _websession_tables(cur)
         _webdraft_table(cur)
         conn.commit()
 
@@ -163,6 +164,22 @@ def _webdraft_table(cur):
         note       TEXT,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )""")
+
+
+def _websession_tables(cur):
+    """Сайтка кирүү: убактылуу код жана браузердин сессиясы."""
+    cur.execute("""CREATE TABLE IF NOT EXISTS web_logins (
+        token      TEXT PRIMARY KEY,
+        account_id INTEGER,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )""")
+    cur.execute("""CREATE TABLE IF NOT EXISTS web_sessions (
+        sid        TEXT PRIMARY KEY,
+        account_id INTEGER,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )""")
+    cur.execute("CREATE INDEX IF NOT EXISTS idx_web_sessions_acc "
+                "ON web_sessions (account_id)")
 
 
 def _pickup_tables(cur):

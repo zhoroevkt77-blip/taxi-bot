@@ -8,6 +8,22 @@
   <h1>{{ t('Кабинет', 'Кабинет') }}</h1>
 </div>
 
+{% if me %}
+  <div class="info-card" style="display:flex;align-items:center;gap:10px">
+    <span style="font-size:22px">👤</span>
+    <span>
+      <b>{{ me.name or me.first_name or t('Колдонуучу', 'Пользователь') }}</b><br>
+      <span style="color:#666">{{ me.verified_phone or '' }}</span>
+    </span>
+  </div>
+{% else %}
+  <a class="row-item" href="/login?lang={{ lang }}">
+    <span class="ico">🔐</span>
+    <span class="nm">{{ t('Кирүү — номерди ырастоо', 'Вход — подтвердить номер') }}</span>
+    <span class="chev">›</span>
+  </a>
+{% endif %}
+
 <a class="row-item" href="{{ lang_ru_url if lang == 'ky' else lang_ky_url }}">
   <span class="ico">🌐</span>
   <span class="nm">{{ t('Тил: Кыргызча', 'Язык: Русский') }}</span>
@@ -61,6 +77,14 @@
   <span class="nm">{{ t('Жардам', 'Помощь') }}</span>
   <span class="chev">›</span>
 </a>
+
+{% if me %}
+<a class="row-item" href="/logout?lang={{ lang }}">
+  <span class="ico">🚪</span>
+  <span class="nm">{{ t('Чыгуу', 'Выйти') }}</span>
+  <span class="chev">›</span>
+</a>
+{% endif %}
 
 <div class="info-card">
   {{ t('ТАКСИ роБОТ — Кыргызстандын такси платформасы. Telegram\'да, WhatsApp\'та жана ушул сайтта иштейт — база бир эле.',

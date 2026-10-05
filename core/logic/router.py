@@ -50,6 +50,8 @@ def handle_update(messenger, msg):
     if msg.user_id in WEB_WAIT and getattr(msg, "verified", False):
         return web_phone(messenger, msg, account, text)
     # Сайттагы төлөм үчүн контакт келди
+    if msg.user_id in LOGIN_WAIT and getattr(msg, "verified", False):
+        return login_phone(messenger, msg, account, text)
     if msg.user_id in PAY_LINK_WAIT and getattr(msg, "verified", False):
         return pay_phone(messenger, msg, account, text)
     if text == "/admin" and admin.handle_command(messenger, msg, account, _say):
@@ -178,6 +180,13 @@ def handle_update(messenger, msg):
         SESSIONS.pop(msg.user_id, None)
         NAV.pop(msg.user_id, None)
         return pay_from_web(messenger, msg, account, _mp.group(1).lower())
+
+    # Сайтка кирүү коду — кабардын каалаган жеринде болсо жетиштүү
+    _ml = re.search(r"(?i)\bl_([A-Za-z0-9_-]{6,})\b", text)
+    if _ml:
+        SESSIONS.pop(msg.user_id, None)
+        NAV.pop(msg.user_id, None)
+        return web_login(messenger, msg, account, _ml.group(1))
 
     # Сайттан берилген жарыяны ырастоо. Telegram кээде шилтемедеги
     # параметрди ботко жеткирбейт, ошондуктан кодду кабардын каалаган

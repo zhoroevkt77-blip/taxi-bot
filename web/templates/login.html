@@ -1,0 +1,91 @@
+{% extends "base.html" %}
+
+{% block title %}{{ t('Кирүү', 'Вход') }} — ТАКСИ роБОТ{% endblock %}
+
+{% block content %}
+
+<style>
+  .lcode { margin-top: 12px; border: 1.5px dashed #E3E8F0; border-radius: 14px;
+           padding: 12px; }
+  .lcode .cl { font-size: 13px; color: #666; line-height: 1.45; }
+  .lcode .cv { font-size: 22px; font-weight: 800; letter-spacing: 1px;
+               color: #111; margin: 8px 0; word-break: break-all; }
+  .lcode .cbtn { width: 100%; border: 0; border-radius: 12px; padding: 11px;
+                 font-size: 14px; font-weight: 600; background: #f5f5f5;
+                 color: #111; cursor: pointer; }
+</style>
+
+<div class="page-head">
+  <h1>🔐 {{ t('Кирүү', 'Вход') }}</h1>
+  <p class="lead">
+    {{ t('Номериңизди Telegram же WhatsApp аркылуу бир жолу ырастаңыз — ошондон кийин сайт сизди таанып турат: жарыяларыңыз, мөөнөтүңүз жана төлөмүңүз ушул жерде болот.',
+         'Подтвердите номер один раз через Telegram или WhatsApp — дальше сайт будет узнавать вас: ваши объявления, срок доступа и оплата будут здесь.') }}
+  </p>
+</div>
+
+<div class="flt-box" style="display:block">
+  <div class="flt">
+    <a class="go" id="tgBtn" href="{{ tg_url }}" target="_blank" rel="noopener"
+       style="display:block;text-align:center;text-decoration:none">
+      💬 {{ t('Telegram аркылуу кирүү', 'Войти через Telegram') }}</a>
+    <a class="go" id="waBtn" href="{{ wa_url }}" target="_blank" rel="noopener"
+       style="display:block;text-align:center;text-decoration:none;background:#25D366;color:#fff">
+      🟢 {{ t('WhatsApp аркылуу кирүү', 'Войти через WhatsApp') }}</a>
+
+    <div class="watch-note" id="lnote">{{ t('Ырастоону күтүп жатабыз…', 'Ожидаем подтверждение…') }}</div>
+
+    <div class="lcode">
+      <div class="cl">{{ t('Бот башкы менюну көрсөтүп калдыбы? Ушул кодду ботко жөнөтүңүз:',
+                           'Бот показал главное меню? Отправьте ему этот код:') }}</div>
+      <div class="cv">l_{{ token }}</div>
+      <button type="button" class="cbtn" id="lcopy">📋 {{ t('Кодду көчүрүү', 'Копировать код') }}</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  var L = {{ 'true' if lang == 'ru' else 'false' }};
+  function s(ky, ru) { return L ? ru : ky; }
+  var token = {{ token|tojson }};
+
+  document.getElementById("lcopy").addEventListener("click", function () {
+    navigator.clipboard.writeText("l_" + token).then(function () {
+      document.getElementById("lcopy").textContent =
+        "✅ " + s("Көчүрүлдү — ботко коюңуз", "Скопировано — вставьте в бота");
+    });
+  });
+
+  var fails = 0;
+  var timer = setInterval(poll, 3000);
+
+  function poll() {
+    fetch("/login/status/" + token + "?t=" + Date.now(),
+          {cache: "no-store", headers: {"Cache-Control": "no-cache"}})
+      .then(function (r) { return r.json(); })
+      .then(function (d) {
+        if (d.status === "done") {
+          clearInterval(timer);
+          location.href = "/me?lang=" + {{ lang|tojson }};
+        } else if (d.status === "expired") {
+          clearInterval(timer);
+          document.getElementById("lnote").textContent =
+            s("Код эскирди. Бетти жаңыртып, кайра аракет кылыңыз.",
+              "Код устарел. Обновите страницу и попробуйте снова.");
+          document.getElementById("lnote").className = "watch-note warn";
+        }
+      }).catch(function () {
+        fails += 1;
+        if (fails >= 5) {
+          clearInterval(timer);
+          document.getElementById("lnote").textContent =
+            s("Байланыш үзүлдү. Бетти жаңыртыңыз.",
+              "Связь прервалась. Обновите страницу.");
+          document.getElementById("lnote").className = "watch-note warn";
+        }
+      });
+  }
+})();
+</script>
+
+{% endblock %}

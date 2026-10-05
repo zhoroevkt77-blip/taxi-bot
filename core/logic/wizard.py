@@ -858,3 +858,58 @@ def web_publish(messenger, msg, account, row):
     post_id = save(messenger, msg, account, st)
     _webpost.mark_done(row["token"], post_id)
     return post_id
+
+
+# ============ САЙТКА КИРҮҮ (l_ТОКЕН) ============
+from core import websession as _wsession
+
+LOGIN_WAIT = {}     # user_id -> token (номер күтүлүүдө)
+
+
+def web_login(messenger, msg, account, token):
+    """Сайттагы «Кирүү» кодун ботто ырастоо."""
+    row = _wsession.get(token)
+    if not row or row.get("expired"):
+        return _say(messenger, msg, account, L(
+            "⏳ Кирүү коду эскирди. Сайтта «Кирүү» баскычын кайра басыңыз.",
+            "⏳ Код входа устарел. Нажмите «Вход» на сайте ещё раз."), back_kb())
+
+    if not account.get("verified_phone"):
+        LOGIN_WAIT[msg.user_id] = token
+        lang = account.get("lang", "ky")
+        messenger.ask_phone_contact(msg.user_id, render(
+            "📱 Сайтка кирүү үчүн номериңизди ырастаңыз.\n"
+            "Төмөнкү «📱 Номеримди бөлүшөм» баскычын басыңыз.",
+            lang, messenger.platform_name))
+        return
+
+    _wsession.attach(token, account["account_id"])
+    return _say(messenger, msg, account, L(
+        "✅ Сайтка кирдиңиз. Браузерге кайтыңыз — бет өзү жаңырат.",
+        "✅ Вы вошли на сайт. Вернитесь в браузер — страница обновится сама."),
+        back_kb())
+
+
+def login_phone(messenger, msg, account, raw):
+    """Контакт келди — номерди байлап, сайтка киргизебиз."""
+    token = LOGIN_WAIT.pop(msg.user_id, None)
+    phone = normalize_phone(raw)
+    if not phone:
+        return _say(messenger, msg, account, L(
+            "⚠️ Кыргызстандын номери керек (+996…).",
+            "⚠️ Нужен номер Кыргызстана (+996…)."), hint=True)
+
+    existing = db.find_account_by_phone(phone)
+    if existing and existing["account_id"] != account["account_id"]:
+        db.link_second_platform(existing["account_id"], msg.user_id, msg.platform)
+        account = existing
+    else:
+        db.update_account(account["account_id"], verified_phone=phone)
+        account = db.get_account(account["account_id"])
+    _say(messenger, msg, account, f"✅ Номериңиз ырасталды: <b>{phone}</b>")
+
+    if token:
+        return web_login(messenger, msg, account, token)
+    return _say(messenger, msg, account, L(
+        "Эми сайтта «Кирүү» баскычын кайра басыңыз.",
+        "Теперь нажмите «Вход» на сайте ещё раз."), back_kb())
