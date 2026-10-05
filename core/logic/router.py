@@ -179,12 +179,21 @@ def handle_update(messenger, msg):
         NAV.pop(msg.user_id, None)
         return pay_from_web(messenger, msg, account, _mp.group(1).lower())
 
-    # Сайттан берилген жарыяны WhatsApp аркылуу ырастоо: «ЫРАСТОО v_XXXX»
-    _mv = re.match(r"(?i)^\s*ырастоо\s+v_(\S+)", text)
+    # Сайттан берилген жарыяны ырастоо. Telegram кээде шилтемедеги
+    # параметрди ботко жеткирбейт, ошондуктан кодду кабардын каалаган
+    # жеринен издейбиз: «ЫРАСТОО v_XXXX», «v_XXXX» же жөн эле көчүрүлгөн.
+    _mv = re.search(r"(?i)\bv_([A-Za-z0-9_-]{6,})\b", text)
     if _mv:
         SESSIONS.pop(msg.user_id, None)
         NAV.pop(msg.user_id, None)
         return web_start(messenger, msg, account, _mv.group(1))
+
+    # Төлөм коду да ушундай: «pay_access» кабардын ичинде болсо жетиштүү
+    _mpc = re.search(r"(?i)\bpay_(access|vip|post)\b", text)
+    if _mpc:
+        SESSIONS.pop(msg.user_id, None)
+        NAV.pop(msg.user_id, None)
+        return pay_from_web(messenger, msg, account, _mpc.group(1).lower())
 
     # Эски формат: «HT85» деген кыска код (багыт белгисиз болгон учурда)
     if re.fullmatch(r"(?i)ht\d+", text):

@@ -19,6 +19,14 @@
   #formBox .rolerow { display: flex; gap: 8px; flex-wrap: wrap; }
   #formBox .datecol { display: block; }
   #formBox .datecol .sel { margin-bottom: 8px; }
+  .codebox { margin-top: 12px; border: 1.5px dashed #E3E8F0; border-radius: 14px;
+             padding: 12px; }
+  .codebox .cl { font-size: 13px; color: #666; line-height: 1.45; }
+  .codebox .cv { font-size: 20px; font-weight: 800; letter-spacing: 1px;
+                 color: #111; margin: 8px 0; word-break: break-all; }
+  .codebox .cbtn { width: 100%; border: 0; border-radius: 12px; padding: 11px;
+                   font-size: 14px; font-weight: 600; background: #f5f5f5;
+                   color: #111; cursor: pointer; }
   /* Шаар тандоо — өз терезебиз, издөө менен */
   .pick {
     width: 100%; text-align: left; font-size: 15px; font-weight: 500;
@@ -183,6 +191,13 @@
        style="display:block;text-align:center;text-decoration:none;background:#25D366;color:#fff">
       🟢 {{ t('WhatsApp аркылуу ырастоо', 'Подтвердить через WhatsApp') }}</a>
     <div class="watch-note" id="vnote">{{ t('Ырастоону күтүп жатабыз…', 'Ожидаем подтверждение…') }}</div>
+
+    <div class="codebox">
+      <div class="cl">{{ t('Бот башкы менюну көрсөтүп калдыбы? Ушул кодду ботко жөнөтүңүз:',
+                           'Бот показал главное меню? Отправьте ему этот код:') }}</div>
+      <div class="cv" id="vcode">—</div>
+      <button type="button" class="cbtn" id="vcopy">📋 {{ t('Кодду көчүрүү', 'Копировать код') }}</button>
+    </div>
   </div>
 </div>
 
@@ -354,12 +369,20 @@
       document.getElementById("tgBtn").href = d.tg;
       document.getElementById("waBtn").href = d.wa;
       document.getElementById("formBox").style.display = "none";
+      document.getElementById("vcode").textContent = "v_" + token;
       document.getElementById("verifyBox").style.display = "block";
       window.scrollTo(0, 0);
       timer = setInterval(poll, 3000);
     }).catch(function () {
       document.getElementById("send").disabled = false;
       say(s("Интернет жок окшойт.", "Похоже, нет интернета."), "warn");
+    });
+  });
+
+  document.getElementById("vcopy").addEventListener("click", function () {
+    navigator.clipboard.writeText("v_" + token).then(function () {
+      document.getElementById("vcopy").textContent =
+        "✅ " + s("Көчүрүлдү — ботко коюңуз", "Скопировано — вставьте в бота");
     });
   });
 
