@@ -1248,18 +1248,47 @@ def current_account():
         return None
 
 
+LOGIN_COOKIE = "tr_login"      # учурдагы кирүү коду (браузерде сакталат)
+
+
+def _set_session_cookie(resp, account_id):
+    sid = websession.open_session(account_id)
+    resp.set_cookie(SID_COOKIE, sid,
+                    max_age=websession.SESSION_DAYS * 86400,
+                    httponly=True, samesite="Lax", secure=True, path="/")
+    resp.delete_cookie(LOGIN_COOKIE, path="/")
+    return resp
+
+
 @app.route("/login")
 def login_page():
     if current_account():
         return redirect("/me?lang=" + _lang())
-    token = websession.start()
+
+    # Мурунку кодду кайра колдонобуз: Telegram'дан кайтканда бет
+    # жаңырып, код өзгөрүп кетпеши керек.
+    token = request.cookies.get(LOGIN_COOKIE) or ""
+    row = websession.get(token) if token else None
+
+    # Бот мурда эле ырастаган болсо — дароо киргизебиз
+    if row and row.get("account_id"):
+        return _set_session_cookie(redirect("/me?lang=" + _lang()),
+                                   row["account_id"])
+
+    if not row or row.get("expired"):
+        token = websession.start()
+
     wa_text = "КИРҮҮ l_" + token
     html = render_template(
         "login.html", token=token,
         tg_url=f"https://t.me/{BOT_USERNAME}?start=l_{token}",
         wa_url=f"https://wa.me/{WA_BOT_NUMBER}?text={quote(wa_text)}",
         **_base_ctx())
-    return _with_lang(make_response(html))
+    resp = _with_lang(make_response(html))
+    resp.set_cookie(LOGIN_COOKIE, token,
+                    max_age=websession.TOKEN_MINUTES * 60,
+                    samesite="Lax", secure=True, path="/")
+    return resp
 
 
 @app.route("/login/status/<token>")
@@ -1274,12 +1303,9 @@ def login_status(token):
         resp.headers["Cache-Control"] = "no-store"
         return resp
 
-    sid = websession.open_session(row["account_id"])
     resp = jsonify(status="done")
     resp.headers["Cache-Control"] = "no-store"
-    resp.set_cookie(SID_COOKIE, sid, max_age=websession.SESSION_DAYS * 86400,
-                    httponly=True, samesite="Lax", secure=True, path="/")
-    return resp
+    return _set_session_cookie(resp, row["account_id"])
 
 
 @app.route("/logout")
