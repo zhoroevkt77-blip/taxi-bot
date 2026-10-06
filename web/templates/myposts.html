@@ -1,55 +1,198 @@
 {% extends "base.html" %}
 
-{% block title %}{{ t("Менин жарыяларым", "Мои объявления") }} — ТАКСИ роБОТ{% endblock %}
+{% block title %}{{ t('Менин жарыяларым', 'Мои объявления') }} — ТАКСИ роБОТ{% endblock %}
 
 {% block content %}
 
+<style>
+  .mp-head { display:flex; align-items:center; gap:10px; margin-bottom:10px; }
+  .mp-tag { font-size:12px; font-weight:800; padding:5px 10px; border-radius:10px;
+            background:#f4f4f7; color:#444; }
+  .mp-tag.drv { background:#FFF3D0; color:#7a5a00; }
+  .mp-route { font-size:17px; font-weight:800; color:#111; margin-bottom:6px; }
+  .mp-line { font-size:14px; color:#444; line-height:1.6; }
+  .mp-acts { display:flex; flex-wrap:wrap; gap:8px; margin-top:12px; }
+  .mp-acts button, .mp-acts a {
+    flex:1 1 calc(50% - 4px); text-align:center; text-decoration:none;
+    border:1.5px solid #E3E8F0; background:#fff; color:#111;
+    font-family:inherit; font-size:14px; font-weight:700;
+    padding:11px 8px; border-radius:12px; cursor:pointer;
+  }
+  .mp-acts button.del { color:#C62828; border-color:#F3C9C9; }
+  .mp-pick { margin-top:10px; display:none; }
+  .mp-pick .pl { font-size:13px; color:#666; margin-bottom:6px; }
+  .mp-grid { display:flex; flex-wrap:wrap; gap:6px; }
+  .mp-grid button {
+    flex:0 0 auto; min-width:52px; border:1.5px solid #E3E8F0; background:#fff;
+    color:#111; font-family:inherit; font-size:14px; font-weight:700;
+    padding:9px 10px; border-radius:11px; cursor:pointer;
+  }
+  .mp-grid button.wide { flex:1 1 100%; }
+  .mp-note { font-size:13px; margin-top:8px; }
+  .mp-note.ok { color:#2E7D32; }
+  .mp-note.warn { color:#C62828; }
+  .mp-empty { text-align:center; color:#666; font-size:15px; padding:18px 6px; }
+</style>
+
 <div class="page-head">
-  <h1>{{ t("Менин жарыяларым", "Мои объявления") }}</h1>
+  <h1>📋 {{ t('Менин жарыяларым', 'Мои объявления') }}</h1>
   <p class="lead">
-    {{ t("Кайсы ботту колдонсоңуз, ошону басыңыз — жарыяларыңыз ошол жерде.",
-         'Выберите свою роль — бот сразу начнёт задавать вопросы.') }}
+    {{ t('Бош орунду, убакытты ушул жерден өзгөртсөңүз болот — жарыя каналда да ошол замат жаңырат.',
+         'Свободные места и время можно менять здесь — объявление в канале обновится сразу.') }}
   </p>
 </div>
 
-{# ---- Айдоочу ---- #}
-<div class="role-block">
-  <div class="role-t">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"
-         stroke-linecap="round" stroke-linejoin="round">
-      <path d="M3 16.5v-4l1.9-4.6A1.5 1.5 0 0 1 6.3 7h11.4a1.5 1.5 0 0 1 1.4.9L21 12.5v4"/>
-      <path d="M3 16.5h18"/>
-      <circle cx="7.3" cy="16.8" r="1.6"/>
-      <circle cx="16.7" cy="16.8" r="1.6"/>
-    </svg>
-    <span>{{ t("Жарыяларымды көрөм", "Посмотреть мои объявления") }}</span>
+{% if not rows %}
+  <div class="post">
+    <div class="mp-empty">
+      {{ t('Активдүү жарыяңыз жок.', 'Активных объявлений нет.') }}<br><br>
+      <a class="go" href="/post?lang={{ lang }}"
+         style="display:block;text-decoration:none;text-align:center">
+        ➕ {{ t('Жарыя берүү', 'Подать объявление') }}</a>
+    </div>
   </div>
-  <div class="role-btns">
-    <a class="btn tg" href="{{ tg_myposts }}">
-      <svg viewBox="0 0 24 24" fill="currentColor">
-        <path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/>
-      </svg>
-      <span>Telegram</span>
-    </a>
-    <a class="btn wa" href="{{ wa_myposts }}">
-      <svg viewBox="0 0 24 24" fill="currentColor">
-        <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 0 1-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 0 1-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 0 1 2.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0 0 12.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 0 0 5.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 0 0-3.48-8.413z"/>
-      </svg>
-      <span>WhatsApp</span>
-    </a>
-  </div>
-  <div class="role-note">
-    {{ t("Эки бот бир базада иштейт — жарыяларыңыз экөөндө тең бирдей.",
-         'Оба бота работают с одной базой: объявление водителя появится и в Telegram-канале, и на этом сайте.') }}
-  </div>
-</div>
+{% endif %}
 
-{# ---- Жүргүнчү ---- #}
-<div class="info-card">
-  <b>{{ t('Эмне үчүн ботто?', 'Почему в боте?') }}</b><br>
-  {{ t('Ботто телефон номериңиз бир жолу ырасталат — ошондон улам жалган жарыялар аз болот. Ошондой эле бот жаңы жарыялар чыкканда сизге кабар берип турат.',
-       'В боте номер телефона подтверждается один раз — благодаря этому меньше фальшивых объявлений. Кроме того, бот уведомляет вас о новых объявлениях.') }}
+{% for p in rows %}
+<div class="post" id="post{{ p.id }}">
+  <div class="mp-head">
+    {% if p.role == 'driver' %}
+      <span class="mp-tag drv">🚗 {{ t('АЙДООЧУ', 'ВОДИТЕЛЬ') }}</span>
+    {% else %}
+      <span class="mp-tag">🧳 {{ t('ЖҮРГҮНЧҮ', 'ПАССАЖИР') }}</span>
+    {% endif %}
+    {% if p.is_vip %}<span class="mp-tag drv">⭐ VIP</span>{% endif %}
+  </div>
+
+  <div class="mp-route">{{ p.from_city }} ➡️ {{ p.to_city }}</div>
+  <div class="mp-line">
+    {% if p.role == 'driver' %}
+      🚘 {{ p.car or '—' }}<br>
+      👥 {{ t('Бош орун', 'Мест') }}: <b id="seats{{ p.id }}">{{ p.seats or '—' }}</b><br>
+    {% else %}
+      👥 {{ t('Адам саны', 'Человек') }}: {{ p.people_count or '—' }}<br>
+      🎒 {{ p.baggage or '—' }}<br>
+    {% endif %}
+    💰 {{ p.price or '—' }}<br>
+    📅 {{ p.date_text or '' }} · ⏰ <span id="time{{ p.id }}">{{ p.time_text or '' }}</span>
+    {% if p.comment %}<br>📝 {{ p.comment }}{% endif %}
+  </div>
+
+  <div class="mp-acts">
+    {% if p.role == 'driver' %}
+      <button type="button" data-act="seats" data-id="{{ p.id }}">👥 {{ t('Бош орун', 'Места') }}</button>
+      <button type="button" data-act="time" data-id="{{ p.id }}">⏰ {{ t('Убакыт', 'Время') }}</button>
+      <button type="button" data-act="pickup" data-id="{{ p.id }}" style="flex:1 1 100%">
+        🗺 {{ t('Жүргүнчүлөрдү чогултуу', 'Сбор пассажиров') }}</button>
+    {% endif %}
+    <button type="button" class="del" data-act="del" data-id="{{ p.id }}" style="flex:1 1 100%">
+      ❌ {{ t('Өчүрүү', 'Удалить') }}</button>
+  </div>
+
+  <div class="mp-pick" id="pickSeats{{ p.id }}">
+    <div class="pl">{{ t('Азыр канча бош орун калды? 0 тандасаңыз — жарыя жабылат.',
+                         'Сколько мест осталось? Если 0 — объявление закроется.') }}</div>
+    <div class="mp-grid">
+      {% for n in [0,1,2,3,4,5,6,7] %}
+        <button type="button" data-act="setseats" data-id="{{ p.id }}" data-v="{{ n }}">{{ n }}</button>
+      {% endfor %}
+    </div>
+  </div>
+
+  <div class="mp-pick" id="pickTime{{ p.id }}">
+    <div class="pl">{{ t('Жаңы убакытты тандаңыз:', 'Выберите новое время:') }}</div>
+    <div class="mp-grid">
+      {% for h in hours %}
+        <button type="button" data-act="settime" data-id="{{ p.id }}" data-v="{{ h }}">{{ h }}</button>
+      {% endfor %}
+      <button type="button" class="wide" data-act="settime" data-id="{{ p.id }}" data-v="full">
+        🚗 {{ t('Орун толгондо чыгам', 'Выеду, когда заполнится') }}</button>
+    </div>
+  </div>
+
+  <div class="mp-note" id="note{{ p.id }}"></div>
 </div>
+{% endfor %}
+
+<script>
+(function () {
+  var L = {{ 'true' if lang == 'ru' else 'false' }};
+  function s(ky, ru) { return L ? ru : ky; }
+
+  function note(id, msg, cls) {
+    var el = document.getElementById("note" + id);
+    el.textContent = msg || "";
+    el.className = "mp-note" + (cls ? " " + cls : "");
+  }
+
+  function toggle(boxId) {
+    var el = document.getElementById(boxId);
+    el.style.display = (el.style.display === "block") ? "none" : "block";
+  }
+
+  function send(url, body) {
+    return fetch(url, {
+      method: "POST", cache: "no-store",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body || {})
+    }).then(function (r) { return r.json(); });
+  }
+
+  document.addEventListener("click", function (e) {
+    var b = e.target.closest("[data-act]");
+    if (!b) return;
+    var id = b.dataset.id, act = b.dataset.act;
+
+    if (act === "seats") return toggle("pickSeats" + id);
+    if (act === "time") return toggle("pickTime" + id);
+
+    if (act === "pickup") {
+      b.disabled = true;
+      send("/myposts/pickup/" + id).then(function (d) {
+        b.disabled = false;
+        if (d.url) { location.href = d.url; }
+        else { note(id, s("Карта ачылбай жатат.", "Карта не открывается."), "warn"); }
+      }).catch(function () {
+        b.disabled = false;
+        note(id, s("Интернет жок окшойт.", "Похоже, нет интернета."), "warn");
+      });
+      return;
+    }
+
+    if (act === "setseats") {
+      var v = b.dataset.v;
+      send("/myposts/seats/" + id, { seats: v }).then(function (d) {
+        if (d.closed) {
+          document.getElementById("post" + id).style.display = "none";
+          return;
+        }
+        if (!d.ok) return note(id, s("Сакталган жок.", "Не сохранилось."), "warn");
+        document.getElementById("seats" + id).textContent = d.seats;
+        document.getElementById("pickSeats" + id).style.display = "none";
+        note(id, "✅ " + s("Бош орун жаңырды", "Места обновлены"), "ok");
+      });
+      return;
+    }
+
+    if (act === "settime") {
+      send("/myposts/time/" + id, { time: b.dataset.v }).then(function (d) {
+        if (!d.ok) return note(id, s("Сакталган жок.", "Не сохранилось."), "warn");
+        document.getElementById("time" + id).textContent = d.time_text;
+        document.getElementById("pickTime" + id).style.display = "none";
+        note(id, "✅ " + s("Убакыт жаңырды", "Время обновлено"), "ok");
+      });
+      return;
+    }
+
+    if (act === "del") {
+      if (!confirm(s("Жарыя өчүрүлсүнбү?", "Удалить объявление?"))) return;
+      send("/myposts/delete/" + id).then(function (d) {
+        if (d.ok) { document.getElementById("post" + id).style.display = "none"; }
+        else { note(id, s("Өчүрүлгөн жок.", "Не удалось удалить."), "warn"); }
+      });
+    }
+  });
+})();
+</script>
 
 {% endblock %}
-

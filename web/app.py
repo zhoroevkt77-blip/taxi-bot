@@ -690,10 +690,145 @@ def route():
     return _with_lang(make_response(html))
 
 
+# ============ 📋 МЕНИН ЖАРЫЯЛАРЫМ (сайтта) ============
+# Жарыяны ушул жерден түзөтөбүз: бош орун, убакыт, өчүрүү жана
+# чогултуу картасы. Эрежелер боттогудай — ээси гана өзгөртө алат.
+
+def _post_of_mine(post_id):
+    """(аккаунт, жарыя) — кирбесе же бөтөн жарыя болсо None кайтат."""
+    me = current_account()
+    if not me:
+        return None, None
+    p = posts.get_post(post_id)
+    if not p or p.get("account_id") != me["account_id"] or not p.get("active"):
+        return me, None
+    return me, p
+
+
+def _set_post_fields(post_id, account_id, **fields):
+    """Жарыянын талааларын жаңыртат (ээси гана)."""
+    if not fields:
+        return False
+    sets = ", ".join(f"{k} = %s" for k in fields)
+    vals = list(fields.values()) + [post_id, account_id]
+    try:
+        with db() as conn:
+            cur = conn.cursor()
+            cur.execute(
+                f"UPDATE posts SET {sets} WHERE id = %s AND account_id = %s", vals)
+            conn.commit()
+            return cur.rowcount > 0
+    except Exception as e:
+        print("[web] жарыяны жаңыртуу катасы:", e)
+        return False
+
+
+def _channel_refresh(post_id):
+    """Каналдагы жарыяны жаңыртат. Ката болсо — унчукпай өтөбүз."""
+    try:
+        fn = getattr(_logic, "_refresh_channel", None)
+        if fn:
+            fn(post_id)
+    except Exception as e:
+        print("[web] каналды жаңыртуу катасы:", e)
+
+
+def _channel_delete(p):
+    try:
+        if p.get("channel_msg_id"):
+            from core import channel
+            channel.delete(p["channel_msg_id"])
+    except Exception as e:
+        print("[web] каналдан өчүрүү катасы:", e)
+
+
+@app.route("/myposts/seats/<int:post_id>", methods=["POST"])
+def myposts_seats(post_id):
+    me, p = _post_of_mine(post_id)
+    if not me:
+        return jsonify(error="auth"), 401
+    if not p:
+        return jsonify(error="none"), 404
+    try:
+        left = int((request.get_json(silent=True) or {}).get("seats"))
+    except (TypeError, ValueError):
+        return jsonify(error="bad"), 400
+    if left < 0 or left > 8:
+        return jsonify(error="bad"), 400
+
+    if left == 0:
+        # Унаа толду — жарыянын каналда туруусунун мааниси жок
+        posts.deactivate_post(post_id, me["account_id"])
+        _channel_delete(p)
+        return jsonify(ok=True, closed=True)
+
+    _set_post_fields(post_id, me["account_id"], seats=str(left))
+    _channel_refresh(post_id)
+    return jsonify(ok=True, seats=left)
+
+
+@app.route("/myposts/time/<int:post_id>", methods=["POST"])
+def myposts_time(post_id):
+    me, p = _post_of_mine(post_id)
+    if not me:
+        return jsonify(error="auth"), 401
+    if not p:
+        return jsonify(error="none"), 404
+    val = ((request.get_json(silent=True) or {}).get("time") or "").strip()[:12]
+    if val == "full":
+        new_time = "Орун толгондо жолго чыгам"
+    elif re.fullmatch(r"\d{1,2}:\d{2}", val):
+        new_time = f"Саат {val}дө жолго чыгам"
+    else:
+        return jsonify(error="bad"), 400
+
+    _set_post_fields(post_id, me["account_id"], time_text=new_time)
+    _channel_refresh(post_id)
+    return jsonify(ok=True, time_text=new_time)
+
+
+@app.route("/myposts/delete/<int:post_id>", methods=["POST"])
+def myposts_delete(post_id):
+    me, p = _post_of_mine(post_id)
+    if not me:
+        return jsonify(error="auth"), 401
+    if not p:
+        return jsonify(error="none"), 404
+    ok = posts.deactivate_post(post_id, me["account_id"])
+    if ok:
+        _channel_delete(p)
+    return jsonify(ok=bool(ok))
+
+
+@app.route("/myposts/pickup/<int:post_id>", methods=["POST"])
+def myposts_pickup(post_id):
+    """«🗺 Жүргүнчүлөрдү чогултуу» — айдоочунун картасын ачат."""
+    me, p = _post_of_mine(post_id)
+    if not me:
+        return jsonify(error="auth"), 401
+    if not p or p.get("role") != "driver":
+        return jsonify(error="none"), 404
+    try:
+        _token, mtoken = pickup.create(post_id, me["account_id"])
+    except Exception as e:
+        print("[web] чогултуу катасы:", e)
+        return jsonify(error="fail"), 500
+    return jsonify(ok=True, url="/pickup/m/" + mtoken)
+
+
 @app.route("/myposts")
 def myposts_page():
-    """«📋 Менин жарыяларым» — эки ботко өтүү."""
-    html = render_template("myposts.html", **_base_ctx())
+    """«📋 Менин жарыяларым» — кирген колдонуучунун жарыялары."""
+    me = current_account()
+    if not me:
+        return redirect("/login?lang=" + _lang())
+    try:
+        rows = posts.my_posts(me["account_id"])
+    except Exception as e:
+        print("[web] жарыяларды алуу катасы:", e)
+        rows = []
+    html = render_template("myposts.html", rows=rows,
+                           hours=_logic.day_hours(), **_base_ctx())
     return _with_lang(make_response(html))
 
 
