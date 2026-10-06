@@ -1242,7 +1242,7 @@ def current_account():
     """Кирген колдонуучу (же None)."""
     try:
         aid = websession.account_id_of(request.cookies.get(SID_COOKIE))
-        return db.get_account(aid) if aid else None
+        return _db.get_account(aid) if aid else None
     except Exception as e:
         print("[web] сессия катасы:", e)
         return None
