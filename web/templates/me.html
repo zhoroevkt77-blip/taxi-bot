@@ -4,16 +4,25 @@
 
 {% block content %}
 
+<style>
+  /* Колдонуучунун сабы — калган саптардан айырмаланбасын */
+  .me-row { cursor: default; }
+  .me-row .nm .sub {
+    display: block; font-weight: 500; font-size: 13px;
+    color: var(--grey); margin-top: 2px; letter-spacing: 0;
+  }
+</style>
+
 <div class="page-head">
   <h1>{{ t('Кабинет', 'Кабинет') }}</h1>
 </div>
 
 {% if me %}
-  <div class="info-card" style="display:flex;align-items:center;gap:10px">
-    <span style="font-size:22px">👤</span>
-    <span>
-      <b>{{ me.name or me.first_name or t('Колдонуучу', 'Пользователь') }}</b><br>
-      <span style="color:#666">{{ me.verified_phone or '' }}</span>
+  <div class="row-item me-row">
+    <span class="ico">👤</span>
+    <span class="nm">
+      {{ me.name or me.first_name or t('Колдонуучу', 'Пользователь') }}
+      {% if me.verified_phone %}<span class="sub">{{ me.verified_phone }}</span>{% endif %}
     </span>
   </div>
 {% else %}
