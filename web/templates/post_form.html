@@ -19,6 +19,10 @@
   #formBox .rolerow { display: flex; gap: 8px; flex-wrap: wrap; }
   #formBox .datecol { display: block; }
   #formBox .datecol .sel { margin-bottom: 8px; }
+  .photo-pick { background: #f5f5f5 !important; color: #111 !important;
+                box-shadow: none !important; }
+  #photoPrev { width: 100%; border-radius: 14px; display: block; margin-bottom: 8px; }
+  .photo-hint { font-size: 13px; color: #666; margin-top: 8px; line-height: 1.45; }
   .codebox { margin-top: 12px; border: 1.5px dashed #E3E8F0; border-radius: 14px;
              padding: 12px; }
   .codebox .cl { font-size: 13px; color: #666; line-height: 1.45; }
@@ -171,6 +175,20 @@
     <div class="fld"><input id="fComment" maxlength="120"
       placeholder="{{ t('Мисалы: Передача да алам', 'Например: возьму передачу') }}"></div>
 
+    <div class="sec"><span>{{ t('Сүрөт (милдеттүү эмес)', 'Фото (необязательно)') }}</span></div>
+    <div class="fld">
+      <input type="file" id="fPhoto" accept="image/*" style="display:none">
+      <button type="button" class="go photo-pick" id="photoBtn">
+        📷 {{ t('Сүрөт тандоо', 'Выбрать фото') }}</button>
+      <div id="photoBox" style="display:none">
+        <img id="photoPrev" alt="">
+        <button type="button" class="go photo-pick" id="photoDel">
+          🗑 {{ t('Сүрөттү алып салуу', 'Убрать фото') }}</button>
+      </div>
+      <div class="photo-hint">{{ t('Бир гана сүрөт. Унааңыздын сүрөтү жарыяны көрүнүктүү кылат.',
+                                   'Только одно фото. Снимок машины делает объявление заметнее.') }}</div>
+    </div>
+
     <button class="go" type="button" id="send">
       ✅ {{ t('Улантуу — номерди ырастоо', 'Продолжить — подтвердить номер') }}</button>
     <div class="watch-note" id="note"></div>
@@ -247,6 +265,50 @@
   });
 
   function val(id) { var e = document.getElementById(id); return e ? e.value.trim() : ""; }
+
+  /* ---- Сүрөт: телефондо кичирейтип, дароо карап көрөбүз ---- */
+  var photoData = "";
+  var fPhoto = document.getElementById("fPhoto");
+
+  document.getElementById("photoBtn").addEventListener("click", function () {
+    fPhoto.click();
+  });
+
+  document.getElementById("photoDel").addEventListener("click", function () {
+    photoData = "";
+    fPhoto.value = "";
+    document.getElementById("photoBox").style.display = "none";
+    document.getElementById("photoBtn").style.display = "";
+  });
+
+  fPhoto.addEventListener("change", function () {
+    var f = this.files && this.files[0];
+    if (!f) return;
+    var rd = new FileReader();
+    rd.onload = function (e) {
+      var img = new Image();
+      img.onload = function () {
+        var max = 1280, w = img.width, h = img.height;
+        if (w > max || h > max) {
+          var k = Math.min(max / w, max / h);
+          w = Math.round(w * k); h = Math.round(h * k);
+        }
+        var c = document.createElement("canvas");
+        c.width = w; c.height = h;
+        c.getContext("2d").drawImage(img, 0, 0, w, h);
+        photoData = c.toDataURL("image/jpeg", 0.8);
+        document.getElementById("photoPrev").src = photoData;
+        document.getElementById("photoBox").style.display = "block";
+        document.getElementById("photoBtn").style.display = "none";
+      };
+      img.onerror = function () {
+        say(s("Сүрөт ачылган жок. Башкасын тандаңыз.",
+              "Не удалось открыть фото. Выберите другое."), "warn");
+      };
+      img.src = e.target.result;
+    };
+    rd.readAsDataURL(f);
+  });
 
   /* ---- Шаарлардын тизмеси (сервер берген) ---- */
   var CITIES = [
@@ -345,7 +407,8 @@
       date_offset: val("fDate"), time_text: val("fTime"),
       seats: val("fSeats"), car: val("fCar"),
       people_count: val("fPeople"), baggage: val("fBag"),
-      price: val("fPrice"), name: val("fName"), comment: val("fComment")
+      price: val("fPrice"), name: val("fName"), comment: val("fComment"),
+      photo: photoData
     };
     if (!body.from_city || !body.to_city) {
       say(s("Кайдан жана кайда — экөөнү тең тандаңыз.", "Выберите оба пункта."), "warn"); return;

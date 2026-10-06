@@ -854,6 +854,65 @@ def _time_gone(hhmm):
     return int(m.group(1)) * 60 + int(m.group(2)) < now.hour * 60 + now.minute - 30
 
 
+# ---- Сайттан жүктөлгөн сүрөт ----
+WEB_PHOTO_MAX = 2_000_000      # 2 МБ (браузер өзү кичирейтип жиберет)
+
+
+def _save_web_photo(data_url):
+    """dataURL'ду базага сактап, токен кайтарат. Болбосо None."""
+    import base64
+    import secrets
+    if not data_url or not data_url.startswith("data:image/"):
+        return None
+    head, _, b64 = data_url.partition(",")
+    mime = head[5:].split(";")[0] or "image/jpeg"
+    try:
+        raw = base64.b64decode(b64, validate=False)
+    except Exception as e:
+        print("[web] сүрөттү окуу катасы:", e)
+        return None
+    if not raw or len(raw) > WEB_PHOTO_MAX:
+        print("[web] сүрөт өтө чоң:", len(raw) if raw else 0)
+        return None
+    token = secrets.token_urlsafe(8)
+    try:
+        with db() as conn:
+            cur = conn.cursor()
+            cur.execute("DELETE FROM web_photos WHERE created_at < "
+                        "NOW() - INTERVAL '3 days'")
+            cur.execute("INSERT INTO web_photos (token, mime, data) "
+                        "VALUES (%s, %s, %s)", (token, mime, raw))
+            conn.commit()
+    except Exception as e:
+        print("[web] сүрөттү сактоо катасы:", e)
+        return None
+    return token
+
+
+@app.route("/wphoto/<token>")
+def web_photo(token):
+    """Сайттан жүктөлгөн сүрөт. Telegram да ушул жерден алат."""
+    from flask import abort
+    try:
+        with db() as conn:
+            cur = conn.cursor()
+            cur.execute("SELECT mime, data FROM web_photos WHERE token = %s",
+                        (token,))
+            row = cur.fetchone()
+    except Exception as e:
+        print("[web] сүрөттү алуу катасы:", e)
+        abort(404)
+    if not row or row["data"] is None:
+        abort(404)
+    raw = row["data"]
+    if isinstance(raw, memoryview):
+        raw = raw.tobytes()
+    resp = make_response(bytes(raw))
+    resp.headers["Content-Type"] = row["mime"] or "image/jpeg"
+    resp.headers["Cache-Control"] = "public, max-age=86400"
+    return resp
+
+
 @app.route("/post/create", methods=["POST"])
 def post_create():
     """Форманы кабыл алып, ырастоо шилтемелерин кайтарат.
@@ -890,6 +949,12 @@ def post_create():
     else:
         data["people_count"] = (d.get("people_count") or "").strip()[:4]
         data["baggage"] = (d.get("baggage") or "").strip()[:30]
+
+    # Сүрөт болсо — базага сактап, ачык шилтемесин жарыяга жазабыз
+    ptoken = _save_web_photo(d.get("photo") or "")
+    if ptoken:
+        data["photo_url"] = (_https(request.url_root.rstrip("/"))
+                             + "/wphoto/" + ptoken)
 
     token = webpost.create(role, data)
     wa_text = "ЫРАСТОО v_" + token

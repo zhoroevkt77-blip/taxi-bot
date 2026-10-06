@@ -147,6 +147,7 @@ def init_db():
         _wa_private_table(cur)
         _pickup_tables(cur)
         _websession_tables(cur)
+        _webphoto_table(cur)
         _webdraft_table(cur)
         conn.commit()
 
@@ -162,6 +163,20 @@ def _webdraft_table(cur):
         status     TEXT DEFAULT 'pending',
         post_id    INTEGER,
         note       TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )""")
+
+
+def _webphoto_table(cur):
+    """Сайттан жүктөлгөн сүрөттөр — базада сакталат.
+
+    Railway'деги диск убактылуу, ошондуктан сүрөт базага түшөт.
+    Каналга чыгарганда Telegram аны /wphoto/<token> аркылуу алат.
+    """
+    cur.execute("""CREATE TABLE IF NOT EXISTS web_photos (
+        token      TEXT PRIMARY KEY,
+        mime       TEXT,
+        data       BYTEA,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )""")
 
