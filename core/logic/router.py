@@ -101,6 +101,9 @@ def handle_update(messenger, msg):
             # дароо жарыя жазуу визардын баштайбыз
             role = "driver" if parts[1] == "postd" else "passenger"
             return post_types(messenger, msg, account, role)
+        elif len(parts) > 1 and parts[1].startswith("l_"):
+            # Сайтка кирүү: браузерди аккаунтка байлайбыз
+            return web_login(messenger, msg, account, parts[1][2:])
         elif len(parts) > 1 and parts[1].startswith("v_"):
             # Сайттан берилген жарыяны ырастоо
             return web_start(messenger, msg, account, parts[1][2:])
