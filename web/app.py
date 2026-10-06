@@ -1308,6 +1308,19 @@ def login_status(token):
     return _set_session_cookie(resp, row["account_id"])
 
 
+@app.route("/whoami")
+def whoami():
+    """Текшерүү: браузер кайсы cookie жөнөтүп жатат, кирдикпи?"""
+    me = current_account()
+    resp = jsonify(
+        logged_in=bool(me),
+        name=(me or {}).get("name") or (me or {}).get("first_name") or "",
+        phone=(me or {}).get("verified_phone") or "",
+        cookies=sorted(request.cookies.keys()))
+    resp.headers["Cache-Control"] = "no-store"
+    return resp
+
+
 @app.route("/logout")
 def logout_page():
     sid = request.cookies.get(SID_COOKIE)

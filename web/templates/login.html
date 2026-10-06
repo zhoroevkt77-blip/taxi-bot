@@ -37,7 +37,7 @@
     <div class="lcode">
       <div class="cl">{{ t('Бот башкы менюну көрсөтүп калдыбы? Ушул кодду ботко жөнөтүңүз:',
                            'Бот показал главное меню? Отправьте ему этот код:') }}</div>
-      <div class="cv">l_{{ token }}</div>
+      <div class="cv" id="lval">l_{{ token }}</div>
       <button type="button" class="cbtn" id="lcopy">📋 {{ t('Кодду көчүрүү', 'Копировать код') }}</button>
     </div>
   </div>
@@ -47,7 +47,61 @@
 (function () {
   var L = {{ 'true' if lang == 'ru' else 'false' }};
   function s(ky, ru) { return L ? ru : ky; }
+
   var token = {{ token|tojson }};
+  var TG = {{ tg_url|tojson }};
+  var WA = {{ wa_url|tojson }};
+  // Шилтемелердин «куйругу» — кодду алмаштыруу үчүн
+  var TG_PRE = TG.slice(0, TG.length - token.length);
+  var WA_PRE = WA.slice(0, WA.length - token.length);
+
+  var KEY = "tr_login";       // код браузердин эсинде сакталат
+  var timer = null, fails = 0;
+
+  function save(tk) { try { localStorage.setItem(KEY, tk); } catch (e) {} }
+  function load() { try { return localStorage.getItem(KEY); } catch (e) { return null; } }
+
+  function apply(tk) {
+    token = tk;
+    document.getElementById("lval").textContent = "l_" + tk;
+    document.getElementById("tgBtn").href = TG_PRE + tk;
+    document.getElementById("waBtn").href = WA_PRE + tk;
+    save(tk);
+  }
+
+  function status(tk) {
+    return fetch("/login/status/" + tk + "?t=" + Date.now(),
+                 {cache: "no-store", headers: {"Cache-Control": "no-cache"}})
+      .then(function (r) { return r.json(); });
+  }
+
+  function done() { location.href = "/me?lang=" + {{ lang|tojson }}; }
+
+  function warn(msg) {
+    var el = document.getElementById("lnote");
+    el.textContent = msg;
+    el.className = "watch-note warn";
+  }
+
+  function poll() {
+    status(token).then(function (d) {
+      if (d.status === "done") { clearInterval(timer); return done(); }
+      if (d.status === "expired") {
+        clearInterval(timer);
+        warn(s("Код эскирди. Бетти жаңыртып, кайра аракет кылыңыз.",
+               "Код устарел. Обновите страницу и попробуйте снова."));
+      }
+    }).catch(function () {
+      fails += 1;
+      if (fails >= 5) {
+        clearInterval(timer);
+        warn(s("Байланыш үзүлдү. Бетти жаңыртыңыз.",
+               "Связь прервалась. Обновите страницу."));
+      }
+    });
+  }
+
+  function start() { timer = setInterval(poll, 3000); poll(); }
 
   document.getElementById("lcopy").addEventListener("click", function () {
     navigator.clipboard.writeText("l_" + token).then(function () {
@@ -56,34 +110,18 @@
     });
   });
 
-  var fails = 0;
-  var timer = setInterval(poll, 3000);
-
-  function poll() {
-    fetch("/login/status/" + token + "?t=" + Date.now(),
-          {cache: "no-store", headers: {"Cache-Control": "no-cache"}})
-      .then(function (r) { return r.json(); })
-      .then(function (d) {
-        if (d.status === "done") {
-          clearInterval(timer);
-          location.href = "/me?lang=" + {{ lang|tojson }};
-        } else if (d.status === "expired") {
-          clearInterval(timer);
-          document.getElementById("lnote").textContent =
-            s("Код эскирди. Бетти жаңыртып, кайра аракет кылыңыз.",
-              "Код устарел. Обновите страницу и попробуйте снова.");
-          document.getElementById("lnote").className = "watch-note warn";
-        }
-      }).catch(function () {
-        fails += 1;
-        if (fails >= 5) {
-          clearInterval(timer);
-          document.getElementById("lnote").textContent =
-            s("Байланыш үзүлдү. Бетти жаңыртыңыз.",
-              "Связь прервалась. Обновите страницу.");
-          document.getElementById("lnote").className = "watch-note warn";
-        }
-      });
+  // Мурунку код сакталган болсо — ошону улантабыз. Бот аны ырастап
+  // койгон болсо, дароо кирип кетебиз.
+  var saved = load();
+  if (saved && saved !== token) {
+    status(saved).then(function (d) {
+      if (d.status === "done") return done();
+      apply(d.status === "pending" ? saved : token);
+      start();
+    }).catch(function () { apply(token); start(); });
+  } else {
+    apply(token);
+    start();
   }
 })();
 </script>
