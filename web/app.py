@@ -1201,7 +1201,21 @@ def balance_page():
     өзү көрсөтө албайт. Ботто болсо номер ырасталган — ал бардыгын
     билет.
     """
-    html = render_template("balance.html", **_base_ctx())
+    me = current_account()
+    if not me:
+        return redirect("/login?lang=" + _lang())
+    acc = _db.get_account(me["account_id"]) or me
+    access_left = _left_text(acc.get("access_until"))
+    vip_left = _left_text(acc.get("vip_until"))
+    html = render_template(
+        "balance.html",
+        access_ok=bool(access_left), access_left=access_left or "",
+        vip_ok=bool(vip_left), vip_left=vip_left or "",
+        free_posts=acc.get("free_posts") or 0,
+        refs=acc.get("ref_count") or 0,
+        phone=("+" + _digits(acc.get("verified_phone"))
+               if acc.get("verified_phone") else ""),
+        **_base_ctx())
     return _with_lang(make_response(html))
 
 
@@ -1214,20 +1228,86 @@ def pay_page():
     гана ботко багыттайт.
     """
     from core.texts import (PAYMENT_AMOUNT, VIP_PRICE,
-                            PASSENGER_POST_PRICE)
-    tg = "https://t.me/" + BOT_USERNAME + "?start=pay_"
-    wa = "https://wa.me/" + WA_BOT_NUMBER + "?text="
+                            PASSENGER_POST_PRICE, PAYMENT_REQUISITES)
     html = render_template(
         "pay.html",
         pay_amount=PAYMENT_AMOUNT, vip_price=VIP_PRICE,
         post_price=PASSENGER_POST_PRICE,
-        tg_pay_access=tg + "access", tg_pay_vip=tg + "vip",
-        tg_pay_post=tg + "post",
-        wa_pay_access=wa + quote("ТӨЛӨМ access"),
-        wa_pay_vip=wa + quote("ТӨЛӨМ vip"),
-        wa_pay_post=wa + quote("ТӨЛӨМ post"),
+        requisites=PAYMENT_REQUISITES,
         **_base_ctx())
     return _with_lang(make_response(html))
+
+
+# ============ 💳 ТӨЛӨМ САЙТТА ============
+# Колдонуучу эмне үчүн төлөөрүн тандап, чектин сүрөтүн ушул жерден
+# жүктөйт. Чек админдин Telegram'ына боттогудай эле барат —
+# admin.notify_payment() ошол эле функция, ырастоо жолу өзгөргөн жок.
+
+RECEIPT_LIMIT = 6          # бир IP'ден саатына
+_RECEIPT_HITS = {}
+
+
+def _receipt_allowed(ip):
+    now = _time.time()
+    with _PHONE_LOCK:
+        hits = [t for t in _RECEIPT_HITS.get(ip, ()) if now - t < 3600]
+        if len(hits) >= RECEIPT_LIMIT:
+            _RECEIPT_HITS[ip] = hits
+            return False
+        hits.append(now)
+        _RECEIPT_HITS[ip] = hits
+    return True
+
+
+def _left_text(value):
+    """access_until / vip_until → «3 күн 5 саат». Бүткөн болсо None."""
+    if not value:
+        return None
+    try:
+        dt = datetime.fromisoformat(str(value))
+    except (ValueError, TypeError):
+        return None
+    secs = (dt - datetime.now()).total_seconds()
+    if secs <= 0:
+        return None
+    days, rem = int(secs // 86400), int(secs % 86400)
+    hours = rem // 3600
+    ru = _lang() == "ru"
+    if days:
+        return (f"{days} дн. {hours} ч." if ru
+                else f"{days} күн {hours} саат")
+    if hours:
+        return f"{hours} ч." if ru else f"{hours} саат"
+    return f"{max(1, int(secs // 60))} мин." if ru else \
+           f"{max(1, int(secs // 60))} мүнөт"
+
+
+@app.route("/pay/receipt", methods=["POST"])
+def pay_receipt():
+    """Сайттан жүктөлгөн чекти админге жиберет."""
+    me = current_account()
+    if not me:
+        return jsonify(error="auth"), 401
+    if not _receipt_allowed(_client_ip()):
+        return jsonify(error="limit"), 429
+
+    d = request.get_json(silent=True) or {}
+    kind = (d.get("kind") or "").strip()
+    if kind not in ("access", "vip", "post"):
+        return jsonify(error="bad"), 400
+
+    ptoken = _save_web_photo(d.get("photo") or "")
+    if not ptoken:
+        return jsonify(error="photo"), 400
+    url = _https(request.url_root.rstrip("/")) + "/wphoto/" + ptoken
+
+    try:
+        from core import admin
+        ok = admin.notify_payment(me, url, "сайт", kind)
+    except Exception as e:
+        print("[web] чекти жиберүү катасы:", e)
+        ok = False
+    return jsonify(ok=bool(ok))
 
 
 @app.route("/bots")

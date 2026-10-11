@@ -4,30 +4,53 @@
 
 {% block content %}
 
-<a class="back" href="/me?lang={{ lang }}">← {{ t('Кабинет', 'Кабинет') }}</a>
-
-<div class="page-head">
-  <h1>{{ t('Төлөм төлөймүн', 'Хочу оплатить') }}</h1>
-  <p class="lead">
-    {{ t('Кайсы ботту колдонсоңуз, ошону тандаңыз — төлөм бөлүмү дароо ачылат.',
-         'Выберите бот, которым пользуетесь — раздел оплаты откроется сразу.') }}
-  </p>
-</div>
-
 <style>
   .payopt { border:1.5px solid var(--mist,#E3E8F0); border-radius:16px;
             padding:14px; margin-bottom:12px; background:var(--card,#fff); }
   .payopt .nm { font-size:16px; font-weight:700; color:#111; }
   .payopt .am { font-size:15px; font-weight:800; color:#111; margin-top:2px; }
   .payopt .ds { font-size:13px; color:#666; margin:6px 0 10px; line-height:1.45; }
-  .payopt .btns { display:flex; gap:8px; }
-  .payopt a { flex:1; text-align:center; text-decoration:none; font-size:14px;
-              font-weight:700; padding:11px 8px; border-radius:12px; color:#fff; }
-  .payopt a.tg { background:#2AABEE; }
-  .payopt a.wa { background:#25D366; }
+  .payopt .go { width:100%; }
   .payrole { font-size:13px; font-weight:800; color:#111; text-transform:uppercase;
              margin:14px 2px 8px; }
+  .paybox { display:none; margin-top:12px; border-top:1px solid #eee; padding-top:12px; }
+  .paybox .req { font-size:14px; line-height:1.6; color:#111; }
+  .paybox img.qr { width:100%; max-width:260px; display:block; margin:12px auto;
+                   border-radius:14px; }
+  .paybox .step { font-size:13px; font-weight:800; color:#111;
+                  text-transform:uppercase; margin:14px 0 8px; }
+  .shotbtn { width:100%; border:1.5px solid #E3E8F0; background:#f5f5f5; color:#111;
+             font-family:inherit; font-size:15px; font-weight:700; padding:12px;
+             border-radius:14px; cursor:pointer; }
+  .shotbtn.send { background:var(--yellow,#FFC107); border-color:transparent; }
+  .shotbtn[disabled] { opacity:.55; }
+  .shot-prev { width:100%; border-radius:14px; display:block; margin:10px 0 8px; }
+  .paynote { font-size:13px; margin-top:10px; line-height:1.5; }
+  .paynote.ok { color:#2E7D32; }
+  .paynote.warn { color:#C62828; }
+  .paynote.hint { color:#666; }
 </style>
+
+<a class="back" href="/me?lang={{ lang }}">← {{ t('Кабинет', 'Кабинет') }}</a>
+
+<div class="page-head">
+  <h1>{{ t('Төлөм төлөймүн', 'Хочу оплатить') }}</h1>
+  <p class="lead">
+    {{ t('Эмне үчүн төлөөрүңүздү тандаңыз, которуп, чектин сүрөтүн ушул жерден жүктөңүз. Админ текшергенден кийин автоматтык ачылат.',
+         'Выберите, за что платите, переведите и загрузите фото чека здесь. После проверки администратором доступ откроется автоматически.') }}
+  </p>
+</div>
+
+{% if not me %}
+  <div class="info-card">
+    <b>{{ t('Алгач кириңиз', 'Сначала войдите') }}</b><br>
+    {{ t('Төлөм кимге таандык экенин билишибиз керек. Номериңизди бир жолу ырастасаңыз, сайт сизди таанып турат.',
+         'Нам нужно знать, чья это оплата. Подтвердите номер один раз — и сайт будет узнавать вас.') }}
+  </div>
+  <a class="go" href="/login?lang={{ lang }}"
+     style="display:block;text-align:center;text-decoration:none;margin-bottom:14px">
+    🔐 {{ t('Кирүү — номерди ырастоо', 'Вход — подтвердить номер') }}</a>
+{% endif %}
 
 <div class="payrole">🚗 {{ t('Айдоочуга', 'Водителю') }}</div>
 
@@ -36,10 +59,9 @@
   <div class="am">{{ pay_amount }}</div>
   <div class="ds">{{ t('Мөөнөт ачылат — чектөөсүз жарыя бересиз.',
                        'Откроется доступ — объявления без ограничений.') }}</div>
-  <div class="btns">
-    <a class="tg" href="{{ tg_pay_access }}">Telegram</a>
-    <a class="wa" href="{{ wa_pay_access }}">WhatsApp</a>
-  </div>
+  <button type="button" class="go" data-pay="access">
+    💳 {{ t('Төлөдүм — чек жүктөйм', 'Оплатил — загружу чек') }}</button>
+  <div class="paybox" id="box-access"></div>
 </div>
 
 <div class="payopt">
@@ -47,10 +69,9 @@
   <div class="am">{{ vip_price }}</div>
   <div class="ds">{{ t('Жарыяңыз издөө тизмесинин эң үстүндө турат.',
                        'Ваше объявление в самом верху списка.') }}</div>
-  <div class="btns">
-    <a class="tg" href="{{ tg_pay_vip }}">Telegram</a>
-    <a class="wa" href="{{ wa_pay_vip }}">WhatsApp</a>
-  </div>
+  <button type="button" class="go" data-pay="vip">
+    ⭐ {{ t('Төлөдүм — чек жүктөйм', 'Оплатил — загружу чек') }}</button>
+  <div class="paybox" id="box-vip"></div>
 </div>
 
 <div class="payrole">🧳 {{ t('Жүргүнчүгө', 'Пассажиру') }}</div>
@@ -60,36 +81,15 @@
   <div class="am">{{ post_price }}</div>
   <div class="ds">{{ t('Акысыз жарыяңыз бүтсө, ушул аркылуу улантасыз.',
                        'Когда бесплатные закончатся, продолжить можно так.') }}</div>
-  <div class="btns">
-    <a class="tg" href="{{ tg_pay_post }}">Telegram</a>
-    <a class="wa" href="{{ wa_pay_post }}">WhatsApp</a>
-  </div>
-</div>
-
-{# ---- QR-код: банк колдонмосунан скан кылса болот ---- #}
-<div class="qr-card">
-  <div class="qr-t">{{ t('QR аркылуу төлөө', 'Оплата по QR') }}</div>
-  <img src="/static/qr.png" alt="QR" onerror="this.style.display='none'">
-  <div class="qr-s">
-    {{ t('Банк колдонмоңуздагы «QR төлөм» бөлүмүн ачып, ушул кодду скан кылыңыз. Же номер боюнча которуңуз: MBank 0700 034 054, ЭЛИСМАН Т.',
-         'Откройте раздел «Оплата по QR» в банковском приложении и отсканируйте этот код. Или переведите по номеру: MBank 0700 034 054, ЭЛИСМАН Т.') }}
-  </div>
-  <div class="qr-w">
-    {{ t('⚠️ Төлөгөндөн кийин чектин скриншотун ботко жиберүүнү унутпаңыз — ансыз мөөнөт ачылбайт.',
-         '⚠️ После оплаты не забудьте отправить скриншот чека в бот — без него доступ не откроется.') }}
-  </div>
+  <button type="button" class="go" data-pay="post">
+    💳 {{ t('Төлөдүм — чек жүктөйм', 'Оплатил — загружу чек') }}</button>
+  <div class="paybox" id="box-post"></div>
 </div>
 
 <div class="info-card">
-  <b>{{ t('Эмне үчүн ботто?', 'Почему в боте?') }}</b><br>
-  {{ t('Төлөм Telegram жана WhatsApp botторунда гана жүргүзүлөт — сайтта жана Telegram каналда кабыл алынбайт. Себеби ботто телефон номериңиз ырасталган, чекти жиберүү жана админдин ырастоосу ошол жерде болот.',
-       'Оплата принимается только в ботах Telegram и WhatsApp — на сайте и в Telegram-канале она не производится. Причина в том, что в боте подтверждён ваш номер, туда же отправляется чек и приходит подтверждение администратора.') }}
-</div>
-
-<div class="info-card">
-  <b>{{ t('Баскычты басканда эмне болот?', 'Что произойдёт после нажатия?') }}</b><br>
-  {{ t('Бот дароо ошол төлөмдүн реквизиттерин берет — рол сурабайт. Номериңиз ырасталбаган болсо, бир жолу «Номеримди бөлүшөм» деп басасыз. Андан кийин которуп, чектин скриншотун ошол эле ботко жиберсеңиз, админ текшерип ачат.',
-       'Бот сразу покажет реквизиты именно этой оплаты — роль спрашивать не будет. Если номер ещё не подтверждён, один раз нажмёте «Поделиться номером». Затем переведите и отправьте скриншот чека в этот же бот — администратор проверит и откроет доступ.') }}
+  <b>{{ t('Эмне болот?', 'Что дальше?') }}</b><br>
+  {{ t('Чек админге барат. Ал ырастаганда мөөнөтүңүз автоматтык ачылат жана сизге Telegram же WhatsApp аркылуу кабар келет. Көбүнчө бир нече мүнөт ичинде.',
+       'Чек уходит администратору. После подтверждения доступ откроется автоматически, а вам придёт уведомление в Telegram или WhatsApp. Обычно это занимает несколько минут.') }}
 </div>
 
 <a class="row-item" href="/help?lang={{ lang }}" style="margin-top:12px">
@@ -97,5 +97,122 @@
   <span class="nm">{{ t('Баалар жана шарттар', 'Цены и условия') }}</span>
   <span class="chev">›</span>
 </a>
+
+<template id="paytpl">
+  <div class="req">{{ requisites|safe }}</div>
+  <img class="qr" src="/static/qr.png" alt="QR" onerror="this.style.display='none'">
+  <div class="step">{{ t('Чектин сүрөтү', 'Фото чека') }}</div>
+  <input type="file" class="shot-file" accept="image/*" style="display:none">
+  <img class="shot-prev" alt="" style="display:none">
+  <button type="button" class="shotbtn pick">📷 {{ t('Чекти тандоо', 'Выбрать чек') }}</button>
+  <button type="button" class="shotbtn send" style="display:none;margin-top:8px">
+    ✅ {{ t('Админге жөнөтүү', 'Отправить администратору') }}</button>
+  <div class="paynote hint note">{{ t('Банк колдонмосундагы төлөм чегинин скриншотун тандаңыз.',
+                                      'Выберите скриншот чека из банковского приложения.') }}</div>
+</template>
+
+<script>
+(function () {
+  var L = {{ 'true' if lang == 'ru' else 'false' }};
+  function s(ky, ru) { return L ? ru : ky; }
+  var LOGGED = {{ 'true' if me else 'false' }};
+  var tpl = document.getElementById("paytpl");
+
+  document.querySelectorAll("[data-pay]").forEach(function (btn) {
+    btn.addEventListener("click", function () {
+      if (!LOGGED) { location.href = "/login?lang=" + {{ lang|tojson }}; return; }
+      var kind = btn.dataset.pay;
+      var box = document.getElementById("box-" + kind);
+      if (box.dataset.ready !== "1") {
+        box.appendChild(tpl.content.cloneNode(true));
+        box.dataset.ready = "1";
+        wire(box, kind);
+      }
+      box.style.display = (box.style.display === "block") ? "none" : "block";
+    });
+  });
+
+  function wire(box, kind) {
+    var file = box.querySelector(".shot-file");
+    var prev = box.querySelector(".shot-prev");
+    var pick = box.querySelector(".pick");
+    var send = box.querySelector(".send");
+    var note = box.querySelector(".note");
+    var photo = "";
+
+    function say(m, cls) {
+      note.textContent = m;
+      note.className = "paynote note " + (cls || "hint");
+    }
+
+    pick.addEventListener("click", function () { file.click(); });
+
+    file.addEventListener("change", function () {
+      var f = this.files && this.files[0];
+      if (!f) return;
+      var rd = new FileReader();
+      rd.onload = function (e) {
+        var img = new Image();
+        img.onload = function () {
+          var max = 1400, w = img.width, h = img.height;
+          if (w > max || h > max) {
+            var k = Math.min(max / w, max / h);
+            w = Math.round(w * k); h = Math.round(h * k);
+          }
+          var c = document.createElement("canvas");
+          c.width = w; c.height = h;
+          c.getContext("2d").drawImage(img, 0, 0, w, h);
+          photo = c.toDataURL("image/jpeg", 0.82);
+          prev.src = photo;
+          prev.style.display = "block";
+          pick.textContent = "🔄 " + s("Башка сүрөт", "Другое фото");
+          send.style.display = "block";
+          say(s("Сүрөт даяр. «Админге жөнөтүү» басыңыз.",
+                "Фото готово. Нажмите «Отправить администратору»."));
+        };
+        img.onerror = function () {
+          say(s("Сүрөт ачылган жок. Башкасын тандаңыз.",
+                "Не удалось открыть фото. Выберите другое."), "warn");
+        };
+        img.src = e.target.result;
+      };
+      rd.readAsDataURL(f);
+    });
+
+    send.addEventListener("click", function () {
+      if (!photo) return;
+      send.disabled = true;
+      say(s("Жөнөтүлүүдө…", "Отправляем…"));
+      fetch("/pay/receipt", {
+        method: "POST", cache: "no-store",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ kind: kind, photo: photo })
+      }).then(function (r) { return r.json(); }).then(function (d) {
+        if (d.ok) {
+          pick.style.display = "none";
+          send.style.display = "none";
+          say("✅ " + s("Чек админге жөнөтүлдү. Текшерилгенден кийин кабар келет.",
+                        "Чек отправлен администратору. После проверки придёт уведомление."), "ok");
+          return;
+        }
+        send.disabled = false;
+        if (d.error === "auth") {
+          say(s("Кирүү мөөнөтүңүз бүттү. Кайра кириңиз.",
+                "Сессия истекла. Войдите заново."), "warn");
+        } else if (d.error === "limit") {
+          say(s("Өтө көп аракет. Бир аздан кийин кайталаңыз.",
+                "Слишком много попыток. Повторите позже."), "warn");
+        } else {
+          say(s("Жөнөтүлгөн жок. Кайра аракет кылыңыз.",
+                "Не отправилось. Попробуйте ещё раз."), "warn");
+        }
+      }).catch(function () {
+        send.disabled = false;
+        say(s("Интернет жок окшойт.", "Похоже, нет интернета."), "warn");
+      });
+    });
+  }
+})();
+</script>
 
 {% endblock %}
