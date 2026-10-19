@@ -195,23 +195,24 @@
       </div></div>
     </div>
 
-    <div class="sec"><span>{{ t('Баасы', 'Цена') }}</span></div>
-    <div class="fld"><input id="fPrice" maxlength="30"
-      placeholder="{{ t('Мисалы: 1500 сом же келишим', 'Например: 1500 сом или договорная') }}"></div>
+    {# v136: жазуусу жана мисалы ролго жараша JS менен коюлат #}
+    <div class="sec"><span id="priceLbl">{{ t('Бир орундун баасы', 'Цена за место') }}</span></div>
+    <div class="fld"><input id="fPrice" maxlength="30"></div>
 
     <div class="sec"><span>{{ t('Атыңыз', 'Ваше имя') }}</span></div>
     <div class="fld"><input id="fName" maxlength="30"
       placeholder="{{ t('Мисалы: Данияр', 'Например: Данияр') }}"></div>
 
     <div class="sec"><span>{{ t('Кошумча (милдеттүү эмес)', 'Комментарий (необязательно)') }}</span></div>
-    <div class="fld"><input id="fComment" maxlength="120"
-      placeholder="{{ t('Мисалы: Передача да алам', 'Например: возьму передачу') }}"></div>
+    <div class="fld"><input id="fComment" maxlength="120"></div>
 
+    {# v136: сүрөт айдоочуга гана — жүргүнчүдө бүт бөлүм жашырылат #}
+    <div id="photoSec">
     <div class="sec"><span>{{ t('Сүрөт (милдеттүү эмес)', 'Фото (необязательно)') }}</span></div>
     <div class="fld">
       <input type="file" id="fPhoto" accept="image/*" style="display:none">
       <button type="button" class="go photo-pick" id="photoBtn">
-        📷 {{ t('Сүрөт тандоо', 'Выбрать фото') }}</button>
+        📷 {{ t('Сүрөт коёмун', 'Добавить фото') }}</button>
       <div id="photoBox" style="display:none">
         <img id="photoPrev" alt="">
         <button type="button" class="go photo-pick" id="photoDel">
@@ -219,6 +220,7 @@
       </div>
       <div class="photo-hint">{{ t('Бир гана сүрөт. Унааңыздын сүрөтү жарыяны көрүнүктүү кылат.',
                                    'Только одно фото. Снимок машины делает объявление заметнее.') }}</div>
+    </div>
     </div>
 
     <button class="go" type="button" id="send">
@@ -303,6 +305,42 @@
     note.className = "watch-note" + (cls ? " " + cls : "");
   }
 
+  /* v136: ролго жараша жазуулар жана мисалдар.
+     Айдоочу менен жүргүнчү бир эле форманы эки башка максатта
+     толтурат — ошондуктан суроолор да ар башка болушу керек. */
+  var PRICE_LBL = {
+    driver: s("Бир орундун баасы", "Цена за место"),
+    passenger: s("Канча төлөйсүз", "Сколько готовы заплатить")
+  };
+  var PRICE_PH = {
+    driver: s("Мисалы: 1500 сом же келишим",
+              "Например: 1500 сом или договорная"),
+    passenger: s("Мисалы: 1500 сом · бош калса — келишим",
+                 "Например: 1500 сом · пусто — договорная")
+  };
+  var COMM_PH = {
+    driver: s("Мисалы: Передача да алам", "Например: возьму передачу"),
+    passenger: s("Мисалы: Эшигимден алып кетсеңиз",
+                 "Например: заберите от подъезда")
+  };
+
+  function applyRole() {
+    var drv = (role === "driver");
+    document.getElementById("driverFields").style.display = drv ? "" : "none";
+    document.getElementById("paxFields").style.display = drv ? "none" : "";
+    /* Сүрөт — айдоочуга гана. Жүргүнчүгө өткөндө тандалганын да алабыз,
+       болбосо көрүнбөгөн сүрөт жарыяга кошулуп кетмек. */
+    document.getElementById("photoSec").style.display = drv ? "" : "none";
+    if (!drv) { clearPhoto(); }
+    document.getElementById("priceLbl").textContent = PRICE_LBL[role];
+    document.getElementById("fPrice").placeholder = PRICE_PH[role];
+    document.getElementById("fComment").placeholder = COMM_PH[role];
+    /* v135: чакыруу карточкасынын тексти ролго жараша */
+    document.querySelectorAll("[data-inv]").forEach(function (x) {
+      x.style.display = (x.dataset.inv === role) ? "" : "none";
+    });
+  }
+
   document.querySelectorAll(".role").forEach(function (b) {
     b.addEventListener("click", function () {
       role = b.dataset.role;
@@ -311,12 +349,7 @@
         x.style.background = on ? "" : "#f5f5f5";
         x.style.color = on ? "" : "#111";
       });
-      document.getElementById("driverFields").style.display = role === "driver" ? "" : "none";
-      document.getElementById("paxFields").style.display = role === "driver" ? "none" : "";
-      /* v135: чакыруу карточкасынын тексти ролго жараша */
-      document.querySelectorAll("[data-inv]").forEach(function (x) {
-        x.style.display = (x.dataset.inv === role) ? "" : "none";
-      });
+      applyRole();
     });
   });
 
@@ -330,12 +363,17 @@
     fPhoto.click();
   });
 
-  document.getElementById("photoDel").addEventListener("click", function () {
+  function clearPhoto() {
     photoData = "";
     fPhoto.value = "";
     document.getElementById("photoBox").style.display = "none";
     document.getElementById("photoBtn").style.display = "";
-  });
+  }
+
+  document.getElementById("photoDel").addEventListener("click", clearPhoto);
+
+  /* Бет ачылганда да ролго жараша коёбуз (баштапкы рол — айдоочу) */
+  applyRole();
 
   fPhoto.addEventListener("change", function () {
     var f = this.files && this.files[0];
@@ -474,7 +512,15 @@
             "Пункты отправления и назначения должны отличаться."), "warn"); return;
     }
     if (!body.name) { say(s("Атыңызды жазыңыз.", "Укажите имя."), "warn"); return; }
-    if (!body.price) { say(s("Баасын жазыңыз.", "Укажите цену."), "warn"); return; }
+    /* v136: жүргүнчү баанын так санын көп учурда билбейт —
+       бош калтырса «Келишим» деп жазабыз. Айдоочуга милдеттүү. */
+    if (!body.price) {
+      if (role === "driver") {
+        say(s("Бир орундун баасын жазыңыз.", "Укажите цену за место."), "warn");
+        return;
+      }
+      body.price = s("Келишим", "Договорная");
+    }
 
     this.disabled = true;
     say(s("Күтө туруңуз…", "Подождите…"));
