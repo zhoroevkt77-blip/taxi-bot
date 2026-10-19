@@ -47,27 +47,32 @@ BOT_TOKEN = os.environ.get("BOT_TOKEN")
 CHANNEL_ID = os.environ.get("CHANNEL_ID")  # мис. @kanal_aty же -1001234567890
 bot = telebot.TeleBot(BOT_TOKEN, parse_mode="HTML")
 
-TG_ADAPTER_VERSION = "v12-loc"
+TG_ADAPTER_VERSION = "v13-slim"
 print(f"📨 telegram_adapter жүктөлдү. Версия = {TG_ADAPTER_VERSION}, "
       f"PID={os.getpid()}")
 
 # Ылдыйкы клавиатурадагы жазуу → core'дун ички коду
 MAIN_MENU = {
-    "🚗 Айдоочумун": "menu:driver",
-    "🔍 Жүргүнчүмүн": "menu:passenger",
-    "⚙️ Дагы": "menu:more",
-    "⚙️ Ещё": "menu:more",
-    "📢 Telegram каналыбыз": "menu:channel",
+    # v133: ботто номер ырастоо гана калды. Эски клавиатура
+    # колдонуучунун телефонунда сакталып калышы мүмкүн, ошондуктан
+    # эски жазуулардын баары сайтка багытталат.
+    "🌐 Сайтка өтүү": "menu:site",
+    "🌐 Перейти на сайт": "menu:site",
     "🌐 Сайт": "menu:site",
-    "💼 Менин балансым": "menu:balance",
-    "💼 Мой баланс": "menu:balance",
-    "🆘 Жардам": "menu:help",
     "🌐 Тил / Язык": "menu:lang",
-    # Орусча варианттары да ушул эле коддорго барат
-    "🚗 Я водитель": "menu:driver",
-    "🔍 Я пассажир": "menu:passenger",
+    "📢 Telegram каналыбыз": "menu:channel",
     "📢 Наш Telegram-канал": "menu:channel",
-    "🆘 Помощь": "menu:help",
+    # — эскилери —
+    "🚗 Айдоочумун": "menu:site",
+    "🔍 Жүргүнчүмүн": "menu:site",
+    "🚗 Я водитель": "menu:site",
+    "🔍 Я пассажир": "menu:site",
+    "⚙️ Дагы": "menu:site",
+    "⚙️ Ещё": "menu:site",
+    "💼 Менин балансым": "menu:site",
+    "💼 Мой баланс": "menu:site",
+    "🆘 Жардам": "menu:site",
+    "🆘 Помощь": "menu:site",
 }
 
 
@@ -78,12 +83,13 @@ def main_reply_kb(lang="ky"):
     «🌐 Сайт» эки тилде тең бирдей жазылат — кыска жана түшүнүктүү.
     """
     kb = types.ReplyKeyboardMarkup(resize_keyboard=True)
+    # v133: ботто номер ырастоо гана калды
     if lang == "ru":
-        kb.row("🚗 Я водитель", "🔍 Я пассажир")
-        kb.row("⚙️ Ещё")  #MENU2
+        kb.row("🌐 Перейти на сайт")
+        kb.row("🌐 Тил / Язык")
     else:
-        kb.row("🚗 Айдоочумун", "🔍 Жүргүнчүмүн")
-        kb.row("⚙️ Дагы")
+        kb.row("🌐 Сайтка өтүү")
+        kb.row("🌐 Тил / Язык")
     return kb
 
 

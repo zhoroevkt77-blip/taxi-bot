@@ -14,11 +14,17 @@ def main_menu_kb(platform="telegram"):
     WhatsApp'та бул номерленген тизмеге айланат — катарлардын тартиби
     сакталат, ошондуктан сандар да ошол эле бойдон калат.
     """
-    channel_label = "📢 Telegram каналыбыз"
+    # v133: боттун бардык бөлүмдөрү сайтка көчтү. Ботто номер
+    # ырастоо гана калды — ошондуктан менюда эки баскыч бар.
+    if platform == "telegram":
+        return Keyboard(rows=[
+            [Button("🌐 Сайтка өтүү", "noop", SITE_URL)],
+            [Button("🌐 Тил / Язык", "menu:lang")],
+        ])
+    # WhatsApp'та URL баскычы жок — сайт бөлүмү аркылуу көрсөтөбүз
     return Keyboard(rows=[
-        [Button("🚗 Айдоочумун", "menu:driver"),
-         Button("🔍 Жүргүнчүмүн", "menu:passenger")],
-        [Button("⚙️ Дагы", "menu:more")],  #MENU2
+        [Button("🌐 Сайтка өтүү", "menu:site")],
+        [Button("🌐 Тил / Язык", "menu:lang")],
     ])
 
 

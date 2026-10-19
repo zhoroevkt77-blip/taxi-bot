@@ -68,53 +68,27 @@ def handle_update(messenger, msg):
                 account = db.get_account(account["account_id"])
             except ValueError:
                 pass
-        elif len(parts) > 1 and parts[1].startswith("ht"):
-            # Каналдагы «🔍 Telegram Ботто издөө» баскычы.
-            # Каналда айдоочулардын жарыясы турат — ошондуктан
-            # айдоочуларды гана чыгарабыз.
-            try:
-                return hashtag_search(messenger, msg, account,
-                                      int(parts[1][2:]), only_role="driver")
-            except ValueError:
-                pass
-        elif len(parts) > 1 and parts[1] == "balance":
-            # Сайттын «Кабинет» бетинен балансты көрүүгө келди
-            return show_balance(messenger, msg, account)
-        elif len(parts) > 1 and parts[1] == "myposts":
-            # Сайттын «Кабинет» бетинен өз жарыяларын көрүүгө келди
-            kb = Keyboard.from_flat([
-                Button("🚗 Айдоочу катары", "d_my"),
-                Button("🧳 Жүргүнчү катары", "p_my"),
-                Button("🏠 Башкы меню", "menu:home"),
-            ])
-            return _say(messenger, msg, account, L(
-                "📄 <b>Менин жарыяларым</b>\n\nКайсы ролдогу жарыяларыңыз?",
-                "📄 <b>Мои объявления</b>\n\nОбъявления в какой роли?"), kb)
+        elif len(parts) > 1 and (parts[1].startswith("ht")
+                                 or parts[1].startswith("tag_")
+                                 or parts[1] in ("balance", "myposts",
+                                                 "pay", "postd", "postp")):
+            # v133: жарыя берүү, издөө, баланс, төлөм бөлүмү — баары
+            # сайтта. Эски шилтемелер сайтка чакырууну көрсөтөт.
+            return show_site(messenger, msg, account)
         elif len(parts) > 1 and parts[1].startswith("pay_"):
             # Сайттагы «Төлөм» бетинен түз келди — түрү белгилүү
             return pay_from_web(messenger, msg, account, parts[1][4:])
-        elif len(parts) > 1 and parts[1] == "pay":
-            # Сайттын «Кабинет» бетинен төлөмгө түз келди
-            return pay_entry(messenger, msg, account)
-        elif len(parts) > 1 and parts[1] in ("postd", "postp"):
-            # Сайттагы «Жарыя берүү» бетинен түз келди —
-            # дароо жарыя жазуу визардын баштайбыз
-            role = "driver" if parts[1] == "postd" else "passenger"
-            return post_types(messenger, msg, account, role)
         elif len(parts) > 1 and parts[1].startswith("l_"):
             # Сайтка кирүү: браузерди аккаунтка байлайбыз
             return web_login(messenger, msg, account, parts[1][2:])
         elif len(parts) > 1 and parts[1].startswith("v_"):
             # Сайттан берилген жарыяны ырастоо
             return web_start(messenger, msg, account, parts[1][2:])
-        elif len(parts) > 1 and parts[1].startswith("tag_"):
-            frm, _, to = parts[1][4:].partition("_")
-            if frm and to:
-                return _show_hashtag_results(messenger, msg, account, f"#{frm}_{to}", frm, to)
-
         # Таза "/start" — биринчи таанышуу, толук текст.
         # "/start home" (каналдан) же башка параметр — кыска аталыш.
-        head = MENU_TITLE if len(parts) > 1 else WELCOME
+        # v133: эски узун WELCOME эми туура эмес — боттун
+        # милдети номер ырастоо гана
+        head = BOT_WELCOME
         return _say(messenger, msg, account, head, main_menu_kb(msg.platform))
 
     # WhatsApp referral: колдонуучу "REF12" деген текст жиберет
@@ -132,50 +106,26 @@ def handle_update(messenger, msg):
     # «Издөө: Манас району ➡️ Бишкек». Колдонуучу жөнөтүү басканда,
     # бот аны таанып, ошол багыттагы АЙДООЧУЛАРДЫ чыгарат.
     if text.startswith(SEARCH_PREFIX):
+        # v133: издөө сайтка көчтү
         SESSIONS.pop(msg.user_id, None)
         NAV.pop(msg.user_id, None)
-        body = text[len(SEARCH_PREFIX):]
-        parts = re.split(r"[➡→>]+\ufe0f?", body)
-        if len(parts) >= 2:
-            frm, to = parts[0].strip(), parts[1].strip()
-            if frm and to:
-                return _show_hashtag_results(messenger, msg, account,
-                                             f"{frm}_{to}", frm, to,
-                                             only_role="driver")
+        return show_site(messenger, msg, account)
 
     # Сайттын «Кабинет» бетинен WhatsApp ботко жарыяларын көрүүгө келгендер
-    if text.strip().lower() == MYPOSTS_TEXT.lower():
+    # v133: бул үч бөлүм сайтка көчтү
+    if text.strip().lower() in (MYPOSTS_TEXT.lower(), BALANCE_TEXT.lower(),
+                                PAY_TEXT.lower()):
         SESSIONS.pop(msg.user_id, None)
         NAV.pop(msg.user_id, None)
-        kb = Keyboard.from_flat([
-            Button("🚗 Айдоочу катары", "d_my"),
-            Button("🧳 Жүргүнчү катары", "p_my"),
-            Button("🏠 Башкы меню", "menu:home"),
-        ])
-        return _say(messenger, msg, account, L(
-            "📄 <b>Менин жарыяларым</b>\n\nКайсы ролдогу жарыяларыңыз?",
-            "📄 <b>Мои объявления</b>\n\nОбъявления в какой роли?"), kb)
-
-    # Сайттын «Кабинет» бетинен WhatsApp ботко баланс көрүүгө келгендер
-    if text.strip().lower() == BALANCE_TEXT.lower():
-        SESSIONS.pop(msg.user_id, None)
-        NAV.pop(msg.user_id, None)
-        return show_balance(messenger, msg, account)
-
-    # Сайттын «Кабинет» бетинен WhatsApp ботко төлөмгө келгендер
-    if text.strip().lower() == PAY_TEXT.lower():
-        SESSIONS.pop(msg.user_id, None)
-        NAV.pop(msg.user_id, None)
-        return pay_entry(messenger, msg, account)
+        return show_site(messenger, msg, account)
 
     # Сайттагы «Жарыя берүү» бетинен WhatsApp ботко түз келгендер:
     # «Жарыя берем: айдоочу» же «Жарыя берем: жүргүнчү»
     if text.startswith(POST_PREFIX):
+        # v133: жарыя берүү сайтта
         SESSIONS.pop(msg.user_id, None)
         NAV.pop(msg.user_id, None)
-        who = text[len(POST_PREFIX):].strip().lower()
-        role = "driver" if who.startswith("айдооч") else "passenger"
-        return post_types(messenger, msg, account, role)
+        return show_site(messenger, msg, account)
 
     # Сайттагы төлөм бетинен WhatsApp аркылуу: «ТӨЛӨМ access»
     _mp = re.match(r"(?i)^\s*т[өо]л[өо]м\s+(access|vip|post)\b", text)
@@ -209,13 +159,10 @@ def handle_update(messenger, msg):
 
     # Эски формат: «HT85» деген кыска код (багыт белгисиз болгон учурда)
     if re.fullmatch(r"(?i)ht\d+", text):
+        # v133: издөө сайтка көчтү
         SESSIONS.pop(msg.user_id, None)
         NAV.pop(msg.user_id, None)
-        try:
-            return hashtag_search(messenger, msg, account, int(text[2:]),
-                                  only_role="driver")
-        except ValueError:
-            pass
+        return show_site(messenger, msg, account)
 
     # «🗺 Жүргүнчүлөрдү чогултуу» баскычтары — визарддан көз карандысыз
     if msg.is_button and (msg.button_action or "").startswith("pku:"):
@@ -240,10 +187,11 @@ def handle_update(messenger, msg):
         return
 
     if text.startswith("#"):
-        return _hashtag(messenger, msg, account, text)
+        # v133: издөө сайтка көчтү
+        return show_site(messenger, msg, account)
 
-    _say(messenger, msg, account, L(
-        "Түшүнбөй калдым 🙈 /start деп жазып көрүңүз.",
-        "Не понял 🙈 Попробуйте написать /start."), hint=True)
+    # v133: бот бөлүмдөрү сайтта — колдонуучуну ошол жакка жөнөтөбүз
+    _say(messenger, msg, account, BOT_WELCOME,
+         main_menu_kb(msg.platform))
 
 

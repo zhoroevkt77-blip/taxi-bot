@@ -51,7 +51,7 @@ except ImportError:
 
 SITE_SHORT = SITE_URL.replace("https://", "").replace("http://", "").rstrip("/")
 
-LOGIC_VERSION = "v100-time"
+LOGIC_VERSION = "v133-botslim"
 print(f"🧩 core/logic/ жүктөлдү. Версия = {LOGIC_VERSION}")
 
 SESSIONS = TTLDict(ttl=2 * 3600)  # 2 саат тийилбесе өчөт
@@ -318,31 +318,15 @@ def contact_links(phone, post_id=None, from_city=None, to_city=None):
                if from_city and to_city else SITE_URL)
         rows.append([("📞 Байланышуу / Связаться", url)])
     if post_id:
-        # Багыт белгилүү болсо — адамча суроо, болбосо кыска код
+        # v133: издөө ботто эмес, сайтта. Каналдан түз сайттын ошол
+        # багытындагы тизмесине алып барабыз — бот менен кыйналбайт.
         if from_city and to_city:
-            wa_text = f"{SEARCH_PREFIX} {from_city} ➡️ {to_city}"
+            srch = (f"{SITE_URL}/route?from={quote(from_city)}"
+                    f"&to={quote(to_city)}")
         else:
-            wa_text = f"HT{post_id}"
-        # Эки издөө баскычы БИР КАТАРДА — пост кыскараак көрүнөт.
-        # Аттары кыска: жанындагы 🔍 белгиси эмне кыларын билдирет.
-        rows.append([
-            ("✈️ Маршрут издөө",
-             f"https://t.me/{BOT_USERNAME}?start=ht{post_id}"),
-            ("🟢 Маршрут издөө",
-             f"{SITE_URL}/wa?text={quote(wa_text)}"),
-        ])
-    # Ботту ачуу — эки платформа үчүн өзүнчө. Колдонуучу кайсынысын
-    # колдонсо, ошону басат: экөө тең ошол эле ботко, ошол эле базага
-    # алып барат.
-    # tg:// шилтемеси браузерди аттап, түз Telegram колдонмосун ачат.
-    # (Telegram inline баскычтары http, https жана tg:// кабыл алат.)
-    # Ботту ачуу — экөө тең бир катарда
-    rows.append([
-        ("✈️ Ботко өтүү",
-         f"tg://resolve?domain={BOT_USERNAME}&start=home"),
-        ("🟢 Ботко өтүү",
-         f"{SITE_URL}/wa?text={quote('/start')}"),
-    ])
+            srch = SITE_URL
+        rows.append([("🔍 Бул багытта баары / Все по маршруту", srch)])
+    rows.append([("🌐 Сайтка өтүү / Перейти на сайт", SITE_URL)])
     return rows or None
 
 
