@@ -69,12 +69,6 @@
   <span class="chev">›</span>
 </a>
 
-<a class="row-item" href="/bots?lang={{ lang }}">  <!--BOTSROW-->
-  <span class="ico">🤖</span>
-  <span class="nm">{{ t("Telegram жана WhatsApp боттор", "Боты Telegram и WhatsApp") }}</span>
-  <span class="chev">›</span>
-</a>
-
 <a class="row-item" href="{{ channel_url }}">
   <span class="ico">📣</span>
   <span class="nm">{{ t("Telegram каналыбызга жазылуу", "Подписаться на наш Telegram-канал") }}</span>
@@ -96,8 +90,9 @@
 {% endif %}
 
 <div class="info-card">
-  {{ t('ТАКСИ роБОТ — Кыргызстандын такси платформасы. Telegram\'да, WhatsApp\'та жана ушул сайтта иштейт — база бир эле.',
-       'ТАКСИ роБОТ — платформа поиска такси по Кыргызстану. Работает в Telegram, WhatsApp и на этом сайте — база одна.') }}
+  {# v134: баары сайтта, бот — номер ырастоо гана #}
+  {{ t('ТАКСИ роБОТ — Кыргызстандын такси платформасы. Жарыя берүү, издөө жана төлөм ушул сайтта. Telegram жана WhatsApp боттору номерди ырастоо үчүн керек.',
+       'ТАКСИ роБОТ — платформа поиска такси по Кыргызстану. Объявления, поиск и оплата — на этом сайте. Боты Telegram и WhatsApp нужны для подтверждения номера.') }}
 </div>
 
 {% endblock %}
