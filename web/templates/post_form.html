@@ -23,6 +23,17 @@
                 box-shadow: none !important; }
   #photoPrev { width: 100%; border-radius: 14px; display: block; margin-bottom: 8px; }
   .photo-hint { font-size: 13px; color: #666; margin-top: 8px; line-height: 1.45; }
+  /* v135: дос чакыруу карточкасы — кичине, тоскоол болбосун */
+  .invc { border: 1.5px solid #FFE082; background: #FFFDF5;
+          border-radius: 14px; padding: 12px; margin: 4px 0 2px; }
+  .invc .t { font-size: 14px; font-weight: 800; color: #111; }
+  .invc .d { font-size: 13.5px; color: #555; margin-top: 4px; line-height: 1.45; }
+  .invc .n { font-size: 12.5px; color: #777; margin-top: 8px; }
+  .invbtns { display: flex; gap: 8px; margin-top: 10px; }
+  .invb { flex: 1 1 0; text-align: center; text-decoration: none;
+          font-size: 13.5px; font-weight: 700; padding: 10px 6px;
+          border-radius: 12px; background: #f5f5f5; color: #111; }
+  .invb.wa { background: #25D366; color: #fff; }
   .codebox { margin-top: 12px; border: 1.5px dashed #E3E8F0; border-radius: 14px;
              padding: 12px; }
   .codebox .cl { font-size: 13px; color: #666; line-height: 1.45; }
@@ -88,6 +99,27 @@
               style="background:#f5f5f5;color:#111">
         🧳 {{ t('Жүргүнчүмүн', 'Я пассажир') }}</button>
     </div>
+
+    {% if free_mode %}
+    <div class="invc">
+      <div class="t">🎁 {{ t('Жарыя берүү акысыз.', 'Объявления бесплатны.') }}</div>
+      <div class="d" data-inv="driver">{{ t('Досторуңузду чакырсаңыз, жүргүнчүлөр көбөйөт — сизди бат табышат.',
+                                            'Пригласите друзей — пассажиров станет больше, и вас найдут быстрее.') }}</div>
+      <div class="d" data-inv="passenger" style="display:none">{{ t('Досторуңузду чакырсаңыз, айдоочулар көбөйөт — сиз бат табасыз.',
+                                            'Пригласите друзей — водителей станет больше, и вы найдёте быстрее.') }}</div>
+      {% if me %}
+      <div class="invbtns">
+        <a class="invb wa" href="{{ share_wa }}" target="_blank" rel="noopener">📤 WhatsApp</a>
+        <a class="invb" href="{{ share_tg }}" target="_blank" rel="noopener">📤 Telegram</a>
+      </div>
+      <div class="n">{{ t('Чакырылды', 'Приглашено') }}: {{ refs }}/{{ invite_goal }} ·
+        {{ t('милдеттүү эмес', 'необязательно') }}</div>
+      {% else %}
+      <div class="n">{{ t('Шилтемеңиз номериңиз ырасталгандан кийин чыгат.',
+                          'Ваша ссылка появится после подтверждения номера.') }}</div>
+      {% endif %}
+    </div>
+    {% endif %}
 
     <div class="sec"><span>{{ t('Багыт', 'Направление') }}</span></div>
     <div class="fld rolerow">
@@ -223,11 +255,31 @@
   <div class="flt">
     <div class="w-lead">
       <b>✅ {{ t('Жарыяңыз чыкты!', 'Объявление опубликовано!') }}</b>
-      <span>{{ t('Ал 24 саат турат. Боттогу «Менин посторум» бөлүмүнөн көрө аласыз.',
-                 'Оно висит 24 часа. Посмотреть можно в боте, раздел «Мои объявления».') }}</span>
+      <span>{{ t('Ал 24 саат турат. «👤 Кабинет» → «📋 Менин жарыяларым» бөлүмүнөн башкара аласыз.',
+                 'Оно висит 24 часа. Управлять им можно в «👤 Кабинет» → «📋 Мои объявления».') }}</span>
     </div>
     <a class="go" id="seeBtn" href="/" style="display:block;text-align:center;text-decoration:none">
       🌐 {{ t('Багытты көрүү', 'Посмотреть направление') }}</a>
+
+    {% if free_mode %}
+    <div class="invc" style="margin-top:12px">
+      <div class="t">🎁 {{ t('Платформа өссүн десеңиз, досторуңузду чакырыңыз',
+                             'Хотите, чтобы платформа росла — пригласите друзей') }}</div>
+      {% if me %}
+      <div class="invbtns">
+        <a class="invb wa" href="{{ share_wa }}" target="_blank" rel="noopener">📤 WhatsApp</a>
+        <a class="invb" href="{{ share_tg }}" target="_blank" rel="noopener">📤 Telegram</a>
+      </div>
+      <div class="n">{{ t('Чакырылды', 'Приглашено') }}: {{ refs }}/{{ invite_goal }} ·
+        {{ t('милдеттүү эмес — жарыяңыз мурунтан эле чыгып турат',
+             'необязательно — объявление уже опубликовано') }}</div>
+      {% else %}
+      <div class="invbtns">
+        <a class="invb" href="/invite?lang={{ lang }}">🎁 {{ t('Шилтемемди алуу', 'Получить ссылку') }}</a>
+      </div>
+      {% endif %}
+    </div>
+    {% endif %}
   </div>
 </div>
 
@@ -261,6 +313,10 @@
       });
       document.getElementById("driverFields").style.display = role === "driver" ? "" : "none";
       document.getElementById("paxFields").style.display = role === "driver" ? "none" : "";
+      /* v135: чакыруу карточкасынын тексти ролго жараша */
+      document.querySelectorAll("[data-inv]").forEach(function (x) {
+        x.style.display = (x.dataset.inv === role) ? "" : "none";
+      });
     });
   });
 

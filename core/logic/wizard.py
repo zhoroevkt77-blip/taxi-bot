@@ -10,6 +10,13 @@ def daily_limit_left(account_id, role):
 
     DRIVER_DAILY_LIMIT = 0 болсо — чектөө жок, (None, None) кайтарат.
     """
+    # v135: акысыз режимде эч кандай чектөө жок
+    try:
+        from core.texts import FREE_MODE as _FREE
+        if _FREE:
+            return None, None
+    except ImportError:
+        pass
     if role != "driver" or not DRIVER_DAILY_LIMIT:
         return None, None
     times = posts.recent_posts_times(account_id, "driver", 24)

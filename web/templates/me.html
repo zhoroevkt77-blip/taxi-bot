@@ -63,11 +63,20 @@
   <span class="chev">›</span>
 </a>
 
+{# v135: азырынча баары акысыз — төлөмдүн ордунда дос чакыруу #}
+{% if free_mode %}
+<a class="row-item" href="/invite?lang={{ lang }}">
+  <span class="ico">🎁</span>
+  <span class="nm">{{ t('Досторду чакыруу', 'Пригласить друзей') }}</span>
+  <span class="chev">›</span>
+</a>
+{% else %}
 <a class="row-item" href="/pay?lang={{ lang }}">
   <span class="ico">💳</span>
   <span class="nm">{{ t('Төлөм төлөймүн', 'Хочу оплатить') }}</span>
   <span class="chev">›</span>
 </a>
+{% endif %}
 
 <a class="row-item" href="{{ channel_url }}">
   <span class="ico">📣</span>

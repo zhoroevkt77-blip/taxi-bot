@@ -51,7 +51,7 @@ except ImportError:
 
 SITE_SHORT = SITE_URL.replace("https://", "").replace("http://", "").rstrip("/")
 
-LOGIC_VERSION = "v133-botslim"
+LOGIC_VERSION = "v135-free"
 print(f"🧩 core/logic/ жүктөлдү. Версия = {LOGIC_VERSION}")
 
 SESSIONS = TTLDict(ttl=2 * 3600)  # 2 саат тийилбесе өчөт
@@ -371,7 +371,18 @@ def _to_local(dt):
 
 
 def has_access(account):
-    """Айдоочунун акысыз мөөнөтү бүтө элекпи?"""
+    """Айдоочунун акысыз мөөнөтү бүтө элекпи?
+
+    v135: FREE_MODE күйүк турганда ар дайым True — жарыя берүү
+    толук акысыз. texts.py'деги бир сапты False кылсаңыз, мурунку
+    мөөнөт эрежеси кайра иштейт.
+    """
+    try:
+        from core.texts import FREE_MODE as _FREE
+        if _FREE:
+            return True
+    except ImportError:
+        pass
     until = account.get("access_until")
     if not until:
         return False

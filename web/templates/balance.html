@@ -3,6 +3,7 @@
 {% block title %}{{ t('Менин балансым', 'Мой баланс') }} — ТАКСИ роБОТ{% endblock %}
 
 {% block content %}
+{# v135: акысыз режимде баалар эмес, чакыруу прогресси көрүнөт #}
 
 <style>
   .bal { border:1.5px solid var(--mist,#E3E8F0); border-radius:16px;
@@ -13,6 +14,9 @@
   .bal .s { font-size:13.5px; color:#666; margin-top:6px; line-height:1.5; }
   .bal.ok { border-color:#C8E6C9; background:#F6FBF6; }
   .bal.off { border-color:#F3C9C9; background:#FDF7F7; }
+  .prog { height:8px; border-radius:6px; background:#ECEFF3; margin-top:10px;
+          overflow:hidden; }
+  .prog > i { display:block; height:100%; background:var(--yellow,#FFC107); }
 </style>
 
 <a class="back" href="/me?lang={{ lang }}">← {{ t('Кабинет', 'Кабинет') }}</a>
@@ -21,53 +25,88 @@
   <h1>💼 {{ t('Менин балансым', 'Мой баланс') }}</h1>
 </div>
 
-<div class="bal {{ 'ok' if access_ok else 'off' }}">
-  <div class="h">🚗 {{ t('Айдоочу катары', 'Как водитель') }}</div>
-  {% if access_ok %}
-    <div class="v">{{ t('Ачык', 'Открыто') }} · {{ access_left }}</div>
-    <div class="s">{{ t('Чектөөсүз жарыя бере аласыз.',
-                        'Можно публиковать объявления без ограничений.') }}</div>
-  {% else %}
-    <div class="v">{{ t('Мөөнөтү бүткөн', 'Срок истёк') }}</div>
-    <div class="s">{{ t('Улантуу үчүн төлөңүз же дос чакырыңыз.',
-                        'Чтобы продолжить, оплатите или пригласите друзей.') }}</div>
-  {% endif %}
-</div>
+{% if free_mode %}
 
-<div class="bal {{ 'ok' if vip_ok else '' }}">
-  <div class="h">⭐ VIP</div>
-  {% if vip_ok %}
-    <div class="v">{{ t('Активдүү', 'Активен') }} · {{ vip_left }}</div>
-    <div class="s">{{ t('Жарыяңыз тизменин эң үстүндө турат.',
-                        'Ваше объявление в самом верху списка.') }}</div>
-  {% else %}
-    <div class="v">{{ t('Жок', 'Нет') }}</div>
-    <div class="s">{{ t('VIP жарыяңызды издөө тизмесинин башына чыгарат.',
-                        'VIP поднимает объявление в начало списка.') }}</div>
-  {% endif %}
-</div>
+  <div class="bal ok">
+    <div class="h">🎁 {{ t('Азыркы абал', 'Текущий статус') }}</div>
+    <div class="v">{{ t('Баары акысыз', 'Всё бесплатно') }}</div>
+    <div class="s">{{ t('Жарыя берүү азырынча толук акысыз — айдоочуга да, жүргүнчүгө да. Чектөө жок, төлөөнүн кереги жок.',
+                        'Публикация объявлений пока полностью бесплатна — и водителю, и пассажиру. Без ограничений, платить не нужно.') }}</div>
+  </div>
 
-<div class="bal">
-  <div class="h">🧳 {{ t('Жүргүнчү катары', 'Как пассажир') }}</div>
-  <div class="v">{{ t('Акысыз жарыя', 'Бесплатных объявлений') }}: {{ free_posts }}</div>
-  <div class="s">{{ t('Бүтсө, бир жарыяны төлөп же дос чакырып аласыз.',
-                      'Когда закончатся — оплатите одно или пригласите друга.') }}</div>
-</div>
+  <div class="bal">
+    <div class="h">👥 {{ t('Чакырган досторуңуз', 'Приглашено друзей') }}</div>
+    <div class="v">{{ refs }} / {{ invite_goal }}</div>
+    <div class="prog"><i style="width:{{ (100 if refs >= invite_goal else (refs * 100 // invite_goal)) }}%"></i></div>
+    <div class="s">{% if refs >= invite_goal %}
+      {{ t('Рахмат! Сиз платформанын өсүшүнө салым коштуңуз.',
+           'Спасибо! Вы помогли платформе вырасти.') }}
+    {% else %}
+      {{ t('Милдеттүү эмес. Бирок колдонуучу көбөйгөн сайын сиз тезирээк табасыз.',
+           'Необязательно. Но чем больше людей, тем быстрее вы находите нужного.') }}
+    {% endif %}</div>
+  </div>
 
-<div class="bal">
-  <div class="h">👥 {{ t('Чакырган досторуңуз', 'Приглашено друзей') }}</div>
-  <div class="v">{{ refs }}</div>
-  <div class="s">{{ t('Дос чакыруу шилтемеңиз ботто: «💼 Менин балансым».',
-                      'Ваша пригласительная ссылка — в боте: «💼 Мой баланс».') }}</div>
-</div>
+  <div class="bal">
+    <div class="h">📱 {{ t('Ырасталган номер', 'Подтверждённый номер') }}</div>
+    <div class="v">{{ phone or t('жок', 'нет') }}</div>
+  </div>
 
-<div class="bal">
-  <div class="h">📱 {{ t('Ырасталган номер', 'Подтверждённый номер') }}</div>
-  <div class="v">{{ phone or t('жок', 'нет') }}</div>
-</div>
+  <a class="go" href="/invite?lang={{ lang }}"
+     style="display:block;text-align:center;text-decoration:none;margin-top:14px">
+    🎁 {{ t('Досторду чакыруу', 'Пригласить друзей') }}</a>
 
-<a class="go" href="/pay?lang={{ lang }}"
-   style="display:block;text-align:center;text-decoration:none;margin-top:14px">
-  💳 {{ t('Төлөм төлөймүн', 'Хочу оплатить') }}</a>
+{% else %}
+
+  <div class="bal {{ 'ok' if access_ok else 'off' }}">
+    <div class="h">🚗 {{ t('Айдоочу катары', 'Как водитель') }}</div>
+    {% if access_ok %}
+      <div class="v">{{ t('Ачык', 'Открыто') }} · {{ access_left }}</div>
+      <div class="s">{{ t('Чектөөсүз жарыя бере аласыз.',
+                          'Можно публиковать объявления без ограничений.') }}</div>
+    {% else %}
+      <div class="v">{{ t('Мөөнөтү бүткөн', 'Срок истёк') }}</div>
+      <div class="s">{{ t('Улантуу үчүн төлөңүз же дос чакырыңыз.',
+                          'Чтобы продолжить, оплатите или пригласите друзей.') }}</div>
+    {% endif %}
+  </div>
+
+  <div class="bal {{ 'ok' if vip_ok else '' }}">
+    <div class="h">⭐ VIP</div>
+    {% if vip_ok %}
+      <div class="v">{{ t('Активдүү', 'Активен') }} · {{ vip_left }}</div>
+      <div class="s">{{ t('Жарыяңыз тизменин эң үстүндө турат.',
+                          'Ваше объявление в самом верху списка.') }}</div>
+    {% else %}
+      <div class="v">{{ t('Жок', 'Нет') }}</div>
+      <div class="s">{{ t('VIP жарыяңызды издөө тизмесинин башына чыгарат.',
+                          'VIP поднимает объявление в начало списка.') }}</div>
+    {% endif %}
+  </div>
+
+  <div class="bal">
+    <div class="h">🧳 {{ t('Жүргүнчү катары', 'Как пассажир') }}</div>
+    <div class="v">{{ t('Акысыз жарыя', 'Бесплатных объявлений') }}: {{ free_posts }}</div>
+    <div class="s">{{ t('Бүтсө, бир жарыяны төлөп же дос чакырып аласыз.',
+                        'Когда закончатся — оплатите одно или пригласите друга.') }}</div>
+  </div>
+
+  <div class="bal">
+    <div class="h">👥 {{ t('Чакырган досторуңуз', 'Приглашено друзей') }}</div>
+    <div class="v">{{ refs }}</div>
+    <div class="s">{{ t('Дос чакыруу шилтемеңиз: «🎁 Досторду чакыруу».',
+                        'Ваша пригласительная ссылка: «🎁 Пригласить друзей».') }}</div>
+  </div>
+
+  <div class="bal">
+    <div class="h">📱 {{ t('Ырасталган номер', 'Подтверждённый номер') }}</div>
+    <div class="v">{{ phone or t('жок', 'нет') }}</div>
+  </div>
+
+  <a class="go" href="/pay?lang={{ lang }}"
+     style="display:block;text-align:center;text-decoration:none;margin-top:14px">
+    💳 {{ t('Төлөм төлөймүн', 'Хочу оплатить') }}</a>
+
+{% endif %}
 
 {% endblock %}

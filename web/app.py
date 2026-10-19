@@ -39,8 +39,9 @@ from core import websession
 from core import db as _db
 from core import logic as _logic
 from core.texts import render as tr_render
+from core.texts import FREE_MODE, INVITE_GOAL   # v135
 
-WEB_VERSION = "v48-pickup"
+WEB_VERSION = "v135-free"
 print(f"🌐 web/app.py жүктөлдү. Версия = {WEB_VERSION}")
 
 BOT_USERNAME = os.environ.get("BOT_USERNAME", "taxirobot_bot")
@@ -452,8 +453,21 @@ def _lang_url(target):
 
 
 def _base_ctx():
+    # v135: дос чакыруу шилтемелери ар бир бетте керек болот
+    _me = current_account()
+    _aid = (_me or {}).get("account_id") or 0
+    _lg = _lang()
+    _root = request.url_root.rstrip("/").replace("http://", "https://")
+    # Досуңуз баса турган шилтеме: ботко кирет, бонус эсептелет,
+    # андан соң бот аны сайтка жөнөтөт.
+    _tg_ref = f"https://t.me/{BOT_USERNAME}?start=ref{_aid}"
+    _wa_ref = f"{_root}/wa?text=REF{_aid}"
+    _head = ("«ТАКСИ роБОТ» — водители и пассажиры по всему "
+             "Кыргызстану." if _lg == "ru" else
+             "«ТАКСИ роБОТ» — Кыргызстан боюнча айдоочулар менен "
+             "жүргүнчүлөр.")
     return {
-        "lang": _lang(),
+        "lang": _lg,
         "lang_ky_url": _lang_url("ky"),
         "lang_ru_url": _lang_url("ru"),
         "t": _t,
@@ -461,7 +475,17 @@ def _base_ctx():
         "help_url": f"https://t.me/{BOT_USERNAME}?start=home",
         "wa_bot_url": f"/wa?text=/start",
         "channel_url": CHANNEL_LINK,
-        "me": current_account(),
+        "me": _me,
+        # ---- v135: акысыз режим жана дос чакыруу ----
+        "free_mode": FREE_MODE,
+        "invite_goal": INVITE_GOAL,
+        "refs": (_me or {}).get("ref_count") or 0,
+        "ref_link": _tg_ref,
+        "ref_link_wa": _wa_ref,
+        "share_tg": ("https://t.me/share/url?url=" + quote(_tg_ref)
+                     + "&text=" + quote(_head)),
+        "share_wa": ("https://wa.me/?text="
+                     + quote(_head + "\n" + _wa_ref)),
         # «Жарыя берүү» бетинен ботко ТҮЗ кирүү — ролу менен кошо.
         # Telegram start-параметрди өзү берет, WhatsApp'та кабар
         # талаасына даяр текст коюлат.
@@ -1219,6 +1243,15 @@ def balance_page():
     return _with_lang(make_response(html))
 
 
+@app.route("/invite")
+def invite_page():
+    """🎁 Досторду чакыруу — шилтеме, көчүрүү, бөлүшүү."""
+    if not current_account():
+        return redirect("/login?lang=" + _lang())
+    html = render_template("invite.html", **_base_ctx())
+    return _with_lang(make_response(html))
+
+
 @app.route("/pay")
 def pay_page():
     """«💳 Төлөм төлөймүн» — эки ботко өтүү.
@@ -1227,6 +1260,9 @@ def pay_page():
     админ ырастоосу боттордо жүргүзүлөт. Ошондуктан бул бет жөн
     гана ботко багыттайт.
     """
+    # v135: азырынча баары акысыз — төлөм бети жашырылган
+    if FREE_MODE:
+        return redirect("/invite?lang=" + _lang())
     from core.texts import (PAYMENT_AMOUNT, VIP_PRICE,
                             PASSENGER_POST_PRICE, PAYMENT_REQUISITES)
     html = render_template(
@@ -1284,6 +1320,8 @@ def _left_text(value):
 
 @app.route("/pay/receipt", methods=["POST"])
 def pay_receipt():
+    if FREE_MODE:                      # v135: төлөм жабык
+        return jsonify(ok=False, error="off")
     """Сайттан жүктөлгөн чекти админге жиберет."""
     me = current_account()
     if not me:

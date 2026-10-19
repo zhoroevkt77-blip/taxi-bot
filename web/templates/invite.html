@@ -1,0 +1,98 @@
+{% extends "base.html" %}
+
+{% block title %}{{ t('Досторду чакыруу', 'Пригласить друзей') }} — ТАКСИ роБОТ{% endblock %}
+
+{% block content %}
+{# v135: төлөмдүн ордундагы бөлүм — платформаны өстүрүү #}
+
+<style>
+  .ivc { border:1.5px solid var(--mist,#E3E8F0); border-radius:16px;
+         padding:14px; margin-bottom:12px; background:var(--card,#fff); }
+  .ivc .h { font-size:13px; font-weight:800; color:#111;
+            text-transform:uppercase; margin-bottom:8px; }
+  .ivc .v { font-size:16px; font-weight:700; color:#111; }
+  .ivc .s { font-size:13.5px; color:#666; margin-top:6px; line-height:1.5; }
+  .prog { height:8px; border-radius:6px; background:#ECEFF3; margin-top:10px;
+          overflow:hidden; }
+  .prog > i { display:block; height:100%; background:var(--yellow,#FFC107); }
+  .link { font-size:14px; font-weight:600; color:#111; word-break:break-all;
+          background:#F6F7F9; border-radius:12px; padding:11px 12px;
+          line-height:1.45; }
+  .cbtn { width:100%; margin-top:8px; border:1.5px solid #E3E8F0;
+          border-radius:12px; padding:12px; font-family:inherit;
+          font-size:15px; font-weight:700; background:#f5f5f5; color:#111;
+          cursor:pointer; }
+  .sbtn { display:block; text-align:center; text-decoration:none;
+          margin-top:8px; }
+  .sbtn.wa { background:#25D366; color:#fff; }
+  .why li { margin-bottom:8px; line-height:1.5; }
+</style>
+
+<a class="back" href="/me?lang={{ lang }}">← {{ t('Кабинет', 'Кабинет') }}</a>
+
+<div class="page-head">
+  <h1>🎁 {{ t('Досторду чакыруу', 'Пригласить друзей') }}</h1>
+  <p class="lead">
+    {{ t('Жарыя берүү азырынча толук акысыз. Төлөмдүн ордуна болгону бир суранычыбыз бар — досторуңузга айтып коюңуз.',
+         'Публикация объявлений пока полностью бесплатна. Вместо оплаты у нас только одна просьба — расскажите друзьям.') }}
+  </p>
+</div>
+
+<div class="ivc">
+  <div class="h">👥 {{ t('Чакырылды', 'Приглашено') }}</div>
+  <div class="v">{{ refs }} / {{ invite_goal }}</div>
+  <div class="prog"><i style="width:{{ (100 if refs >= invite_goal else (refs * 100 // invite_goal)) }}%"></i></div>
+  <div class="s">{% if refs >= invite_goal %}
+    {{ t('Рахмат! Сиз платформанын өсүшүнө салым коштуңуз. Каалаcаңыз дагы чакыра бересиз.',
+         'Спасибо! Вы помогли платформе вырасти. Можно приглашать и дальше.') }}
+  {% else %}
+    {{ t('Милдеттүү эмес — чакырбасаңыз да жарыя бере бересиз.',
+         'Это необязательно — объявления можно давать и без этого.') }}
+  {% endif %}</div>
+</div>
+
+<div class="ivc">
+  <div class="h">🔗 {{ t('Сиздин шилтемеңиз', 'Ваша ссылка') }}</div>
+  <div class="link" id="lnk">{{ ref_link }}</div>
+  <button type="button" class="cbtn" id="copy">
+    📋 {{ t('Шилтемени көчүрүү', 'Копировать ссылку') }}</button>
+  <a class="go sbtn wa" href="{{ share_wa }}" target="_blank" rel="noopener">
+    📤 {{ t("WhatsApp'тагы досторго", 'Друзьям в WhatsApp') }}</a>
+  <a class="go sbtn" href="{{ share_tg }}" target="_blank" rel="noopener">
+    📤 {{ t("Telegram'дагы досторго", 'Друзьям в Telegram') }}</a>
+</div>
+
+<div class="ivc">
+  <div class="h">💡 {{ t('Эмне үчүн керек', 'Зачем это нужно') }}</div>
+  <ul class="why" style="margin:8px 0 0 18px;padding:0;font-size:14px;color:#111">
+    <li>{{ t('Айдоочу болсоңуз — жүргүнчүлөр көбөйөт, орундарыңыз тез толот.',
+             'Если вы водитель — станет больше пассажиров, места заполнятся быстрее.') }}</li>
+    <li>{{ t('Жүргүнчү болсоңуз — айдоочулар көбөйөт, керектүү багытты тез табасыз.',
+             'Если вы пассажир — станет больше водителей, нужное направление найдётся быстрее.') }}</li>
+    <li>{{ t('Платформа өссө, баары акысыз боюнча калууга мүмкүнчүлүк чоң.',
+             'Чем больше платформа, тем выше шанс, что всё останется бесплатным.') }}</li>
+  </ul>
+</div>
+
+<div class="info-card">
+  <b>{{ t('Кантип эсептелет?', 'Как засчитывается?') }}</b><br>
+  {{ t('Досуңуз так сиздин шилтемеңиз аркылуу кириши керек. Ал ботту ачат, номерин ырастайт — ошондо саналат. Жөн эле сайттын дарегин жиберсеңиз, эсептелбейт.',
+       'Друг должен войти именно по вашей ссылке. Он откроет бота, подтвердит номер — тогда это засчитается. Если просто отправить адрес сайта, засчитано не будет.') }}
+</div>
+
+<script>
+(function () {
+  var L = {{ 'true' if lang == 'ru' else 'false' }};
+  var btn = document.getElementById("copy");
+  btn.addEventListener("click", function () {
+    var txt = document.getElementById("lnk").textContent.trim();
+    navigator.clipboard.writeText(txt).then(function () {
+      btn.textContent = "✅ " + (L ? "Скопировано" : "Көчүрүлдү");
+    }).catch(function () {
+      btn.textContent = L ? "Не удалось скопировать" : "Көчүрүлгөн жок";
+    });
+  });
+})();
+</script>
+
+{% endblock %}
