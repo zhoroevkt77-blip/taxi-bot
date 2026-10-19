@@ -867,6 +867,84 @@ def web_publish(messenger, msg, account, row):
     return post_id
 
 
+# ============ САЙТТАН ТҮЗ ЖАРЫЯЛОО (v137) ============
+# Колдонуучу сайтта мурда кирген жана номери ырасталган болсо,
+# аны кайра ботко жиберүүнүн эч кандай мааниси жок — номер
+# ансыз да белгилүү. Жарыяны ошол замат чыгарабыз.
+#
+# save() кабарларды messenger аркылуу жиберет, бирок бул жерде
+# колдонуучу браузерде отурат жана натыйжаны бетте көрөт.
+# Ошондуктан «унчукпаган» messenger беребиз: ал бардык кабарды
+# жутуп коёт, каналга чыгаруу жана push кабарлоо мурункудай иштейт.
+
+
+class _SilentMessenger:
+    platform_name = "web"
+
+    def send_text(self, *a, **k):
+        pass
+
+    def send_prompt(self, *a, **k):
+        pass
+
+    def send_photo(self, *a, **k):
+        pass
+
+    def send_buttons(self, *a, **k):
+        pass
+
+    def ask_phone_contact(self, *a, **k):
+        pass
+
+    def publish_to_channel(self, text, links=None):
+        return channel.publish(text, links)
+
+
+class _SilentMsg:
+    is_button = False
+    text = ""
+    photo_id = None
+    verified = True
+
+    def __init__(self, user_id):
+        self.user_id = user_id
+        self.platform = "web"
+
+
+def web_publish_now(account, row):
+    """Сайттагы долбоорду ботко кайрылбай эле жарыялайт.
+
+    Кайтарат: post_id, же эмне болгонун түшүндүргөн None.
+    Эрежелер боттогудай: мөөнөт жана суткалык чектөө текшерилет.
+    """
+    if not row or row.get("status") != "pending":
+        return None
+    phone = account.get("verified_phone")
+    if not (phone and normalize_phone(str(phone))):
+        return None          # номер жок/жараксыз — ботко барсын
+
+    role = row["role"]
+    d = dict(row.get("data") or {})
+
+    if role == "driver" and not has_access(account):
+        _webpost.mark_error(row["token"], "Мөөнөт бүткөн")
+        return None
+
+    left, _free_at = daily_limit_left(account["account_id"], role)
+    if left is not None and left <= 0:
+        _webpost.mark_error(row["token"], "Күнүмдүк лимит")
+        return None
+
+    d["phone"] = phone
+    st = {"data": d, "role": role, "step": "web"}
+    post_id = save(_SilentMessenger(),
+                   _SilentMsg(f"web:{account['account_id']}"),
+                   account, st)
+    _webpost.mark_done(row["token"], post_id)
+    print(f"[webpost] {row['token']} → ботсуз чыкты (post_id={post_id})")
+    return post_id
+
+
 # ============ САЙТКА КИРҮҮ (l_ТОКЕН) ============
 from core import websession as _wsession
 

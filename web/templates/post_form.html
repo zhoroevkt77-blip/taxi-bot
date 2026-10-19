@@ -83,8 +83,14 @@
 <div class="page-head">
   <h1>➕ {{ t('Жарыя берүү', 'Подать объявление') }}</h1>
   <p class="lead">
+    {# v137: номери ырасталгандар ботко барбайт #}
+    {% if me and me.verified_phone %}
+    {{ t('Форманы толтуруп, «Жарыялоо» басыңыз — жарыяңыз ошол замат чыгат.',
+         'Заполните форму и нажмите «Опубликовать» — объявление появится сразу.') }}
+    {% else %}
     {{ t('Форманы толтуруңуз, аягында номериңизди Telegram же WhatsApp аркылуу ырастайсыз.',
          'Заполните форму, в конце подтвердите номер через Telegram или WhatsApp.') }}
+    {% endif %}
   </p>
 </div>
 
@@ -224,7 +230,11 @@
     </div>
 
     <button class="go" type="button" id="send">
-      ✅ {{ t('Улантуу — номерди ырастоо', 'Продолжить — подтвердить номер') }}</button>
+      {% if me and me.verified_phone %}
+      ✅ {{ t('Жарыялоо', 'Опубликовать') }}
+      {% else %}
+      ✅ {{ t('Улантуу — номерди ырастоо', 'Продолжить — подтвердить номер') }}
+      {% endif %}</button>
     <div class="watch-note" id="note"></div>
   </div>
 </div>
@@ -531,6 +541,14 @@
       document.getElementById("send").disabled = false;
       if (!d.ok) { say(d.error || s("Ката кетти.", "Ошибка."), "warn"); return; }
       token = d.token;
+      /* v137: номер ансыз да ырасталган — жарыя чыгып калды */
+      if (d.done) {
+        if (d.url) document.getElementById("seeBtn").href = d.url;
+        document.getElementById("formBox").style.display = "none";
+        document.getElementById("doneBox").style.display = "block";
+        window.scrollTo(0, 0);
+        return;
+      }
       document.getElementById("tgBtn").href = d.tg;
       document.getElementById("waBtn").href = d.wa;
       document.getElementById("formBox").style.display = "none";

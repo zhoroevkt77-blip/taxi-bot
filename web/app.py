@@ -41,7 +41,7 @@ from core import logic as _logic
 from core.texts import render as tr_render
 from core.texts import FREE_MODE, INVITE_GOAL   # v135
 
-WEB_VERSION = "v135-free"
+WEB_VERSION = "v137-direct"
 print(f"🌐 web/app.py жүктөлдү. Версия = {WEB_VERSION}")
 
 BOT_USERNAME = os.environ.get("BOT_USERNAME", "taxirobot_bot")
@@ -981,6 +981,23 @@ def post_create():
                              + "/wphoto/" + ptoken)
 
     token = webpost.create(role, data)
+
+    # v137: сайтка кирген жана номери ырасталган адамды ботко
+    # жибербейбиз — жарыя ошол замат чыгат.
+    me = current_account()
+    if me and me.get("verified_phone"):
+        pid = None
+        try:
+            pid = _logic.web_publish_now(me, webpost.get(token))
+        except Exception as e:
+            print("[web] түз жарыялоо катасы:", e)
+        if pid:
+            p = posts.get_post(pid) or {}
+            url = ("/route?from=" + quote(p.get("from_city") or "")
+                   + "&to=" + quote(p.get("to_city") or ""))
+            return jsonify(ok=True, token=token, done=True, url=url)
+        # Чыкпай калса — төмөндөгү эски жол (бот аркылуу) иштейт
+
     wa_text = "ЫРАСТОО v_" + token
     return jsonify(ok=True, token=token,
                    tg=f"https://t.me/{BOT_USERNAME}?start=v_{token}",
