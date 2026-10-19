@@ -36,7 +36,8 @@
 
   <div class="bal">
     <div class="h">👥 {{ t('Чакырган досторуңуз', 'Приглашено друзей') }}</div>
-    <div class="v">{{ refs }} / {{ invite_goal }}</div>
+    {# v138 #}
+    <div class="v">{% if refs >= invite_goal %}{{ refs }} ✅{% else %}{{ refs }} / {{ invite_goal }}{% endif %}</div>
     <div class="prog"><i style="width:{{ (100 if refs >= invite_goal else (refs * 100 // invite_goal)) }}%"></i></div>
     <div class="s">{% if refs >= invite_goal %}
       {{ t('Рахмат! Сиз платформанын өсүшүнө салым коштуңуз.',

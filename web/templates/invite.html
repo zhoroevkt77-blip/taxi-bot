@@ -25,6 +25,8 @@
   .sbtn { display:block; text-align:center; text-decoration:none;
           margin-top:8px; }
   .sbtn.wa { background:#25D366; color:#fff; }
+  /* v138: Telegram өз логотибинин көгү менен */
+  .sbtn.tg { background:#229ED9; color:#fff; }
   .why li { margin-bottom:8px; line-height:1.5; }
 </style>
 
@@ -40,7 +42,7 @@
 
 <div class="ivc">
   <div class="h">👥 {{ t('Чакырылды', 'Приглашено') }}</div>
-  <div class="v">{{ refs }} / {{ invite_goal }}</div>
+  <div class="v">{% if refs >= invite_goal %}{{ refs }} ✅{% else %}{{ refs }} / {{ invite_goal }}{% endif %}</div>
   <div class="prog"><i style="width:{{ (100 if refs >= invite_goal else (refs * 100 // invite_goal)) }}%"></i></div>
   <div class="s">{% if refs >= invite_goal %}
     {{ t('Рахмат! Сиз платформанын өсүшүнө салым коштуңуз. Каалаcаңыз дагы чакыра бересиз.',
@@ -58,7 +60,7 @@
     📋 {{ t('Шилтемени көчүрүү', 'Копировать ссылку') }}</button>
   <a class="go sbtn wa" href="{{ share_wa }}" target="_blank" rel="noopener">
     📤 {{ t("WhatsApp'тагы досторго", 'Друзьям в WhatsApp') }}</a>
-  <a class="go sbtn" href="{{ share_tg }}" target="_blank" rel="noopener">
+  <a class="go sbtn tg" href="{{ share_tg }}" target="_blank" rel="noopener">
     📤 {{ t("Telegram'дагы досторго", 'Друзьям в Telegram') }}</a>
 </div>
 
