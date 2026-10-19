@@ -11,6 +11,17 @@
     display: block; font-weight: 500; font-size: 13px;
     color: var(--grey); margin-top: 2px; letter-spacing: 0;
   }
+  /* v139: аягындагы жазуунун үстүндөгү сүрөт.
+     Сүрөт менен текст бир блок болуп окулсун — ошондуктан
+     сүрөттүн асты, тексттин үстү тик бурч калат. */
+  .brandpic {
+    margin-top: 14px; border-radius: 16px 16px 0 0;
+    overflow: hidden; line-height: 0; background: #fff;
+  }
+  .brandpic img { width: 100%; display: block; }
+  .brandpic + .info-card {
+    margin-top: 0; border-radius: 0 0 16px 16px;
+  }
 </style>
 
 <div class="page-head">
@@ -97,6 +108,11 @@
   <span class="chev">›</span>
 </a>
 {% endif %}
+
+<div class="brandpic">
+  <img src="/static/robotaxi.jpg" alt="ТАКСИ роБОТ"
+       loading="lazy" width="820" height="461">
+</div>
 
 <div class="info-card">
   {# v134: баары сайтта, бот — номер ырастоо гана #}
