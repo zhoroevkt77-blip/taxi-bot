@@ -18,7 +18,12 @@
     margin-top: 14px; border-radius: 16px 16px 0 0;
     overflow: hidden; line-height: 0; background: #fff;
   }
-  .brandpic img { width: 100%; display: block; }
+  /* v140: аспект катышы бекитилди — браузер сүрөттү
+     эч качан өзүнчө чоюп жибербейт. */
+  .brandpic img {
+    width: 100%; height: auto; display: block;
+    aspect-ratio: 900 / 498;
+  }
   .brandpic + .info-card {
     margin-top: 0; border-radius: 0 0 16px 16px;
   }
@@ -110,8 +115,8 @@
 {% endif %}
 
 <div class="brandpic">
-  <img src="/static/robotaxi.jpg" alt="ТАКСИ роБОТ"
-       loading="lazy" width="820" height="461">
+  <img src="/static/robotaxi.jpg?v=2" alt="ТАКСИ роБОТ"
+       loading="lazy" width="900" height="498">
 </div>
 
 <div class="info-card">
