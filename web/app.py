@@ -1263,7 +1263,6 @@ def balance_page():
         access_ok=bool(access_left), access_left=access_left or "",
         vip_ok=bool(vip_left), vip_left=vip_left or "",
         free_posts=acc.get("free_posts") or 0,
-        refs=acc.get("ref_count") or 0,
         phone=("+" + _digits(acc.get("verified_phone"))
                if acc.get("verified_phone") else ""),
         **_base_ctx())
