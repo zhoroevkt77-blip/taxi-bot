@@ -71,8 +71,10 @@
   }
   /* v149: ✈️ аэропорт багыттары */
   #airRow .airb {
-    flex: 1 1 46%; padding: 11px 8px; font-size: 13.5px;
+    /* v152: жазуу узарды — эки сапка батсын */
+    flex: 1 1 46%; padding: 11px 7px; font-size: 12.5px;
     border-radius: 14px; box-shadow: none;
+    line-height: 1.32; white-space: normal;
   }
   .air-note {
     font-size: 13px; line-height: 1.5; color: #7a5a00;
@@ -196,16 +198,16 @@
     <div id="airRow" style="display:none">
       <div class="fld rolerow">
         <button type="button" class="go airb on" data-air="manas" data-dir="to">
-          ✈️ {{ t('Манаска барам', 'В Манас') }}</button>
+          ✈️ {{ t('Аэропорт «Манаска» барам', 'В аэропорт «Манас»') }}</button>
         <button type="button" class="go airb" data-air="manas" data-dir="from"
                 style="background:#f5f5f5;color:#111">
-          🛬 {{ t('Манастан кайтам', 'Из Манаса') }}</button>
+          🛬 {{ t('Аэропорт «Манастан» кайтам', 'Из аэропорта «Манас»') }}</button>
         <button type="button" class="go airb" data-air="osh" data-dir="to"
                 style="background:#f5f5f5;color:#111">
-          ✈️ {{ t('Ошко барам', 'В Ош') }}</button>
+          ✈️ {{ t('Аэропорт «Ошко» барам', 'В аэропорт «Ош»') }}</button>
         <button type="button" class="go airb" data-air="osh" data-dir="from"
                 style="background:#f5f5f5;color:#111">
-          🛬 {{ t('Оштон кайтам', 'Из Оша') }}</button>
+          🛬 {{ t('Аэропорт «Оштон» кайтам', 'Из аэропорта «Ош»') }}</button>
       </div>
       <div class="air-note" id="airNote"></div>
     </div>
