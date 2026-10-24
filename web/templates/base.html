@@ -135,13 +135,15 @@
 
   /* ---- Категория карточкалары ---- */
   /* Төртөө тең бир экранга батат — сүрүүнүн кереги жок */
+  /* v149: бешинчи карточка кошулду — эки катарга жайгашат,
+     биринчи катарда 3, экинчисинде 2. Баары көрүнүп турат. */
   .cats {
-    display: flex; gap: 7px;
+    display: flex; gap: 7px; flex-wrap: wrap;
     padding: 14px 12px 4px;
     max-width: 640px; margin: 0 auto;
   }
   .cat {
-    flex: 1 1 0; min-width: 0;
+    flex: 1 1 28%; min-width: 0;
     background: var(--card); border-radius: 16px;
     padding: 11px 4px 12px; text-align: center;
     border: 0;
@@ -365,6 +367,7 @@
   .cat-tag.to    { background: #eaf4ff; color: #1f6fb2; }
   .cat-tag.from  { background: #fdf0e8; color: #b5642c; }
   .cat-tag.local { background: #eef7ee; color: #3d7a41; }
+  .cat-tag.air   { background: #f1ecfd; color: #5b4bbd; }  /* v149 */
 
   .route-main { display: flex; align-items: center; }
 

@@ -69,6 +69,20 @@
     font-size: 13.5px; line-height: 1.55; color: #7a5a00;
     margin: 0 0 10px;
   }
+  /* v149: ✈️ аэропорт багыттары */
+  #airRow .airb {
+    flex: 1 1 46%; padding: 11px 8px; font-size: 13.5px;
+    border-radius: 14px; box-shadow: none;
+  }
+  .air-note {
+    font-size: 13px; line-height: 1.5; color: #7a5a00;
+    background: #FFFDF5; border: 1px solid #FFE082;
+    border-radius: 12px; padding: 10px 12px; margin: 2px 0 10px;
+  }
+  #cityList .it.more {
+    font-weight: 700; color: #7a5a00; background: #FFFDF5;
+    border-radius: 10px; margin-top: 8px; text-align: center;
+  }
   .codebox { margin-top: 12px; border: 1.5px dashed #E3E8F0; border-radius: 14px;
              padding: 12px; }
   .codebox .cl { font-size: 13px; color: #666; line-height: 1.45; }
@@ -172,6 +186,28 @@
       <button type="button" class="go mode" data-mode="local"
               style="background:#f5f5f5;color:#111">
         🗺 {{ t('Район/шаар аралык', 'Между районами') }}</button>
+      {# v149 #}
+      <button type="button" class="go mode" data-mode="air"
+              style="background:#f5f5f5;color:#111">
+        ✈️ {{ t('Аэропорт', 'Аэропорт') }}</button>
+    </div>
+
+    {# v149: аэропорт тандалганда гана көрүнөт #}
+    <div id="airRow" style="display:none">
+      <div class="fld rolerow">
+        <button type="button" class="go airb on" data-air="manas" data-dir="to">
+          ✈️ {{ t('Манаска барам', 'В Манас') }}</button>
+        <button type="button" class="go airb" data-air="manas" data-dir="from"
+                style="background:#f5f5f5;color:#111">
+          🛬 {{ t('Манастан кайтам', 'Из Манаса') }}</button>
+        <button type="button" class="go airb" data-air="osh" data-dir="to"
+                style="background:#f5f5f5;color:#111">
+          ✈️ {{ t('Ошко барам', 'В Ош') }}</button>
+        <button type="button" class="go airb" data-air="osh" data-dir="from"
+                style="background:#f5f5f5;color:#111">
+          🛬 {{ t('Оштон кайтам', 'Из Оша') }}</button>
+      </div>
+      <div class="air-note" id="airNote"></div>
     </div>
 
     <div id="boxFrom">
@@ -488,6 +524,36 @@
 
   var chosen = {from: "", to: ""};
   var mode = "to";
+
+  /* ---- v149: ✈️ аэропорт ---- */
+  var AIRPORTS = {{ airports|tojson }};
+  var airCode = "manas";     /* manas | osh */
+  var airDir = "to";         /* to = аэропортко барам, from = кайтам */
+  var airAll = false;        /* бүт Кыргызстан ачылдыбы */
+
+  function airInfo() { return AIRPORTS[airCode] || {name: "", obl: [], zone: ""}; }
+
+  function airNote() {
+    var el = document.getElementById("airNote");
+    if (!el) return;
+    if (airAll) {
+      el.textContent = s("Бүт Кыргызстан ачылды — каалаган жерди тандай аласыз.",
+                         "Открыт весь Кыргызстан — выберите любое место.");
+      return;
+    }
+    el.textContent = (airDir === "to"
+        ? s("Кайдан чыгасыз: ", "Откуда едете: ")
+        : s("Кайда барасыз: ", "Куда едете: "))
+      + airInfo().zone + ". "
+      + s("Башка жер керек болсо, тизменин аягындагы «Башка жерден» дегенди басыңыз.",
+          "Нужно другое место — нажмите «Другое место» внизу списка.");
+  }
+
+  function resetPick(id) {
+    var b = document.getElementById(id);
+    b.textContent = s("— тандаңыз —", "— выберите —");
+    b.classList.remove("set");
+  }
   var BISH = "Бишкек";
   for (var i = 0; i < CITIES.length; i++) {
     if (CITIES[i].v.indexOf("Бишкек") === 0) { BISH = CITIES[i].v; break; }
@@ -507,8 +573,14 @@
   function draw(q) {
     q = norm(q);
     var html = "", group = "";
+    /* v149: аэропорт режиминде тизме ошол аэропорттун аймагы менен
+       чектелет. «Башка жерден» басылса — бүт өлкө ачылат. */
+    var lim = (mode === "air" && !airAll) ? airInfo().obl : null;
     for (var i = 0; i < CITIES.length; i++) {
       var c = CITIES[i];
+      /* Аэропорттун өзүн тандабайбыз — ал ансыз да белгилүү */
+      if (mode === "air" && c.o.indexOf("Аэропорт") >= 0) continue;
+      if (lim && lim.indexOf(c.o) < 0) continue;
       if (q && norm(c.v).indexOf(q) < 0 && norm(c.o).indexOf(q) < 0) continue;
       if (c.o !== group) {
         group = c.o;
@@ -519,6 +591,11 @@
     }
     list.innerHTML = html ||
       '<div class="og">' + s_("Эч нерсе табылган жок", "Ничего не найдено") + '</div>';
+    if (mode === "air" && !airAll) {
+      list.innerHTML += '<div class="it more">'
+        + s_("➕ Башка жерден — бүт Кыргызстан",
+             "➕ Другое место — весь Кыргызстан") + '</div>';
+    }
   }
 
   function s_(ky, ru) { return L ? ru : ky; }
@@ -541,6 +618,14 @@
   find.addEventListener("input", function () { draw(find.value); });
 
   list.addEventListener("click", function (e) {
+    /* v149: «Башка жерден» — чектөөнү алып салат */
+    if (e.target.closest(".more")) {
+      airAll = true;
+      airNote();
+      draw(find.value);
+      list.scrollTop = 0;
+      return;
+    }
     var it = e.target.closest(".it");
     if (!it) return;
     chosen[target] = it.dataset.v;
@@ -551,13 +636,45 @@
   });
 
   function applyMode() {
+    /* v149: аэропорт режиминде бир гана чекит тандалат —
+       экинчиси аэропорттун өзү. */
+    var air = (mode === "air");
+    document.getElementById("airRow").style.display = air ? "" : "none";
+    if (air) {
+      document.getElementById("boxFrom").style.display =
+        (airDir === "from") ? "none" : "block";
+      document.getElementById("boxTo").style.display =
+        (airDir === "to") ? "none" : "block";
+      airNote();
+      return;
+    }
     document.getElementById("boxFrom").style.display = (mode === "from") ? "none" : "block";
     document.getElementById("boxTo").style.display = (mode === "to") ? "none" : "block";
   }
 
+  /* v149: аэропорттун багытын тандоо */
+  document.querySelectorAll(".airb").forEach(function (b) {
+    b.addEventListener("click", function () {
+      airCode = b.dataset.air;
+      airDir = b.dataset.dir;
+      airAll = false;
+      document.querySelectorAll(".airb").forEach(function (x) {
+        var on = x === b;
+        x.classList.toggle("on", on);
+        x.style.background = on ? "" : "#f5f5f5";
+        x.style.color = on ? "" : "#111";
+      });
+      /* Багыт алмашты — мурда тандалган шаар жараксыз */
+      chosen.from = ""; chosen.to = "";
+      resetPick("pickFrom"); resetPick("pickTo");
+      applyMode();
+    });
+  });
+
   document.querySelectorAll(".mode").forEach(function (b) {
     b.addEventListener("click", function () {
       mode = b.dataset.mode;
+      if (mode === "air") { airAll = false; }      /* v149 */
       document.querySelectorAll(".mode").forEach(function (x) {
         var on = x === b;
         x.classList.toggle("on", on);
@@ -572,8 +689,13 @@
   document.getElementById("send").addEventListener("click", function () {
     var body = {
       role: role,
-      from_city: (mode === "from") ? BISH : chosen.from,
-      to_city: (mode === "to") ? BISH : chosen.to,
+      /* v149: аэропорт режиминде бир чекит автоматтык коюлат */
+      from_city: (mode === "air")
+                   ? ((airDir === "from") ? airInfo().name : chosen.from)
+                   : ((mode === "from") ? BISH : chosen.from),
+      to_city: (mode === "air")
+                   ? ((airDir === "to") ? airInfo().name : chosen.to)
+                   : ((mode === "to") ? BISH : chosen.to),
       date_offset: val("fDate"), time_text: val("fTime"),
       seats: val("fSeats"), car: val("fCar"),
       people_count: val("fPeople"), baggage: val("fBag"),

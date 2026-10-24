@@ -41,7 +41,7 @@ from core import logic as _logic
 from core.texts import render as tr_render
 from core.texts import FREE_MODE, INVITE_GOAL   # v135
 
-WEB_VERSION = "v145-safety"
+WEB_VERSION = "v149-air"
 print(f"🌐 web/app.py жүктөлдү. Версия = {WEB_VERSION}")
 
 BOT_USERNAME = os.environ.get("BOT_USERNAME", "taxirobot_bot")
@@ -312,7 +312,32 @@ def driver_routes():
         return []
 
 
+# ============ ✈️ АЭРОПОРТ (v149) ============
+# Аэропорт багыттары өзүнчө бөлүмгө чыгат. Коддор: manas_to,
+# manas_from, osh_to, osh_from — чиптер ушулар менен чыпкалайт.
+
+AIR_CODES = {"manas": "Манас аэропорту", "osh": "Ош аэропорту"}
+
+
+def _is_air(city):
+    return "аэропорт" in str(city or "").lower()
+
+
+def _air_key(r):
+    """Багыттын аэропорт бөлүмүндөгү ачкычы. Аэропорт эмес болсо — бош."""
+    for code, name in AIR_CODES.items():
+        if r["to_city"] == name:
+            return code + "_to"
+        if r["from_city"] == name:
+            return code + "_from"
+    return ""
+
+
 def _category_of(r):
+    # v149: аэропорт эң биринчи текшерилет — «Бишкек ➡️ Манас
+    # аэропорту» деген багыт «Бишкектен кайткандар» эмес, аэропорт.
+    if _is_air(r["from_city"]) or _is_air(r["to_city"]):
+        return "air"
     if r["to_city"] == "Бишкек":
         return "to"
     if r["from_city"] == "Бишкек":
@@ -525,9 +550,11 @@ def _no_cache(resp):
 
 # ============ БЕТТЕР ============
 
-def _row_ok(r, cat, obl, fo, fc, to, tc, q, city=""):
+def _row_ok(r, cat, obl, fo, fc, to, tc, q, city="", air=""):
     """Багыт ушул чыпкалардын баарына дал келеби?"""
     if cat != "all" and r["cat"] != cat:
+        return False
+    if air and r.get("air") != air:          # v149
         return False
     if obl and r["obl"] != obl:
         return False
@@ -552,6 +579,7 @@ def index():
     obl = (request.args.get("obl") or "").strip()
     q = (request.args.get("q") or "").strip()
     city = (request.args.get("city") or "").strip()
+    air = (request.args.get("air") or "").strip()      # v149
     # Кеңейтилген чыпка: кайдан → кайда
     f_obl = (request.args.get("fobl") or "").strip()
     f_city = (request.args.get("fcity") or "").strip()
@@ -565,6 +593,8 @@ def index():
     show_filter = cat == "local"
     if not show_filter:
         f_obl = f_city = t_obl = t_city = ""
+    if cat != "air":          # v149: бөлүмдөн чыкканда тазаланат
+        air = ""
 
     rows = driver_routes()
     for r in rows:
@@ -572,6 +602,7 @@ def index():
         r["obl"] = _oblast_of(r)
         r["fo"] = _obl_of(r["from_city"])
         r["to"] = _obl_of(r["to_city"])
+        r["air"] = _air_key(r)                         # v149
 
     # Облус алмашса, ичиндеги шаар тандоосу күчүн жоготот.
     # f_city — «ачкыч» (мис. «аксы»), ошондуктан облустун
@@ -591,7 +622,7 @@ def index():
         чейин барбашы үчүн.
         """
         st = dict(cat=cat, obl=obl, fo=f_obl, fc=f_city,
-                  to=t_obl, tc=t_city, q=q, city=city)
+                  to=t_obl, tc=t_city, q=q, city=city, air=air)
         st.update(over)
         return sum(r["n"] for r in rows if _row_ok(r, **st))
 
@@ -617,11 +648,27 @@ def index():
             tc_opts.append((key, label, cnt(tc=key)))
 
     # Категориялардын саны — карточкалар да чыпкаларды эске алат
-    cat_counts = {k: cnt(cat=k) for k in ("all", "to", "from", "local")}
+    cat_counts = {k: cnt(cat=k)
+                  for k in ("all", "to", "from", "local", "air")}
 
     # Облус чиптери — БАРДЫГЫ ар дайым көрүнөт, жарыясы жок болсо «0».
     obl_counts = {name: cnt(obl=name) for name in ALL_OBLASTS}
     oblasts = sorted(obl_counts.items(), key=lambda kv: (-kv[1], kv[0]))
+
+    # v149: аэропорт бөлүмүндө облус чиптеринин ордуна багыт чиптери
+    air_chips = []
+    if cat == "air":
+        oblasts = []
+        air_chips = [
+            ("manas_to", "✈️ " + t_("Манаска бараткандар", "Едут в Манас"),
+             cnt(air="manas_to")),
+            ("manas_from", "🛬 " + t_("Манастан кайткандар", "Едут из Манаса"),
+             cnt(air="manas_from")),
+            ("osh_to", "✈️ " + t_("Ошко бараткандар", "Едут в Ош"),
+             cnt(air="osh_to")),
+            ("osh_from", "🛬 " + t_("Оштон кайткандар", "Едут из Оша"),
+             cnt(air="osh_from")),
+        ]
     districts = []
     if cat == "local":
         src = ALL_CITIES.get(obl, []) if obl else [p for v in ALL_CITIES.values() for p in v]
@@ -636,7 +683,8 @@ def index():
 
     # Акыркы тизме — бардык чыпкалар кошо
     sel = [r for r in rows
-           if _row_ok(r, cat, obl, f_obl, f_city, t_obl, t_city, q, city=city)]
+           if _row_ok(r, cat, obl, f_obl, f_city, t_obl, t_city, q,
+                      city=city, air=air)]
 
     # Издөө боюнча эч нерсе табылбаса — жакын аталыштарды сунуштайбыз
     suggest = []
@@ -669,8 +717,11 @@ def index():
     def link(**over):
         """Учурдагы чыпкаларды сактап, бирөөнү гана алмаштырган шилтеме."""
         st = {"cat": cat, "obl": obl, "city": city, "fobl": f_obl, "fcity": f_city,
-              "tobl": t_obl, "tcity": t_city, "q": q, "lang": _lang()}
+              "tobl": t_obl, "tcity": t_city, "q": q, "air": air,
+              "lang": _lang()}
         st.update(over)
+        if st.get("cat") != "air":      # v149: бөлүмдөн чыкканда
+            st["air"] = ""
         parts = [f"{k}={quote(str(v))}" for k, v in st.items() if v]
         return "/?" + "&".join(parts)
 
@@ -679,6 +730,7 @@ def index():
                            cat=cat,
                            cat_counts=cat_counts,
                            oblasts=oblasts, districts=districts, city=city,
+                           air=air, air_chips=air_chips,          # v149
                            obl=obl,
                            q=q,
                            suggest=suggest,
@@ -867,7 +919,25 @@ def post_page():
     _ru = (_lang() == "ru")
     warn = DRIVER_WARNING_RU if _ru else DRIVER_WARNING
     safety = DRIVER_SAFETY_RU if _ru else DRIVER_SAFETY
+    # v149: ✈️ аэропорт багыттары жана тиешелүү аймактары
+    from core.geo import AIRPORT_REGIONS
+    airports = {
+        "manas": {
+            "name": "Манас аэропорту",
+            "obl": AIRPORT_REGIONS.get("Манас аэропорту", []),
+            "zone": ("Бишкек, Чуйская область" if _ru
+                     else "Бишкек, Чүй облусу"),
+        },
+        "osh": {
+            "name": "Ош аэропорту",
+            "obl": AIRPORT_REGIONS.get("Ош аэропорту", []),
+            "zone": ("город Ош, Ошская, Баткенская, Джалал-Абадская области"
+                     if _ru else
+                     "Ош шаары, Ош, Баткен, Жалал-Абад облустары"),
+        },
+    }
     html = render_template("post_form.html",
+                           airports=airports,
                            driver_warning=warn,
                            driver_safety=safety,
                            all_cities=ALL_CITIES,
