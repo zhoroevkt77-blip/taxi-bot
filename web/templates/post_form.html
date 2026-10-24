@@ -43,6 +43,32 @@
     margin: 14px 0 18px;
   }
   .warn-txt b { font-weight: 800; color: #1b1b20; }
+  /* v145: коопсуздук эрежелери — ошол эле беттин ичинде ачылат */
+  .safe-acc {
+    border: 1.5px solid #FFE082; background: #FFFDF5;
+    border-radius: 14px; margin: 0 0 16px; overflow: hidden;
+  }
+  .safe-acc summary {
+    padding: 14px 15px; cursor: pointer; list-style: none;
+    font-size: 14.5px; font-weight: 800; color: #7a5a00;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .safe-acc summary::-webkit-details-marker { display: none; }
+  .safe-acc summary::after {
+    content: "›"; margin-left: auto; color: #b89440;
+    font-size: 23px; font-weight: 300; transition: transform .2s;
+  }
+  .safe-acc[open] summary::after { transform: rotate(90deg); }
+  .safe-acc[open] summary { border-bottom: 1px solid #F3E2B0; }
+  .safe-body {
+    padding: 14px 15px 18px; font-size: 14.5px; line-height: 1.68;
+    color: #3d3d46; white-space: pre-wrap; word-wrap: break-word;
+  }
+  .safe-body b { font-weight: 800; color: #1b1b20; }
+  .safe-lead {
+    font-size: 13.5px; line-height: 1.55; color: #7a5a00;
+    margin: 0 0 10px;
+  }
   .codebox { margin-top: 12px; border: 1.5px dashed #E3E8F0; border-radius: 14px;
              padding: 12px; }
   .codebox .cl { font-size: 13px; color: #666; line-height: 1.45; }
@@ -256,6 +282,19 @@
                  'Прочитайте перед публикацией') }}</b>
     </div>
     <div class="warn-txt">{{ driver_warning|safe }}</div>
+
+    {# v145: 6 эреже — башка бетке кетпей, ушул жерде ачылат,
+       ошондуктан толтурган формаңыз жоголбойт #}
+    <p class="safe-lead">
+      {{ t('Жолго чыгаардан мурун ушул 6 эрежени окуп чыгыңыз — бул сиздин жана жүргүнчүлөрүңүздүн өмүрү жөнүндө.',
+           'Перед выездом прочитайте эти 6 правил — речь о вашей жизни и жизни пассажиров.') }}
+    </p>
+    <details class="safe-acc">
+      <summary>🛡 {{ t('Айдоочунун 6 негизги коопсуздук эрежеси',
+                       '6 главных правил безопасности водителя') }}</summary>
+      <div class="safe-body">{{ driver_safety|safe }}</div>
+    </details>
+
     <button class="go" type="button" id="warnOk">
       ✅ {{ t('Түшүндүм, жарыялаймын', 'Понятно, публикую') }}</button>
     <button class="go photo-pick" type="button" id="warnBack"
