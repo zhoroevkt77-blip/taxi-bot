@@ -36,6 +36,13 @@
   .invb.wa { background: #25D366; color: #fff; }
   /* v138: Telegram өз логотибинин көгү менен */
   .invb.tg { background: #229ED9; color: #fff; }
+  /* v144: жарыялоодон мурунку эскертүү */
+  .warn-txt {
+    font-size: 14.5px; line-height: 1.68; color: #3d3d46;
+    white-space: pre-wrap; word-wrap: break-word;
+    margin: 14px 0 18px;
+  }
+  .warn-txt b { font-weight: 800; color: #1b1b20; }
   .codebox { margin-top: 12px; border: 1.5px dashed #E3E8F0; border-radius: 14px;
              padding: 12px; }
   .codebox .cl { font-size: 13px; color: #666; line-height: 1.45; }
@@ -241,6 +248,22 @@
   </div>
 </div>
 
+{# v144: айдоочу жарыялоодон мурун ушуну окуйт #}
+<div id="warnBox" class="flt-box" style="display:none">
+  <div class="flt">
+    <div class="w-lead">
+      <b>🚦 {{ t('Жарыялоодон мурун окуп чыгыңыз',
+                 'Прочитайте перед публикацией') }}</b>
+    </div>
+    <div class="warn-txt">{{ driver_warning|safe }}</div>
+    <button class="go" type="button" id="warnOk">
+      ✅ {{ t('Түшүндүм, жарыялаймын', 'Понятно, публикую') }}</button>
+    <button class="go photo-pick" type="button" id="warnBack"
+            style="margin-top:9px">
+      ← {{ t('Артка кайтуу', 'Вернуться назад') }}</button>
+  </div>
+</div>
+
 <div id="verifyBox" class="flt-box" style="display:none">
   <div class="flt">
     <div class="w-lead">
@@ -310,6 +333,8 @@
   var L = {{ 'true' if lang == 'ru' else 'false' }};
   function s(ky, ru) { return L ? ru : ky; }
   var role = "driver", token = null, timer = null;
+  /* v144: эскертүү окулдубу жана күтүп турган жарыя */
+  var warnOk = false, pending = null;
   var note = document.getElementById("note");
 
   function say(m, cls) {
@@ -534,7 +559,20 @@
       body.price = s("Келишим", "Договорная");
     }
 
-    this.disabled = true;
+    /* v144: айдоочуга алгач эскертүү. Жүргүнчүгө керек эмес —
+       эскертүү айдоочунун жоопкерчилиги жөнүндө. */
+    if (role === "driver" && !warnOk) {
+      pending = body;
+      document.getElementById("formBox").style.display = "none";
+      document.getElementById("warnBox").style.display = "block";
+      window.scrollTo(0, 0);
+      return;
+    }
+    postIt(body);
+  });
+
+  function postIt(body) {
+    document.getElementById("send").disabled = true;
     say(s("Күтө туруңуз…", "Подождите…"));
     fetch("/post/create", {
       method: "POST", cache: "no-store", headers: { "Content-Type": "application/json" },
@@ -562,6 +600,22 @@
       document.getElementById("send").disabled = false;
       say(s("Интернет жок окшойт.", "Похоже, нет интернета."), "warn");
     });
+  }
+
+  /* v144: эскертүүнүн баскычтары */
+  document.getElementById("warnOk").addEventListener("click", function () {
+    warnOk = true;
+    document.getElementById("warnBox").style.display = "none";
+    document.getElementById("formBox").style.display = "block";
+    window.scrollTo(0, 0);
+    if (pending) { postIt(pending); }
+  });
+
+  document.getElementById("warnBack").addEventListener("click", function () {
+    pending = null;
+    document.getElementById("warnBox").style.display = "none";
+    document.getElementById("formBox").style.display = "block";
+    window.scrollTo(0, 0);
   });
 
   document.getElementById("vcopy").addEventListener("click", function () {

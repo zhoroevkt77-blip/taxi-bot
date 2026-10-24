@@ -41,7 +41,7 @@ from core import logic as _logic
 from core.texts import render as tr_render
 from core.texts import FREE_MODE, INVITE_GOAL   # v135
 
-WEB_VERSION = "v137-direct"
+WEB_VERSION = "v144-warn"
 print(f"🌐 web/app.py жүктөлдү. Версия = {WEB_VERSION}")
 
 BOT_USERNAME = os.environ.get("BOT_USERNAME", "taxirobot_bot")
@@ -859,7 +859,12 @@ def myposts_page():
 @app.route("/post")
 def post_page():
     """«➕ Жарыя берүү» — сайттагы форма."""
+    # v144: айдоочу жарыялоодон мурун окуй турган эскертүү.
+    # Текст core/texts.py'де — ботто да, сайтта да бир эле.
+    from core.texts import DRIVER_WARNING, DRIVER_WARNING_RU
+    warn = DRIVER_WARNING_RU if _lang() == "ru" else DRIVER_WARNING
     html = render_template("post_form.html",
+                           driver_warning=warn,
                            all_cities=ALL_CITIES,
                            oblast_list=OBLAST_LIST,
                            hours=_logic.day_hours(),
