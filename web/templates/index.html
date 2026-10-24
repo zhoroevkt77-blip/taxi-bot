@@ -263,8 +263,9 @@
 {% endif %}
 
 {% if air_chips %}
-<div class="chips wrap">
-  <a class="chip {{ 'on' if not air else '' }}"
+{# v150: «Баары» узун, астында эки мамыча — сол Манас, оң Ош #}
+<div class="chips air-chips">
+  <a class="chip all {{ 'on' if not air else '' }}"
      href="{{ link(air='') }}">{{ t('Баары', 'Все') }}</a>
   {% for key, label, n in air_chips %}
     <a class="chip {{ 'on' if air == key else '' }} {{ 'zero' if n == 0 else '' }}"
