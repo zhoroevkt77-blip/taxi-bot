@@ -1488,7 +1488,8 @@ def help_page():
                                 FAQ_SEARCH, FAQ_PAY, FAQ_CONTACT,
                                 FAQ_SAFETY, FAQ_TROUBLE, FAQ_RULES,
                                 FAQ_PRIVACY, DRIVER_SAFETY,
-                                FAQ_PICKUP, FAQ_PICKUP_RU)
+                                FAQ_PICKUP, FAQ_PICKUP_RU,
+                                FAQ_AIR, FAQ_AIR_RU)   # v153
         blocks = [
             (_t("📖 Нускама", "📖 Инструкция"), tr_render(GUIDE, lang)),
             (_t("➕ Жарыя кантип берем?", "➕ Как дать объявление?"),
@@ -1496,6 +1497,9 @@ def help_page():
             (_t("📝 Жарыя жөнүндө", "📝 Об объявлении"), tr_render(FAQ_POST, lang)),
             (_t("🎁 Акысыз мүмкүнчүлүк", "🎁 Бесплатный доступ"), tr_render(FAQ_FREE, lang)),
             (_t("🔍 Издөө", "🔍 Поиск"), tr_render(FAQ_SEARCH, lang)),
+            # v153: ✈️ аэропорт — кыргызча/орусча өзүнчө
+            (_t("✈️ Аэропорт", "✈️ Аэропорт"),
+             FAQ_AIR_RU if lang == "ru" else FAQ_AIR),
             (_t("💳 Төлөм жана баалар", "💳 Оплата и цены"),
              tr_render(FAQ_PAY, lang)),
             # Чогултуу — кыргызча/орусча тексттер өзүнчө өзгөрмөдө
