@@ -41,7 +41,7 @@ from core import logic as _logic
 from core.texts import render as tr_render
 from core.texts import FREE_MODE, INVITE_GOAL   # v135
 
-WEB_VERSION = "v156-speed"
+WEB_VERSION = "v157-pool"
 print(f"🌐 web/app.py жүктөлдү. Версия = {WEB_VERSION}")
 
 BOT_USERNAME = os.environ.get("BOT_USERNAME", "taxirobot_bot")
@@ -1550,13 +1550,33 @@ SID_COOKIE = "tr_sid"
 
 
 def current_account():
-    """Кирген колдонуучу (же None)."""
+    """Кирген колдонуучу (же None).
+
+    v157: эки оңдоо.
+      • Бир сурам менен алынат (мурда экөө эле).
+      • Бир беттин ичинде бир эле жолу базага барат: көп бетте бул
+        функция эки жолу чакырылат — бети өзү жана жалпы маалымат
+        үчүн. Экинчисинде эстелген жооп кайтарылат.
+    """
     try:
-        aid = websession.account_id_of(request.cookies.get(SID_COOKIE))
-        return _db.get_account(aid) if aid else None
+        from flask import g
+        if "_tr_me" in g:
+            return g._tr_me
+    except Exception:
+        g = None
+
+    me = None
+    try:
+        me = websession.account_of(request.cookies.get(SID_COOKIE))
     except Exception as e:
         print("[web] сессия катасы:", e)
-        return None
+
+    try:
+        if g is not None:
+            g._tr_me = me
+    except Exception:
+        pass
+    return me
 
 
 LOGIN_COOKIE = "tr_login"      # учурдагы кирүү коду (браузерде сакталат)

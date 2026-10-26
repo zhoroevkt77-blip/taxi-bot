@@ -16,7 +16,7 @@ core/websession.py
 import secrets
 from core.db import db
 
-WEBSESSION_VERSION = "v1"
+WEBSESSION_VERSION = "v157-pool"
 print(f"🔑 core/websession.py жүктөлдү. Версия = {WEBSESSION_VERSION}")
 
 TOKEN_MINUTES = 10      # кирүү коду ушунча убакыт жашайт
@@ -88,6 +88,26 @@ def account_id_of(sid):
             % SESSION_DAYS, (sid,))
         row = cur.fetchone()
     return row["account_id"] if row else None
+
+
+def account_of(sid):
+    """Cookie'деги sid кимге таандык — БИР сурам менен.
+
+    v157: мурда эки сурам кетчү — алгач account_id, анан аккаунттун
+    өзү. Бет ачылган сайын базага эки жолу барбашы үчүн бириктирдик.
+    """
+    if not sid:
+        return None
+    with db() as conn:
+        cur = conn.cursor()
+        cur.execute(
+            "SELECT a.* FROM web_sessions s "
+            "JOIN accounts a ON a.account_id = s.account_id "
+            "WHERE s.sid = %%s "
+            "  AND s.created_at > NOW() - INTERVAL '%s days'"
+            % SESSION_DAYS, (sid,))
+        row = cur.fetchone()
+    return dict(row) if row else None
 
 
 def close_session(sid):

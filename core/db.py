@@ -18,32 +18,155 @@ core/db.py  (PostgreSQL варианты)
 """
 
 import os
+import threading
 import psycopg2
 import psycopg2.extras
 import psycopg2.extensions
+import psycopg2.pool
 
 DATABASE_URL = os.environ.get("DATABASE_URL")
 
-DB_VERSION = "v6-pickup"
+DB_VERSION = "v157-pool"
 print(f"🗄 core/db.py жүктөлдү. Версия = {DB_VERSION}")
 
 
-class _ClosingConnection(psycopg2.extensions.connection):
-    """`with db() as conn:` блогунан чыкканда commit/rollback кылып,
-    анан байланышты ЖАБАТ. psycopg2 өзү жаппайт — ошондон
-    Railway Postgres'тин байланыш лимити акырындап толчу."""
+# ============ БАЙЛАНЫШ БАСЕЙНИ (v157) ============
+# Мурда ар бир сурам үчүн базага ТАПТАКЫР ЖАҢЫ байланыш ачылчу:
+# TCP → TLS → пароль текшерүү. Railway'де бул 100-150 мс, ал эми
+# бир бет ачылганда андай байланыш бир нече жолу ачылчу.
+#
+# Эми байланыштар басейнде сакталат: бир жолу ачылып, кайра-кайра
+# колдонулат. Сурам 10-20 мс болуп калат.
+#
+# Байланыш лимити мурдагыдай корголот: басейн эң көп POOL_MAX
+# байланыш кармайт, андан ашпайт.
+
+POOL_MIN = int(os.environ.get("DB_POOL_MIN", "1"))
+POOL_MAX = int(os.environ.get("DB_POOL_MAX", "6"))
+
+_POOL = None
+_POOL_LOCK = threading.Lock()
+
+
+def _pool():
+    """Басейнди биринчи керек болгондо ачат (бир эле жолу)."""
+    global _POOL
+    if _POOL is None:
+        with _POOL_LOCK:
+            if _POOL is None:
+                _POOL = psycopg2.pool.ThreadedConnectionPool(
+                    POOL_MIN, POOL_MAX, DATABASE_URL,
+                    cursor_factory=psycopg2.extras.RealDictCursor,
+                    # Өлүк байланышты эрте табуу үчүн
+                    keepalives=1, keepalives_idle=30,
+                    keepalives_interval=10, keepalives_count=3,
+                    connect_timeout=10)
+                print(f"🗄 Байланыш басейни ачылды "
+                      f"({POOL_MIN}–{POOL_MAX})")
+    return _POOL
+
+
+class _Pooled:
+    """`with db() as conn:` — чыкканда commit/rollback кылып,
+    байланышты БАСЕЙНГЕ кайтарат (жаппайт)."""
+
+    __slots__ = ("_conn",)
+
+    def __init__(self, conn):
+        self._conn = conn
+
+    def __enter__(self):
+        return self._conn
+
+    def __exit__(self, exc_type, exc, tb):
+        conn, broken = self._conn, False
+        try:
+            if exc_type is None:
+                conn.commit()
+            else:
+                conn.rollback()
+        except Exception:
+            broken = True          # бузулган байланыш кайра берилбейт
+        try:
+            _pool().putconn(conn, close=broken)
+        except Exception:
+            try:
+                conn.close()
+            except Exception:
+                pass
+        return False
+
+    def __getattr__(self, name):
+        return getattr(self._conn, name)
+
+
+class _Direct:
+    """Басейн иштебей калса — эски жол: ачып, жабабыз."""
+
+    __slots__ = ("_conn",)
+
+    def __init__(self, conn):
+        self._conn = conn
+
+    def __enter__(self):
+        return self._conn
 
     def __exit__(self, exc_type, exc, tb):
         try:
-            return super().__exit__(exc_type, exc, tb)
+            if exc_type is None:
+                self._conn.commit()
+            else:
+                self._conn.rollback()
+        except Exception:
+            pass
         finally:
-            self.close()
+            try:
+                self._conn.close()
+            except Exception:
+                pass
+        return False
+
+    def __getattr__(self, name):
+        return getattr(self._conn, name)
 
 
 def db():
-    return psycopg2.connect(DATABASE_URL,
-                            connection_factory=_ClosingConnection,
-                            cursor_factory=psycopg2.extras.RealDictCursor)
+    """Базага байланыш. `with db() as conn:` менен колдонулат.
+
+    Басейнден алат. Сервер жаап койгон же жарым-жартылай транзакцияда
+    калган байланыш кайра берилбейт — тазасы алынат. Басейн иштебей
+    калса, эски жол менен түз байланыш ачылат: сайт токтобойт.
+    """
+    try:
+        p = _pool()
+    except Exception as e:
+        print("[db] басейн ачылган жок:", e)
+        p = None
+
+    if p is not None:
+        for _ in range(3):
+            try:
+                conn = p.getconn()
+            except Exception as e:
+                print("[db] басейнден алуу катасы:", e)
+                break
+            try:
+                if conn.closed:
+                    p.putconn(conn, close=True)
+                    continue
+                if (conn.get_transaction_status()
+                        != psycopg2.extensions.TRANSACTION_STATUS_IDLE):
+                    conn.rollback()
+            except Exception:
+                try:
+                    p.putconn(conn, close=True)
+                except Exception:
+                    pass
+                continue
+            return _Pooled(conn)
+
+    return _Direct(psycopg2.connect(
+        DATABASE_URL, cursor_factory=psycopg2.extras.RealDictCursor))
 
 
 # Жаңы мамычалар: (таблица, мамыча, түрү)
