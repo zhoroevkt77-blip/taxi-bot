@@ -41,7 +41,7 @@ from core import logic as _logic
 from core.texts import render as tr_render
 from core.texts import FREE_MODE, INVITE_GOAL   # v135
 
-WEB_VERSION = "v149-air"
+WEB_VERSION = "v156-speed"
 print(f"🌐 web/app.py жүктөлдү. Версия = {WEB_VERSION}")
 
 BOT_USERNAME = os.environ.get("BOT_USERNAME", "taxirobot_bot")
@@ -540,11 +540,30 @@ def _with_lang(resp):
     return resp
 
 
+# v156: жеке беттер ар дайым жаңы болушу керек — аларда
+# колдонуучунун өз маалыматы турат.
+FRESH_ONLY = ("/me", "/myposts", "/balance", "/invite", "/pay",
+              "/login", "/logout", "/whoami", "/post", "/pickup",
+              "/admin")
+
+
 @app.after_request
 def _no_cache(resp):
-    """HTML беттерин браузер кештебесин — жаңы версия дароо көрүнсүн."""
-    if resp.mimetype == "text/html":
+    """Кеш эрежеси.
+
+    Жеке беттер — эч качан сакталбайт.
+
+    Коомдук беттер (башкы бет, багыт, жардам, кабарлар) — 8 секунд
+    сакталат. Бул эки нерсеге керек: баскычка манжа тийгенде бетти
+    алдын ала сурап коё алабыз, жана «Артка» баскычы кайра жүктөбөй,
+    дароо ачылат. 8 секунд — жарыя 24 саат жашаганда билинбейт.
+    """
+    if resp.mimetype != "text/html":
+        return resp
+    if resp.status_code != 200 or request.path.startswith(FRESH_ONLY):
         resp.headers["Cache-Control"] = "no-store, max-age=0"
+    else:
+        resp.headers["Cache-Control"] = "private, max-age=8"
     return resp
 
 

@@ -12,7 +12,7 @@
    Версияны өзгөрткөндө эски кеш автоматтык өчөт.
    ============================================================ */
 
-const CACHE = "taxirobot-v2";
+const CACHE = "taxirobot-v3";
 
 // Алдын ала сакталуучу файлдар (жарыялар кирбейт!)
 const ASSETS = [
@@ -66,13 +66,23 @@ self.addEventListener("install", (e) => {
 
 // ---- Иштетүү: эски версиялардын кешин тазалайбыз ----
 self.addEventListener("activate", (e) => {
-  e.waitUntil(
-    caches.keys()
-      .then((keys) => Promise.all(
-        keys.filter((k) => k !== CACHE).map((k) => caches.delete(k))
-      ))
-      .then(() => self.clients.claim())
-  );
+  e.waitUntil((async () => {
+    /* v156: navigation preload.
+       Мурда браузер жаңы бетти сурар алдында SW ойгонгонду күтчү —
+       телефондо бул 100-200 мс бекер кеткен убакыт. Эми браузер
+       сурамды SW менен ЧОГУУ баштайт, жооп даяр болуп турат. */
+    try {
+      if (self.registration.navigationPreload) {
+        await self.registration.navigationPreload.enable();
+      }
+    } catch (err) { /* колдобогон браузерде жөн эле өтөбүз */ }
+
+    const keys = await caches.keys();
+    await Promise.all(
+      keys.filter((k) => k !== CACHE).map((k) => caches.delete(k))
+    );
+    await self.clients.claim();
+  })());
 });
 
 // ---- Сурамдар ----
@@ -89,13 +99,18 @@ self.addEventListener("fetch", (e) => {
 
   // ---- HTML беттери: ар дайым серверден. Жарыялар эскирбеши керек ----
   if (req.mode === "navigate" || (req.headers.get("accept") || "").includes("text/html")) {
-    e.respondWith(
-      fetch(req).catch(() =>
-        new Response(OFFLINE_HTML, {
+    e.respondWith((async () => {
+      try {
+        /* v156: браузер мурунтан баштап койгон жооп барбы? */
+        const pre = await e.preloadResponse;
+        if (pre) return pre;
+        return await fetch(req);
+      } catch (err) {
+        return new Response(OFFLINE_HTML, {
           headers: { "Content-Type": "text/html; charset=utf-8" }
-        })
-      )
-    );
+        });
+      }
+    })());
     return;
   }
 

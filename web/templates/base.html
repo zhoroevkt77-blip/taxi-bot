@@ -43,7 +43,9 @@
     --shadow-lg: 0 12px 34px rgba(20,20,30,.52);
     --r: 20px;              /* негизги тегеректик */
   }
-  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  /* v156: touch-action — браузер «эки жолу басуу» күтүп турбасын */
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent;
+      touch-action: manipulation; }
   html { scroll-behavior: smooth; }
   body {
     margin: 0;
@@ -980,6 +982,43 @@
     if (isIOS && isSafari) {
       setTimeout(function () { bar.classList.add("on"); }, 2500);
     }
+  })();
+
+  /* ---- v156: манжа тийгенде бетти алдын ала сурайбыз ----
+     Манжа тийгенден баскыч чындап басылганга чейин ~150 мс өтөт.
+     Ошол убакытта бетти сурап койсок, колдонуучу манжасын
+     көтөргөндө жооп жолдо болот — бет шыр ачылат.
+
+     Бир эле дарек эки жолу суралбайт. Башка домендер, «#» жана
+     жаңы терезеде ачылуучу шилтемелер тийилбейт. */
+  (function () {
+    var asked = Object.create(null);
+
+    function ask(a) {
+      var href = a.href;
+      if (!href || asked[href]) return;
+      asked[href] = 1;
+      var l = document.createElement("link");
+      l.rel = "prefetch";
+      l.href = href;
+      l.as = "document";
+      document.head.appendChild(l);
+    }
+
+    function onTouch(e) {
+      var t = e.target;
+      if (!t || !t.closest) return;
+      var a = t.closest("a[href]");
+      if (!a) return;
+      if (a.target === "_blank") return;
+      if (a.origin && a.origin !== location.origin) return;
+      var h = a.getAttribute("href") || "";
+      if (!h || h.charAt(0) === "#") return;
+      ask(a);
+    }
+
+    document.addEventListener("pointerdown", onTouch, { passive: true });
+    document.addEventListener("touchstart", onTouch, { passive: true });
   })();
 </script>
 
