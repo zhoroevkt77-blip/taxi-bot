@@ -41,7 +41,7 @@ from core import logic as _logic
 from core.texts import render as tr_render
 from core.texts import FREE_MODE, INVITE_GOAL   # v135
 
-WEB_VERSION = "v157-pool"
+WEB_VERSION = "v158-pick"
 print(f"🌐 web/app.py жүктөлдү. Версия = {WEB_VERSION}")
 
 BOT_USERNAME = os.environ.get("BOT_USERNAME", "taxirobot_bot")
@@ -1487,9 +1487,13 @@ def alerts_page():
     көрсөтүлөт: /push/key, /push/subscribe, /push/unsubscribe,
     /push/routes жолдору мурдагыдай колдонулат.
     """
+    # v158: багыттар жана алардагы айдоочулардын саны.
+    # Калыпка берилет да, багыт тандалганда браузер кошумча сурам
+    # жибербей, ошол замат көрсөтөт.
     html = render_template("alerts.html",
                            all_cities=ALL_CITIES,
                            oblast_list=OBLAST_LIST,
+                           routes=driver_routes(),
                            **_base_ctx())
     return _with_lang(make_response(html))
 

@@ -53,6 +53,25 @@
       </div>
     </div>
 
+    {# v158: тандалган багыт жана ошол багыттагы айдоочулар #}
+    <style>
+      .pn { border: 1.5px solid var(--line, #f0f0f3); border-radius: 16px;
+            padding: 14px; margin: 4px 0 14px; background: var(--card, #fff); }
+      .pn.has { border-color: #C8E6C9; background: #F6FBF6; }
+      .pn .pn-r { font-size: 16px; font-weight: 800; color: #111;
+                  letter-spacing: -.2px; line-height: 1.35; }
+      .pn .pn-r b { color: var(--yellow-2, #ffb703); margin: 0 6px; }
+      .pn .pn-s { font-size: 13.5px; line-height: 1.5; color: #666;
+                  margin-top: 6px; }
+      .pn .go { margin-top: 12px; display: block; text-align: center;
+                text-decoration: none; }
+    </style>
+    <div class="pn" id="pn" style="display:none">
+      <div class="pn-r" id="pnR"></div>
+      <div class="pn-s" id="pnS"></div>
+      <a class="go" id="pnGo" href="#" style="display:none"></a>
+    </div>
+
     <button class="go" type="button" id="wAdd">
       🔔 {{ t('Ушул багытка кабар алам', 'Получать по этому направлению') }}
     </button>
@@ -83,6 +102,72 @@
     note.textContent = m || "";
     note.className = "watch-note" + (cls ? " " + cls : "");
   }
+
+  /* ---- v158: тандалган багыт ошол замат көрүнөт ----
+     Сандар бет ачылганда келген, ошондуктан кошумча сурам кетпейт.
+     Бул бөлүм push'тан көз каранды эмес: кабарларды колдобогон
+     браузерде да иштеши керек, ошондуктан төмөнкү текшерүүдөн
+     МУРУН турат. */
+  (function () {
+    var ROUTES = {{ routes|tojson }};
+    var LANG = {{ lang|tojson }};
+    var CNT = Object.create(null);
+    for (var i = 0; i < ROUTES.length; i++) {
+      CNT[ROUTES[i].from_city + "|" + ROUTES[i].to_city] = ROUTES[i].n;
+    }
+
+    var pn = document.getElementById("pn");
+    var pnR = document.getElementById("pnR");
+    var pnS = document.getElementById("pnS");
+    var pnGo = document.getElementById("pnGo");
+    if (!pn) return;
+
+    function esc(x) {
+      return String(x).replace(/[&<>"]/g, function (c) {
+        return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c];
+      });
+    }
+
+    function show() {
+      var f = fromSel.value, t = toSel.value;
+      if (!f || !t) { pn.style.display = "none"; return; }
+
+      pn.style.display = "block";
+      pnR.innerHTML = esc(f) + " <b>→</b> " + esc(t);
+
+      if (f === t) {
+        pn.className = "pn";
+        pnS.textContent = s("Чыгуу жана баруу жери бирдей болбошу керек.",
+                            "Пункты отправления и назначения должны отличаться.");
+        pnGo.style.display = "none";
+        return;
+      }
+
+      var n = CNT[f + "|" + t] || 0;
+      if (n > 0) {
+        pn.className = "pn has";
+        pnS.textContent = s(
+          "Бул багытта азыр " + n + " айдоочу бар — күтпөй эле чалсаңыз болот.",
+          "Сейчас по этому направлению водителей: " + n + " — можно позвонить прямо сейчас.");
+        pnGo.textContent = "🚗 " + s("Жарыяларды көрүү",
+                                     "Посмотреть объявления");
+        pnGo.href = "/route?from=" + encodeURIComponent(f) +
+                    "&to=" + encodeURIComponent(t) + "&lang=" + LANG;
+        pnGo.style.display = "block";
+      } else {
+        pn.className = "pn";
+        pnS.textContent = s(
+          "Азырынча бул багытта айдоочу жок. Жазылып койсоңуз, биринчи жарыя чыкканда кабар келет.",
+          "Пока по этому направлению водителей нет. Подпишитесь — и вы узнаете о первом же объявлении.");
+        pnGo.style.display = "none";
+      }
+    }
+
+    fromSel.addEventListener("change", show);
+    toSel.addEventListener("change", show);
+    window.trPickShow = show;      // жазылгандан кийин тазалоо үчүн
+    show();
+  })();
 
   /* ---- Колдоо барбы? ---- */
   var standalone = window.matchMedia("(display-mode: standalone)").matches
@@ -207,6 +292,7 @@
     }).then(function () {
       say("✅ " + s("Жазылдыңыз: ", "Подписка оформлена: ") + f + " → " + t, "ok");
       fromSel.value = ""; toSel.value = "";
+      if (window.trPickShow) { window.trPickShow(); }      /* v158 */
       refresh();
     }).catch(function (e) {
       if (String(e.message) === "denied") {
