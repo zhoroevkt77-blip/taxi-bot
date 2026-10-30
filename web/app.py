@@ -42,7 +42,7 @@ from core import logic as _logic
 from core.texts import render as tr_render
 from core.texts import FREE_MODE, INVITE_GOAL   # v135
 
-WEB_VERSION = "v163-search"
+WEB_VERSION = "v165-nobots"
 print(f"🌐 web/app.py жүктөлдү. Версия = {WEB_VERSION}")
 
 BOT_USERNAME = os.environ.get("BOT_USERNAME", "taxirobot_bot")
@@ -1644,9 +1644,14 @@ def pay_receipt():
 
 @app.route("/bots")
 def bots_page():
-    """«🤖 Боттор» — эки ботко өтүү."""
-    html = render_template("bots.html", **_base_ctx())
-    return _with_lang(make_response(html))
+    """Эски «🤖 Боттор» бети — эми башкы бетке кайтарат.
+
+    v165: ал бет Telegram менен WhatsApp'та жарыя берүү жөнүндө
+    жазып турган, бул эми жалган — баары сайтта. Бетти өчүрдүк,
+    бирок даректи калтырдык: кимдир бирөө эски шилтемени сактап
+    койгон болсо, «бет табылган жок» дебей, сайттын өзүнө түшсүн.
+    """
+    return redirect("/?lang=" + _lang(), code=302)
 
 
 @app.route("/alerts")
