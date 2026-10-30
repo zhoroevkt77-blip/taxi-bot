@@ -25,6 +25,7 @@ web/app.py
 import os
 import re
 import traceback
+from functools import lru_cache          # v163: издөөнү тездетүү
 from datetime import datetime, timedelta
 from urllib.parse import quote
 from flask import (Flask, render_template, request, make_response, redirect,
@@ -41,7 +42,7 @@ from core import logic as _logic
 from core.texts import render as tr_render
 from core.texts import FREE_MODE, INVITE_GOAL   # v135
 
-WEB_VERSION = "v162-timefuture"
+WEB_VERSION = "v163-search"
 print(f"🌐 web/app.py жүктөлдү. Версия = {WEB_VERSION}")
 
 BOT_USERNAME = os.environ.get("BOT_USERNAME", "taxirobot_bot")
@@ -132,24 +133,184 @@ def _close(a, b, max_diff=1):
     return prev[-1] <= max_diff
 
 
-def _matches(q, *fields):
-    """Сурам ушул талаалардын бирине дал келеби?
+# ============ АКЫЛДУУ ИЗДӨӨ (v163) ============
+# Адам издөө сабына эмне жазат? Башкача айтканда: «Ошко такси»,
+# «из Бишкека в Ош», «bishkek naryn», «Пржевальск», «Бшкек».
+# Ушунун баарын түшүнүшүбүз керек.
 
-    Үч деңгээл: ичинде барбы → башталабы → тамга катасы менен жакынбы.
+# ---- Латын тамгасы → кириллица ----
+# Кыргызча тергичи жок телефондон «bishkek» деп жазганда да
+# табылсын. Эки тамгалуу айкалыштар АЛГАЧ алмашат — болбосо
+# «sh» деген «сх» болуп калат.
+_LAT_PAIRS = [("shch", "ш"), ("sch", "ш"), ("sh", "ш"), ("ch", "ч"),
+              ("zh", "ж"), ("kh", "х"), ("gh", "г"), ("ts", "ц"),
+              ("yu", "ю"), ("ya", "я"), ("yo", "е"), ("ph", "ф"),
+              ("ee", "и"), ("oo", "у")]
+
+_LAT_ONE = str.maketrans({
+    "a": "а", "b": "б", "c": "к", "d": "д", "e": "е", "f": "ф",
+    "g": "г", "h": "х", "i": "и", "j": "ж", "k": "к", "l": "л",
+    "m": "м", "n": "н", "o": "о", "p": "п", "q": "к", "r": "р",
+    "s": "с", "t": "т", "u": "у", "v": "в", "w": "в", "x": "кс",
+    "y": "ы", "z": "з", "ö": "о", "ü": "у", "ä": "а", "ğ": "г",
+})
+
+_HAS_LAT = re.compile(r"[a-zöüäğ]")
+
+# Латынча жазылган куйруктар: «naryn shaary», «aksy rayon».
+# Кириллицага которулганда «шары», «раыон» болуп, издөөнү бузат.
+_LAT_TAIL = re.compile(
+    r"^(shaary?|shaarynda|rayon[ua]?|raion|oblus[u]?|oblast[i]?|gorod)$")
+
+
+def _translit(w):
+    """Латынча жазылган сөздү кириллицага которот."""
+    if not _HAS_LAT.search(w):
+        return w
+    for a, b in _LAT_PAIRS:
+        w = w.replace(a, b)
+    return w.translate(_LAT_ONE)
+
+
+# ---- Эски жана элдик аттар ----
+# Сол жагы — издөөнүн түрүнө келтирилген сөз, оң жагы — ошол эле
+# түрдөгү азыркы аталыш. Улгайган жана орусча сүйлөгөн адамдар
+# ушул аттар менен издейт.
+#
+# Эки жагы тең бирдей эрежеден өткөн: ө→о, ү→у, ң→н; «ь», «ъ»
+# алынган; кайталанган тамга бирге түшкөн («майлуусуу» → «майлусу»).
+_ALIASES = {
+    "фрунзе": "бишкек",
+    "пржевалск": "каракол",
+    "рыбаче": "балыкчы",
+    "токмак": "токмок",
+    "узген": "озгон",
+    "жалалабат": "жалалабад",
+    "исыкул": "ысыкол",
+    "ысыкул": "ысыкол",
+    "исикул": "ысыкол",
+    "майлисай": "майлусу",
+    "майлысай": "майлусу",
+    "кызылкия": "кызылкыя",
+    "ленинпол": "бакайата",
+}
+
+# ---- Жер атына тиешеси жок сөздөр ----
+# Булар сурамда жолуксо, этибарга алынбайт — бирок издөөнү да
+# бузбайт. «Ошко такси керек» дегенде «Ош» гана мааниге ээ.
+_STOP = {
+    "из", "в", "во", "до", "от", "на", "и", "или", "по", "с", "к",
+    "за", "у", "the", "to", "from", "for", "taxi",
+    "менен", "жана", "чейин", "дейин", "бара", "бараткан", "баратат",
+    "кайткан", "кайтат", "кетип", "керек", "бар", "жок", "бугун",
+    "эртен", "сапар", "жол", "жолу", "такси", "машина", "унаа",
+    "айдоочу", "жургунчу", "жарыя", "издейм", "издо", "ищу", "нужно",
+}
+
+
+def _loose(s):
+    """Кайталанган тамганы бирге түшүрөт: «бишкеек» → «бишкек»."""
+    return re.sub(r"(.)\1+", r"\1", s or "")
+
+
+@lru_cache(maxsize=512)
+def _qwords(q):
+    """Сурамды өз-өзүнчө текшериле турган сөздөргө бөлөт.
+
+    «из Бишкека в Ош»  → ("бишкека", "ош")
+    «bishkek naryn»    → ("бишкек", "нарын")
+    «Пржевальск»       → ("каракол",)
+    «Иссык-Куль»       → ("ысыкол",)
     """
-    nq = norm(q)
-    if not nq:
-        return True
-    for f in fields:
-        nf = norm(f)
-        if not nf:
+    if not q:
+        return ()
+    s = str(q).lower().translate(_FOLD)
+    # «Джалал-Абад» деген орусча жазылыш — кыргызча «Жалал-Абад».
+    # Жумшак жана катуу белги издөөдө эч нерсе чечпейт.
+    s = s.replace("дж", "ж").replace("ь", "").replace("ъ", "")
+    s = _TAILS.sub(" ", s)
+
+    out = []
+    for part in re.split(r"[^0-9a-zа-яёөүңöüäğ]+", s):
+        if not part or _LAT_TAIL.match(part):
             continue
-        if nq in nf:
-            return True
-        # Узун сурамда тамга катасын кечиребиз
-        if len(nq) >= 4 and _close(nq, nf, 2 if len(nq) > 6 else 1):
-            return True
+        # Которулгандан кийин кириллица куйругу чыгышы мүмкүн
+        w = _TAILS.sub("", _translit(part))
+        w = _loose(w)
+        w = "".join(ch for ch in w if ch.isalnum())
+        if len(w) < 2:          # бир тамга эч нерсе тактабайт
+            continue
+        out.append(w)
+
+    # Эки бөлүк болуп жазылган эски ат: «Иссык-Куль», «Майли-Сай».
+    # Бириктирип бир жолу текшеребиз.
+    if out:
+        joined = _ALIASES.get(_loose("".join(out)))
+        if joined:
+            return (joined,)
+    return tuple(_ALIASES.get(w, w) for w in out)
+
+
+def _word_hits(w, n):
+    """Бир сөз бир аталышка туура келеби?
+
+    Үч деңгээл:
+      1. ичинде барбы      — «биш» → «бишкек»
+      2. башталабы         — «ошко», «бишкектен» (жөндөмө мүчөсү)
+      3. тамга катасы барбы — «бшкек» → «бишкек»
+    """
+    if len(w) < 2 or not n:
+        return False
+    if w in n:
+        return True
+    if w.startswith(n):
+        return True
+    if len(w) >= 4 and _close(w, n, 2 if len(w) > 6 else 1):
+        return True
     return False
+
+
+@lru_cache(maxsize=8192)
+def _matches_key(q, joined):
+    """Чыныгы салыштыруу.
+
+    Жыйынтыгы эстелип калат. Бул маанилүү: бир бет курулганда
+    чиптердин сандарын эсептөө үчүн бул текшерүү ОН МИҢДЕГЕН жолу
+    чакырылат. Аталышты тазалоо да ушул жерде — кэш тийгенде ал
+    такыр аткарылбайт.
+    """
+    words = _qwords(q)
+    if not words:
+        return True
+    names = [_loose(norm(x)) for x in joined.split("\x00") if x]
+    names = [n for n in names if n]
+    if not names:
+        return False
+
+    hits = 0
+    for w in words:
+        if any(_word_hits(w, n) for n in names):
+            hits += 1
+        elif w in _STOP:
+            # «такси», «керек», «из» — жер аты эмес, этибарга албайбыз
+            continue
+        else:
+            # Жер атына окшош сөз бул багыттан табылбады.
+            # «бишкек ош» деген сурам Бишкек → Нарынды чыгарбашы керек.
+            return False
+    return hits > 0
+
+
+def _matches(q, *fields):
+    """Сурам ушул багытка туура келеби?
+
+    Сурам сөзгө бөлүнөт. Ар бир сөз «кайдан» же «кайда» дегендин
+    бирине туура келиши керек — ошондуктан «бишкек ош» деп жазса,
+    Бишкек ↔ Ош багыты табылат.
+    """
+    if not q:
+        return True
+    return _matches_key(q, "\x00".join(str(f or "") for f in fields))
 
 
 # ============ ШААР → ОБЛУС ТАБЛИЦАСЫ ============
@@ -717,16 +878,22 @@ def index():
     # Издөө боюнча эч нерсе табылбаса — жакын аталыштарды сунуштайбыз
     suggest = []
     if q and not sel:
-        nq = norm(q)
+        # v163: сунуштар да сөзгө бөлүнүп изделет — латынча жазса
+        # да, эски ат менен издесе да жакын жерлер табылсын.
+        # ЭСКЕРТҮҮ: мурда бул циклдин өзгөрмөсү да `city` деп аталып,
+        # жогорудагы чыпканын маанисин жок кылып жиберчү. Ошондон
+        # эч нерсе табылбаганда беттеги шилтемелер бузулчу.
+        qws = _qwords(q)
         seen = set()
         for r in rows:
-            for city in (r["from_city"], r["to_city"]):
-                nc = norm(city)
-                if city in seen or not nc:
+            for cname in (r["from_city"], r["to_city"]):
+                nc = _loose(norm(cname))
+                if cname in seen or not nc:
                     continue
-                if nq[:3] and nc.startswith(nq[:3]) or _close(nq, nc, 2):
-                    seen.add(city)
-                    suggest.append(city)
+                if any(_word_hits(w, nc) or nc.startswith(w[:3])
+                       for w in qws if len(w) >= 3):
+                    seen.add(cname)
+                    suggest.append(cname)
         suggest = suggest[:6]
 
     # Чыпкалардын бирөө коюлганбы? (шаблондо «тазалоо» баскычы үчүн)
