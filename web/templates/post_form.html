@@ -265,13 +265,21 @@
       </div></div>
 
       <div class="sec"><span>{{ t('Жүк', 'Багаж') }}</span></div>
-      <div class="fld"><div class="sel">
-        <select id="fBag">
-          <option value="Жүк жок">{{ t('Жүк жок', 'Без багажа') }}</option>
-          <option value="Кичине сумка">{{ t('Кичине сумка', 'Небольшая сумка') }}</option>
-          <option value="Чоң жүк">{{ t('Чоң жүк', 'Крупный багаж') }}</option>
-        </select>
-      </div></div>
+      <div class="fld">
+        <div class="sel">
+          <select id="fBag">
+            <option value="Жүк жок">{{ t('Жүк жок', 'Без багажа') }}</option>
+            <option value="Кичине сумка">{{ t('Кичине сумка', 'Небольшая сумка') }}</option>
+            <option value="Чоң жүк">{{ t('Чоң жүк', 'Крупный багаж') }}</option>
+            {# v161: үчөөнүн бири да туура келбесе — өзү жазат #}
+            <option value="__own">{{ t('✍️ Өзүм жазам', '✍️ Напишу сам') }}</option>
+          </select>
+        </div>
+        <input id="fBagText" maxlength="60"
+               style="display:none;margin-top:8px"
+               placeholder="{{ t('Мисалы: 2 чемодан жана коляска',
+                                 'Например: 2 чемодана и коляска') }}">
+      </div>
     </div>
 
     {# v136: жазуусу жана мисалы ролго жараша JS менен коюлат #}
@@ -468,6 +476,34 @@
   });
 
   function val(id) { var e = document.getElementById(id); return e ? e.value.trim() : ""; }
+
+  /* ---- v161: жүктү колу менен жазуу ----
+     Тизмеден «✍️ Өзүм жазам» тандалса, астынан жазуу талаасы ачылат.
+     Башка сап тандалса, талаа жабылып, ичиндеги жазуу өчөт — болбосо
+     көрүнбөгөн текст жарыяга кошулуп кетмек. */
+  (function () {
+    var bag = document.getElementById("fBag");
+    var txt = document.getElementById("fBagText");
+    if (!bag || !txt) return;
+    bag.addEventListener("change", function () {
+      var own = (bag.value === "__own");
+      txt.style.display = own ? "block" : "none";
+      if (own) {
+        setTimeout(function () { txt.focus(); }, 30);
+      } else {
+        txt.value = "";
+      }
+    });
+  })();
+
+  function bagValue() {
+    var bag = document.getElementById("fBag");
+    if (!bag) return "";
+    if (bag.value !== "__own") { return bag.value; }
+    /* Бош калса да жүк бар экени билинсин, бирок жок деталь
+       ойлоп чыгарылбасын. */
+    return val("fBagText") || s("Жүк бар", "Есть багаж");
+  }
 
   /* ---- Сүрөт: телефондо кичирейтип, дароо карап көрөбүз ---- */
   var photoData = "";
@@ -700,7 +736,7 @@
                    : ((mode === "to") ? BISH : chosen.to),
       date_offset: val("fDate"), time_text: val("fTime"),
       seats: val("fSeats"), car: val("fCar"),
-      people_count: val("fPeople"), baggage: val("fBag"),
+      people_count: val("fPeople"), baggage: bagValue(),   /* v161 */
       price: val("fPrice"), name: val("fName"), comment: val("fComment"),
       photo: photoData
     };
