@@ -525,6 +525,89 @@
   /* Бет ачылганда да ролго жараша коёбуз (баштапкы рол — айдоочу) */
   applyRole();
 
+  /* ---- v162: өтүп кеткен сааттар тандалбасын ----
+     «Бүгүн» тандалып турганда тизмеде азыркы сааттан кийинкилер
+     гана калат, «Эртең» тандалса — баары кайра ачылат. */
+  (function () {
+    var dSel = document.getElementById("fDate");
+    var tSel = document.getElementById("fTime");
+    if (!dSel || !tSel) return;
+
+    /* Толук тизмени эстеп калабыз — «Эртең» тандалганда кайра керек */
+    var ALL = [];
+    for (var i = 0; i < tSel.options.length; i++) {
+      ALL.push({v: tSel.options[i].value, x: tSel.options[i].text});
+    }
+
+    /* Бишкектин сааты. Телефондун саат алкагы туура эмес коюлган
+       болсо да, жарыя туура убакыт менен чыгат. */
+    function nowMin() {
+      var hm;
+      try {
+        hm = new Intl.DateTimeFormat("en-GB", {
+          timeZone: "Asia/Bishkek", hour: "2-digit",
+          minute: "2-digit", hour12: false
+        }).format(new Date());
+      } catch (e) {
+        var d = new Date();
+        hm = ("0" + d.getHours()).slice(-2) + ":" +
+             ("0" + d.getMinutes()).slice(-2);
+      }
+      var p = String(hm).split(":");
+      return parseInt(p[0], 10) * 60 + parseInt(p[1], 10);
+    }
+
+    function toMin(v) {
+      var p = String(v).split(":");
+      var h = parseInt(p[0], 10), m = parseInt(p[1], 10);
+      if (isNaN(h)) return -1;
+      return h * 60 + (isNaN(m) ? 0 : m);
+    }
+
+    function future() {
+      var n = nowMin(), out = [];
+      for (var i = 0; i < ALL.length; i++) {
+        if (toMin(ALL[i].v) > n) { out.push(ALL[i]); }
+      }
+      return out;
+    }
+
+    /* Тандалганы жараксыз болуп калбаса — ошол бойдон калсын */
+    function fill(items) {
+      var keep = tSel.value, html = "";
+      for (var i = 0; i < items.length; i++) {
+        html += '<option value="' + items[i].v + '">' + items[i].x + '</option>';
+      }
+      tSel.innerHTML = html;
+      for (var j = 0; j < tSel.options.length; j++) {
+        if (tSel.options[j].value === keep) { tSel.value = keep; return; }
+      }
+      if (tSel.options.length) { tSel.selectedIndex = 0; }
+    }
+
+    function apply() {
+      if (dSel.value !== "0") { fill(ALL); return; }
+      var av = future();
+      if (!av.length) {
+        /* Кеч кирди, бүгүнкү сааттар бүттү — эртеңкиге өтөбүз */
+        var o = dSel.querySelector('option[value="0"]');
+        if (o) { o.disabled = true; }
+        dSel.value = "1";
+        fill(ALL);
+        return;
+      }
+      fill(av);
+    }
+
+    dSel.addEventListener("change", apply);
+    /* Бет көпкө ачык турса, кайра көрүнгөндө жаңыртылат */
+    document.addEventListener("visibilitychange", function () {
+      if (!document.hidden) { apply(); }
+    });
+    window.trTimeApply = apply;
+    apply();
+  })();
+
   fPhoto.addEventListener("change", function () {
     var f = this.files && this.files[0];
     if (!f) return;
@@ -740,6 +823,20 @@
       price: val("fPrice"), name: val("fName"), comment: val("fComment"),
       photo: photoData
     };
+    /* v162: форма көпкө ачык турса, тандалган убакыт өтүп кетиши
+       мүмкүн. Байкабай эски убакыт менен жарыя чыгып кетпесин. */
+    if (body.date_offset === "0" && window.trTimeApply) {
+      window.trTimeApply();
+      /* Күнү да текшерилет: сааттардын баары өтүп кетсе, тизме өзү
+         «Эртеңге» которулат — ошондо жарыя «бүгүн» деп кетип калбасын. */
+      if (val("fDate") !== body.date_offset || val("fTime") !== body.time_text) {
+        say(s("Тандалган убакыт өтүп кетти — жаңысы коюлду. Текшерип, кайра басыңыз.",
+              "Выбранное время уже прошло — установлено новое. Проверьте и нажмите снова."),
+            "warn");
+        return;
+      }
+    }
+
     if (!body.from_city || !body.to_city) {
       say(s("Кайдан жана кайда — экөөнү тең тандаңыз.", "Выберите оба пункта."), "warn"); return;
     }
