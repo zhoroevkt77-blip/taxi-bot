@@ -4,6 +4,46 @@
 
 {% block content %}
 
+<style>
+  /* v160: шаар тандоо — «➕ Жарыя берүү» бетиндегинин дал өзү.
+     Эки бет бирдей көрүнсүн деп, стилдер ошол бойдон алынды. */
+  .pick {
+    width: 100%; text-align: left; font-size: 15px; font-weight: 500;
+    padding: 13px 14px; border: 1.5px solid var(--mist, #E3E8F0);
+    border-radius: 14px; background: var(--card, #fff); color: #111;
+    cursor: pointer;
+  }
+  .pick.set { font-weight: 700; }
+  #cityWrap {
+    display: none; position: fixed; inset: 0; z-index: 90;
+    background: rgba(16, 24, 40, .45);
+  }
+  #cityWrap.on { display: block; }
+  #cityPanel {
+    position: absolute; left: 0; right: 0; bottom: 0; max-height: 82vh;
+    display: flex; flex-direction: column;
+    background: #fff; border-radius: 18px 18px 0 0; padding: 12px 14px;
+    padding-bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+  }
+  #cityFind {
+    width: 100%; box-sizing: border-box; font-size: 15px; padding: 11px 13px;
+    border: 1.5px solid #E3E8F0; border-radius: 12px; margin-bottom: 8px;
+  }
+  #cityList { overflow-y: auto; -webkit-overflow-scrolling: touch; }
+  #cityList .og {
+    font-size: 13px; font-weight: 800; color: #111; text-transform: uppercase;
+    padding: 12px 4px 6px; border-bottom: 1.5px solid #111;
+  }
+  #cityList .it {
+    font-size: 15px; font-weight: 500; color: #111;
+    padding: 11px 6px; border-bottom: 1px solid #eceef1; cursor: pointer;
+  }
+  #cityClose {
+    margin-top: 8px; border: 0; border-radius: 12px; padding: 12px;
+    font-size: 15px; background: #f5f5f5; color: #111; cursor: pointer;
+  }
+</style>
+
 <div class="page-head">
   <h1>🔔 {{ t('Кабарлар', 'Уведомления') }}</h1>
   <p class="lead">
@@ -23,34 +63,18 @@
 
     <div class="sec"><span>{{ t('Кайдан', 'Откуда') }}</span></div>
     <div class="fld">
-      <div class="sel">
-        <select id="wFrom">
-          <option value="">{{ t('— тандаңыз —', '— выберите —') }}</option>
-          {% for o in oblast_list %}
-            <optgroup label="{{ o }}">
-              {% for key, label in all_cities.get(o, []) %}
-                <option value="{{ label }}">{{ label }}</option>
-              {% endfor %}
-            </optgroup>
-          {% endfor %}
-        </select>
-      </div>
+      {# v160: мааниси жашыруун input'та — беттин калган коду
+         мурдагыдай эле wFrom деп окуй берет #}
+      <input type="hidden" id="wFrom" value="">
+      <button type="button" class="pick" id="pickFrom">
+        {{ t('— тандаңыз —', '— выберите —') }}</button>
     </div>
 
     <div class="sec"><span>{{ t('Кайда', 'Куда') }}</span></div>
     <div class="fld">
-      <div class="sel">
-        <select id="wTo">
-          <option value="">{{ t('— тандаңыз —', '— выберите —') }}</option>
-          {% for o in oblast_list %}
-            <optgroup label="{{ o }}">
-              {% for key, label in all_cities.get(o, []) %}
-                <option value="{{ label }}">{{ label }}</option>
-              {% endfor %}
-            </optgroup>
-          {% endfor %}
-        </select>
-      </div>
+      <input type="hidden" id="wTo" value="">
+      <button type="button" class="pick" id="pickTo">
+        {{ t('— тандаңыз —', '— выберите —') }}</button>
     </div>
 
     {# v158: тандалган багыт жана ошол багыттагы айдоочулар #}
@@ -81,6 +105,15 @@
   </div>
 </div>
 
+{# v160: шаар тандоо терезеси — ылдыйдан чыгат #}
+<div id="cityWrap">
+  <div id="cityPanel">
+    <input id="cityFind" placeholder="{{ t('Издөө: шаар же район…', 'Поиск: город или район…') }}">
+    <div id="cityList"></div>
+    <button type="button" id="cityClose">{{ t('Жабуу', 'Закрыть') }}</button>
+  </div>
+</div>
+
 <script>
 /* ============================================================
    Кабарлар бети — багытка жазылуу (браузердин push кабарлары).
@@ -102,6 +135,96 @@
     note.textContent = m || "";
     note.className = "watch-note" + (cls ? " " + cls : "");
   }
+
+  /* ---- v160: шаар тандоо ----
+     «➕ Жарыя берүү» бетиндеги тандагычтын дал өзү: ылдыйдан чыккан
+     терезе, үстүндө издөө, область калың тамга менен бөлүнөт.
+     Push'тан көз каранды эмес, ошондуктан төмөнкү «Колдоо барбы?»
+     текшерүүсүнөн МУРУН турат. */
+  (function () {
+    var CITIES = [
+      {% for o in oblast_list %}{% for key, label in all_cities.get(o, []) %}
+      {o: {{ o|tojson }}, v: {{ label|tojson }}},{% endfor %}{% endfor %}
+    ];
+
+    var wrap = document.getElementById("cityWrap");
+    var find = document.getElementById("cityFind");
+    var list = document.getElementById("cityList");
+    var target = "from";
+    if (!wrap || !find || !list) return;
+
+    /* Кыргыз тамгалары менен издөө: «ө» жазбай «о» жазса да табылсын */
+    function norm(t) {
+      return (t || "").toLowerCase()
+        .replace(/ө/g, "о").replace(/ү/g, "у").replace(/ң/g, "н");
+    }
+
+    function draw(q) {
+      q = norm(q);
+      var html = "", group = "";
+      for (var i = 0; i < CITIES.length; i++) {
+        var c = CITIES[i];
+        if (q && norm(c.v).indexOf(q) < 0 && norm(c.o).indexOf(q) < 0) continue;
+        if (c.o !== group) {
+          group = c.o;
+          html += '<div class="og">' + c.o + '</div>';
+        }
+        html += '<div class="it" data-v="' + c.v.replace(/"/g, "&quot;") + '">'
+              + c.v + '</div>';
+      }
+      list.innerHTML = html ||
+        '<div class="og">' + s("Эч нерсе табылган жок",
+                               "Ничего не найдено") + '</div>';
+    }
+
+    /* Тандалганды жазабыз. "change" окуясы жиберилет — ошондуктан
+       тандалган багыттын карточкасы (v158) мурдагыдай иштей берет. */
+    function setCity(which, v) {
+      var inp = (which === "from") ? fromSel : toSel;
+      var btn = document.getElementById(which === "from" ? "pickFrom" : "pickTo");
+      if (!inp || !btn) return;
+      inp.value = v || "";
+      btn.textContent = v || s("— тандаңыз —", "— выберите —");
+      if (v) { btn.classList.add("set"); } else { btn.classList.remove("set"); }
+      try {
+        inp.dispatchEvent(new Event("change"));
+      } catch (e) {
+        var ev = document.createEvent("HTMLEvents");
+        ev.initEvent("change", true, false);
+        inp.dispatchEvent(ev);
+      }
+    }
+    window.trSetCity = setCity;
+
+    function openPick(which) {
+      target = which;
+      find.value = "";
+      draw("");
+      wrap.classList.add("on");
+      list.scrollTop = 0;
+      setTimeout(function () { find.focus(); }, 50);
+    }
+
+    function closePick() { wrap.classList.remove("on"); }
+
+    document.getElementById("pickFrom")
+      .addEventListener("click", function () { openPick("from"); });
+    document.getElementById("pickTo")
+      .addEventListener("click", function () { openPick("to"); });
+    document.getElementById("cityClose")
+      .addEventListener("click", closePick);
+    wrap.addEventListener("click", function (e) {
+      if (e.target === wrap) closePick();
+    });
+    find.addEventListener("input", function () { draw(find.value); });
+
+    list.addEventListener("click", function (e) {
+      var it = e.target.closest(".it");
+      if (!it) return;
+      setCity(target, it.dataset.v);
+      closePick();
+    });
+  })();
 
   /* ---- v158: тандалган багыт ошол замат көрүнөт ----
      Сандар бет ачылганда келген, ошондуктан кошумча сурам кетпейт.
@@ -297,7 +420,10 @@
     }).then(function (d) {
       if (!d || !d.ok) { throw new Error("save"); }
       say("✅ " + s("Жазылдыңыз: ", "Подписка оформлена: ") + f + " → " + t, "ok");
-      fromSel.value = ""; toSel.value = "";
+      /* v160: жашыруун маани да, баскычтагы жазуу да тазаланат */
+      if (window.trSetCity) {
+        window.trSetCity("from", ""); window.trSetCity("to", "");
+      } else { fromSel.value = ""; toSel.value = ""; }
       if (window.trPickShow) { window.trPickShow(); }      /* v158 */
       refresh();
     }).catch(function (e) {
