@@ -42,7 +42,7 @@ from core import logic as _logic
 from core.texts import render as tr_render
 from core.texts import FREE_MODE, INVITE_GOAL   # v135
 
-WEB_VERSION = "v165-nobots"
+WEB_VERSION = "v166-passengers"
 print(f"🌐 web/app.py жүктөлдү. Версия = {WEB_VERSION}")
 
 BOT_USERNAME = os.environ.get("BOT_USERNAME", "taxirobot_bot")
@@ -455,22 +455,51 @@ def _digits(phone):
     return d
 
 
-def driver_routes():
-    """Активдүү айдоочу жарыялары бар багыттар жана алардын саны."""
+def driver_routes(role="driver"):
+    """Активдүү жарыялары бар багыттар жана алардын саны.
+
+    v166: мурда айдоочулар гана эсептелчү, ошондуктан жүргүнчүнүн
+    жарыясы сайтта эч жерде көрүнчү эмес. Эми рол берилет — бир эле
+    жол менен эки тизме тең чыгат.
+
+    Аты мурдагыдай калды: аны чакырган жерлер көп, ал эми демейки
+    мааниси ошол эле «айдоочу».
+    """
+    role = "passenger" if role == "passenger" else "driver"
     try:
         with db() as conn:
             cur = conn.cursor()
             cur.execute("""
                 SELECT from_city, to_city, COUNT(*) AS n
                 FROM posts
-                WHERE role = 'driver' AND active = 1
+                WHERE role = %s AND active = 1
                 GROUP BY from_city, to_city
                 ORDER BY n DESC, from_city
-            """)
+            """, (role,))
             return [dict(r) for r in cur.fetchall()]
     except Exception as e:
         print("[web] багыттарды алуу катасы:", e)
         return []
+
+
+def role_counts():
+    """Эки ролдо канча активдүү жарыя бар — бир сурам менен.
+
+    Которгучтагы сандар ушундан чыгат: адам басардан мурун ал
+    жакта бир нерсе бар-жогун көрөт.
+    """
+    out = {"driver": 0, "passenger": 0}
+    try:
+        with db() as conn:
+            cur = conn.cursor()
+            cur.execute("SELECT role, COUNT(*) AS n FROM posts "
+                        "WHERE active = 1 GROUP BY role")
+            for r in cur.fetchall():
+                if r.get("role") in out:
+                    out[r["role"]] = r["n"]
+    except Exception as e:
+        print("[web] рол сандары катасы:", e)
+    return out
 
 
 # ============ ✈️ АЭРОПОРТ (v149) ============
@@ -617,6 +646,9 @@ def _card(p):
                  or _v(p.get("date_text"))),
         "time": _v(p.get("time_text")),
         "seats": p.get("seats") or "",
+        # v166: жүргүнчүнүн талаалары — мурда карточкага чыкпай турган
+        "people": p.get("people_count") or "",
+        "bag": p.get("baggage") or "",
         "price": _v(p.get("price")),
         "comment": p.get("comment") or "",
         "is_vip": bool(p.get("is_vip")),
@@ -760,6 +792,10 @@ def index():
     q = (request.args.get("q") or "").strip()
     city = (request.args.get("city") or "").strip()
     air = (request.args.get("air") or "").strip()      # v149
+    # v166: кимдин жарыяларын көрсөтөбүз. Демейки — айдоочулар,
+    # анткени сайтка келгендердин көпчүлүгү жол издеген жүргүнчүлөр.
+    role = ("passenger" if request.args.get("role") == "passenger"
+            else "driver")
     # Кеңейтилген чыпка: кайдан → кайда
     f_obl = (request.args.get("fobl") or "").strip()
     f_city = (request.args.get("fcity") or "").strip()
@@ -776,7 +812,7 @@ def index():
     if cat != "air":          # v149: бөлүмдөн чыкканда тазаланат
         air = ""
 
-    rows = driver_routes()
+    rows = driver_routes(role)                         # v166
     for r in rows:
         r["cat"] = _category_of(r)
         r["obl"] = _oblast_of(r)
@@ -913,6 +949,8 @@ def index():
         """Учурдагы чыпкаларды сактап, бирөөнү гана алмаштырган шилтеме."""
         st = {"cat": cat, "obl": obl, "city": city, "fobl": f_obl, "fcity": f_city,
               "tobl": t_obl, "tcity": t_city, "q": q, "air": air,
+              # v166: демейки рол даректе көрүнбөсүн — шилтеме таза калсын
+              "role": "" if role == "driver" else role,
               "lang": _lang()}
         st.update(over)
         if st.get("cat") != "air":      # v149: бөлүмдөн чыкканда
@@ -922,6 +960,8 @@ def index():
 
     html = render_template("index.html",
                            routes=sel,
+                           role=role,                  # v166
+                           role_n=role_counts(),       # v166
                            cat=cat,
                            cat_counts=cat_counts,
                            oblasts=oblasts, districts=districts, city=city,
@@ -949,14 +989,18 @@ def index():
 def route():
     frm = (request.args.get("from") or "").strip()
     to = (request.args.get("to") or "").strip()
+    # v166: ушул багытта айдоочуларды көрсөтөбүзбү же жүргүнчүлөрдү
+    role = ("passenger" if request.args.get("role") == "passenger"
+            else "driver")
     cards = []
     if frm and to:
         try:
             cards = [_card(p) for p in
-                     posts.search_posts("driver", from_city=frm, to_city=to)]
+                     posts.search_posts(role, from_city=frm, to_city=to)]
         except Exception as e:
             print("[web] издөө катасы:", e)
     html = render_template("route.html", frm=frm, to=to, cards=cards,
+                           role=role,                  # v166
                            **_base_ctx())
     return _with_lang(make_response(html))
 
@@ -1247,7 +1291,8 @@ def post_create():
         data["seats"] = (d.get("seats") or "").strip()[:4]
     else:
         data["people_count"] = (d.get("people_count") or "").strip()[:4]
-        data["baggage"] = (d.get("baggage") or "").strip()[:30]
+        # v166: формада 60 белги — сервер да ошончо кабыл алсын
+        data["baggage"] = (d.get("baggage") or "").strip()[:60]
 
     # Сүрөт болсо — базага сактап, ачык шилтемесин жарыяга жазабыз
     ptoken = _save_web_photo(d.get("photo") or "")

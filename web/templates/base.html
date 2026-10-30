@@ -807,6 +807,11 @@
   </div>
 
   <form class="search" method="get" action="/">
+    {# v166: жүргүнчүлөрдү карап жатып «Изде» басканда, айдоочуларга
+       кайра түшүп калбасын #}
+    {% if role is defined and role == 'passenger' %}
+      <input type="hidden" name="role" value="passenger">
+    {% endif %}
     <input type="text" name="q" value="{{ q|default('') }}"
            placeholder="{{ t('Шаар же багыт издөө', 'Поиск города или направления') }}">
     <button type="submit">{{ t('Изде', 'Найти') }}</button>

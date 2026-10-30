@@ -3,6 +3,44 @@
 {% block title %}{{ t('Такси жарыялары', 'Объявления такси') }} — ТАКСИ роБОТ{% endblock %}
 
 {% block cats %}
+
+{# ============ v166: КИМДИ КӨРӨБҮЗ ============
+   Айдоочулар — жол сунуштагандар. Жүргүнчүлөр — жол издегендер.
+   Басканда бүт бет ошол ролго которулат: багыттар, сандар,
+   категориялар, чиптер, издөө — баары. #}
+<style>
+  .rolesw {
+    display: flex; gap: 8px;
+    max-width: 640px; margin: 0 auto; padding: 12px 12px 0;
+  }
+  .rolesw a {
+    flex: 1 1 0; min-width: 0;
+    display: flex; align-items: center; justify-content: center; gap: 7px;
+    background: var(--card); border-radius: 16px;
+    padding: 13px 8px; box-shadow: var(--shadow);
+    font-size: 14px; font-weight: 800; letter-spacing: -.2px;
+    color: var(--ink); transition: transform .13s;
+  }
+  .rolesw a:active { transform: scale(.97); }
+  .rolesw a.on {
+    background: linear-gradient(135deg, var(--yellow) 0%, var(--yellow-2) 100%);
+    color: var(--black); box-shadow: var(--glow);
+  }
+  .rolesw .n {
+    font-size: 12.5px; font-weight: 900; color: var(--grey);
+  }
+  .rolesw a.on .n { color: #7a5a00; }
+</style>
+<div class="rolesw">
+  <a class="{{ 'on' if role != 'passenger' else '' }}" href="{{ link(role='') }}">
+    🚗 {{ t('Айдоочулар', 'Водители') }}
+    <span class="n num">{{ role_n.driver }}</span></a>
+  <a class="{{ 'on' if role == 'passenger' else '' }}"
+     href="{{ link(role='passenger') }}">
+    🧳 {{ t('Жүргүнчүлөр', 'Пассажиры') }}
+    <span class="n num">{{ role_n.passenger }}</span></a>
+</div>
+
 {# Категория карточкалары. «Баары» — эмблема, калгандары — SVG белгилер. #}
 <div class="cats">
 
@@ -165,6 +203,10 @@
   <input type="hidden" name="cat" value="{{ cat }}">
   <input type="hidden" name="obl" value="{{ obl }}">
   {% if q %}<input type="hidden" name="q" value="{{ q }}">{% endif %}
+  {# v166 #}
+  {% if role == 'passenger' %}
+    <input type="hidden" name="role" value="passenger">
+  {% endif %}
 
   <div class="sec"><span>{{ t('Кайсы жерден', 'Откуда') }}</span></div>
 
@@ -232,7 +274,7 @@
 </form>
 
 {% if has_filter %}
-  <a class="reset" href="/?lang={{ lang }}">
+  <a class="reset" href="/?lang={{ lang }}{% if role == 'passenger' %}&role=passenger{% endif %}">
     {{ t('✕ Чыпкаларды тазалоо', '✕ Сбросить фильтры') }}
   </a>
 {% endif %}
@@ -297,7 +339,7 @@
 {% endif %}
 
 {% for r in routes %}
-  <a class="route" href="/route?from={{ r.from_city|urlencode }}&to={{ r.to_city|urlencode }}&lang={{ lang }}">
+  <a class="route" href="/route?from={{ r.from_city|urlencode }}&to={{ r.to_city|urlencode }}&lang={{ lang }}{% if role == 'passenger' %}&role=passenger{% endif %}">
 
     <span class="cat-tag {{ r.cat }}">
       {% if r.cat == 'to' %}
@@ -357,7 +399,7 @@
                                   'Возможно, вы искали это?') }}</div>
           <div class="sug-list">
             {% for s in suggest %}
-              <a class="chip" href="/?q={{ s|urlencode }}&lang={{ lang }}">{{ s }}</a>
+              <a class="chip" href="/?q={{ s|urlencode }}&lang={{ lang }}{% if role == 'passenger' %}&role=passenger{% endif %}">{{ s }}</a>
             {% endfor %}
           </div>
         </div>
@@ -370,8 +412,13 @@
              'Попробуйте выбрать всю область вместо района.') }}
       </div>
     {% else %}
-      <div>{{ t('Бул бөлүмдө азырынча жарыя жок.',
-                'В этом разделе пока нет объявлений.') }}</div>
+      {% if role == 'passenger' %}
+        <div>{{ t('Бул бөлүмдө азырынча жүргүнчү жок.',
+                  'В этом разделе пока нет пассажиров.') }}</div>
+      {% else %}
+        <div>{{ t('Бул бөлүмдө азырынча жарыя жок.',
+                  'В этом разделе пока нет объявлений.') }}</div>
+      {% endif %}
       <div style="margin-top:8px">
         {{ t('Бир аздан кийин кайра карап көрүңүз.', 'Загляните чуть позже.') }}
       </div>
