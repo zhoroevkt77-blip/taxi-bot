@@ -522,12 +522,22 @@
           subscription: sub.toJSON ? sub.toJSON() : sub, from: f, to: t
         })
       });
-    }).then(function () {
+    }).then(function (r) {
+      /* v159: сервер чындап сактадыбы? Мурда жооп таптакыр
+         каралбай, ийгилик деп жазыла берчү. */
+      return (r && r.json ? r.json() : Promise.resolve({}))
+        .catch(function () { return {}; });
+    }).then(function (d) {
+      if (!d || !d.ok) { throw new Error("save"); }
       say("✅ " + s("Жазылдыңыз: ", "Подписка оформлена: ") + f + " → " + t, "ok");
       fromSel.value = ""; toSel.value = "";
       refresh();
     }).catch(function (e) {
-      if (String(e.message) === "denied") {
+      if (String(e.message) === "save") {
+        say(s("Жазылуу сакталган жок. Бир аздан кийин кайра аракет кылыңыз.",
+              "Подписка не сохранилась. Попробуйте ещё раз чуть позже."),
+            "warn");
+      } else if (String(e.message) === "denied") {
         say(s("Кабарга уруксат берилген жок. Браузердин жөндөөлөрүнөн " +
               "уруксат берип, кайра аракет кылыңыз.",
               "Разрешение не выдано. Включите уведомления в настройках " +

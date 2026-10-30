@@ -41,7 +41,7 @@ from core import logic as _logic
 from core.texts import render as tr_render
 from core.texts import FREE_MODE, INVITE_GOAL   # v135
 
-WEB_VERSION = "v158-pick"
+WEB_VERSION = "v159-pushfix"
 print(f"🌐 web/app.py жүктөлдү. Версия = {WEB_VERSION}")
 
 BOT_USERNAME = os.environ.get("BOT_USERNAME", "taxirobot_bot")
@@ -1226,7 +1226,10 @@ def push_subscribe():
     """Багытка жазылуу."""
     from flask import jsonify
     data = request.get_json(silent=True) or {}
-    sub = data.get("sub") or {}
+    # v159: браузер «subscription» деп жөнөтөт, бул жер «sub» деп
+    # күтчү — ошондон жазылуу эч качан сакталбай калчу. Эми экөөн
+    # тең кабыл алабыз (эски бет ачык турган браузерлер үчүн да).
+    sub = data.get("subscription") or data.get("sub") or {}
     frm = (data.get("from") or "").strip()
     to = (data.get("to") or "").strip()
     if not (sub and frm and to):
