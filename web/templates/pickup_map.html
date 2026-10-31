@@ -20,6 +20,18 @@
  li{padding:8px 0;border-bottom:1px solid #f2f2f2;font-size:16px}
  li:last-child{border-bottom:0}
  li .del{float:right;color:#C62828;background:none;border:0;font-size:14px;cursor:pointer;padding:0 4px}
+ /* v169: ар бир жүргүнчүнүн жанында 2GIS баскычы.
+    Сап флекс болду — аты созулат, баскычтар оң жакта тизилет.
+    <li> өзү list-item бойдон калат, ошондуктан номерлер жоголбойт. */
+ li .prow{display:flex;align-items:center;gap:10px}
+ li .pnm{flex:1 1 auto;min-width:0;overflow:hidden;
+         text-overflow:ellipsis;white-space:nowrap}
+ li .prow .del{float:none;flex:0 0 auto}
+ a.gis{flex:0 0 auto;display:inline-flex;align-items:center;justify-content:center;
+       min-height:40px;padding:0 13px;border-radius:11px;
+       background:#19AA1E;color:#fff;font-size:13px;font-weight:700;
+       letter-spacing:.2px;text-decoration:none}
+ a.gis:active{filter:brightness(.93)}
  a.btn,button.btn{display:block;width:100%;text-align:center;text-decoration:none;border:0;border-radius:14px;
         padding:15px;font-size:16px;font-weight:600;background:#FFC107;color:#111;margin-bottom:10px;cursor:pointer}
  a.btn.alt{background:#f5f5f5;font-weight:500}
@@ -52,6 +64,11 @@
       {{ t('Азырынча эч ким жок. Шилтемени сапарга алган жүргүнчүлөрүңүзгө жөнөтүңүз — алар өз жайгашкан жерин белгилешет.',
             'Пока никого нет. Отправьте ссылку тем пассажирам, которых везёте — они отметят своё местоположение.') }}
     </div>
+    {# v169: жалган убада болбосун — 2GIS эмне кыларын ачык жазабыз #}
+    <p class="hint" id="gisHint" style="display:none;margin:10px 0 0">
+      {{ t('«2GIS» баскычы ошол бир жүргүнчүгө чейин жол курат — телефонуңузда 2GIS тиркемеси орнотулган болушу керек. Бүт чынжырды (1 → 2 → 3 → сапар багыты) ылдыйдагы Yandex же Google түзөт.',
+            'Кнопка «2GIS» строит маршрут до одного этого пассажира — на телефоне должно быть установлено приложение 2GIS. Всю цепочку (1 → 2 → 3 → пункт назначения) построят Yandex или Google ниже.') }}
+    </p>
   </div>
 
   <div id="navs"></div>
@@ -92,18 +109,43 @@ function draw(d){
   var list = document.getElementById('list'), pts = d.points || [];
   list.innerHTML = '';
   document.getElementById('empty').style.display = pts.length ? 'none' : 'block';
+  document.getElementById('gisHint').style.display = pts.length ? 'block' : 'none';   /* v169 */
   var bounds = [];
   pts.forEach(function(p, i){
     L.marker([p.lat, p.lon], {icon: icon(i + 1)}).addTo(layer).bindPopup(p.name);
     bounds.push([p.lat, p.lon]);
     var li = document.createElement('li');
-    li.textContent = p.name;
+    var row = document.createElement('div');
+    row.className = 'prow';
+
+    var nm = document.createElement('span');
+    nm.className = 'pnm';
+    nm.textContent = p.name;
+    row.appendChild(nm);
+
+    /* ---- v169: ушул бир жүргүнчүгө чейин 2GIS ----
+       ⚠️ 2GIS координатты УЗУНДУК БИРИНЧИ кабыл алат: lon,lat.
+       Google менен Yandex тескерисинче — lat,lon. Экөөнүн ордун
+       алмаштырып койсо, шилтеме ката бербейт, жөн гана айдоочуну
+       такыр башка жакка жиберет. Ошондуктан бул эки сапты
+       өзгөрткөндө абайлаңыз. */
+    var g = document.createElement('a');
+    g.className = 'gis';
+    g.href = 'dgis://2gis.ru/routeSearch/rsType/car/to/'
+             + p.lon + ',' + p.lat;
+    g.textContent = '2GIS';
+    g.setAttribute('aria-label', '2GIS: ' + p.name);
+    row.appendChild(g);
+
     var b = document.createElement('button');
     b.className = 'del'; b.textContent = '✕';
+    b.setAttribute('aria-label', 'Өчүрүү');
     b.onclick = function(){
       fetch('/pickup/m/' + MT + '/del/' + p.id, {method: 'POST'}).then(load);
     };
-    li.appendChild(b);
+    row.appendChild(b);
+
+    li.appendChild(row);
     list.appendChild(li);
   });
   if (bounds.length) map.fitBounds(bounds, {padding: [40, 40], maxZoom: 15});
