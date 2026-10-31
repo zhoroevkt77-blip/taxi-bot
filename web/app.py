@@ -42,7 +42,7 @@ from core import logic as _logic
 from core.texts import render as tr_render
 from core.texts import FREE_MODE, INVITE_GOAL   # v135
 
-WEB_VERSION = "v168-labels"
+WEB_VERSION = "v170-pknotify"
 print(f"🌐 web/app.py жүктөлдү. Версия = {WEB_VERSION}")
 
 BOT_USERNAME = os.environ.get("BOT_USERNAME", "taxirobot_bot")
@@ -1981,7 +1981,8 @@ def pickup_add_point(token):
     from flask import jsonify
     if not _pickup_allowed(_client_ip()):
         return jsonify(error="limit"), 429
-    if not pickup.by_token(token):
+    trip = pickup.by_token(token)
+    if not trip:
         return jsonify(error="none"), 404
     d = request.get_json(silent=True) or {}
     try:
@@ -1993,6 +1994,15 @@ def pickup_add_point(token):
     name = (d.get("name") or "").strip()[:40] or _t("Жүргүнчү", "Пассажир")
     if not pickup.add_point(token, name, lat, lon):
         return jsonify(error="full"), 409
+
+    # v170: айдоочуга кабар. Кабар кошумча мүмкүнчүлүк — ката болсо
+    # да чекит базада калды, жүргүнчүгө эч нерсе билинбешин керек.
+    try:
+        push.notify_pickup(trip.get("mtoken"), name,
+                           len(pickup.points(token)))
+    except Exception as e:
+        print("[web] чогултуу кабары жөнөтүлгөн жок:", e)
+
     return jsonify(ok=True)
 
 
@@ -2033,6 +2043,35 @@ def pickup_map_del(mtoken, point_id):
     if not row:
         return jsonify(error="none"), 404
     pickup.del_point(row["token"], point_id)
+    return jsonify(ok=True)
+
+
+@app.route("/pickup/m/<mtoken>/notify", methods=["POST"])
+def pickup_notify_on(mtoken):
+    """v170: айдоочу ушул чогултуунун кабарына жазылат."""
+    from flask import jsonify
+    if not pickup.by_token(mtoken, manager=True):
+        return jsonify(ok=False, error="none"), 404
+    d = request.get_json(silent=True) or {}
+    # Браузер «subscription» деп жөнөтөт; эски бет «sub» дешиси мүмкүн
+    sub = d.get("subscription") or d.get("sub") or {}
+    ok = False
+    try:
+        ok = push.subscribe_pickup(sub, mtoken, _lang())
+    except Exception as e:
+        print("[web] чогултууга жазылуу катасы:", e)
+    return jsonify(ok=bool(ok))
+
+
+@app.route("/pickup/m/<mtoken>/notify/off", methods=["POST"])
+def pickup_notify_off(mtoken):
+    """v170: ушул чогултуунун кабарын өчүрөт."""
+    from flask import jsonify
+    d = request.get_json(silent=True) or {}
+    try:
+        push.unsubscribe_pickup((d.get("endpoint") or "").strip(), mtoken)
+    except Exception as e:
+        print("[web] чогултуу кабарын өчүрүү катасы:", e)
     return jsonify(ok=True)
 
 

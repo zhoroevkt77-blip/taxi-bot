@@ -71,6 +71,15 @@
     </p>
   </div>
 
+  {# v170: жүргүнчү белгиленгенде телефонго кабар #}
+  <div class="card" id="nCard" style="display:none">
+    <button class="btn alt" type="button" id="nBtn"></button>
+    <p class="hint" id="nNote">
+      {{ t('Бул бет жабык турса да иштейт — телефонуңузду чөнтөгүңүзгө сала берсеңиз болот.',
+            'Работает, даже когда эта страница закрыта — телефон можно убрать в карман.') }}
+    </p>
+  </div>
+
   <div id="navs"></div>
 
   <div class="card">
@@ -165,6 +174,118 @@ function load(){
 }
 load();
 setInterval(load, 20000);
+
+/* ============================================================
+   v170: жүргүнчү белгиленгенде кабар
+   ------------------------------------------------------------
+   Уруксат бет ачылар замат СУРАЛБАЙТ — айдоочу баскычты басканда
+   гана. Браузерлер өзүнөн-өзү чыккан сурамды бөгөттөп салат да,
+   кийин чындап керек болгондо сурай албай калабыз.
+   ============================================================ */
+(function () {
+  var card = document.getElementById('nCard');
+  var btn = document.getElementById('nBtn');
+  var note = document.getElementById('nNote');
+  if (!card || !btn) return;
+  if (!('serviceWorker' in navigator) || !('PushManager' in window)) return;
+
+  var L = {{ 'true' if lang == 'ru' else 'false' }};
+  function s(ky, ru) { return L ? ru : ky; }
+
+  var KEY = 'tr_pk_' + MT;
+  var reg = null, sub = null, on = false;
+
+  function paint() {
+    btn.textContent = on
+      ? '✅ ' + s('Кабар күйүк — өчүрүү', 'Уведомления включены — выключить')
+      : '🔔 ' + s('Жүргүнчү белгиленгенде кабар алам',
+                  'Уведомлять, когда пассажир отметится');
+  }
+
+  /* Баскычтын көрүнүшү гана — чыны серверде сакталат */
+  function flag(v) {
+    try { v ? localStorage.setItem(KEY, '1') : localStorage.removeItem(KEY); }
+    catch (e) {}
+  }
+
+  function b64(str) {
+    var pad = '='.repeat((4 - str.length % 4) % 4);
+    var b = (str + pad).replace(/-/g, '+').replace(/_/g, '/');
+    var raw = atob(b);
+    var out = new Uint8Array(raw.length);
+    for (var i = 0; i < raw.length; ++i) out[i] = raw.charCodeAt(i);
+    return out;
+  }
+
+  card.style.display = 'block';
+  paint();
+
+  navigator.serviceWorker.register('/sw.js').catch(function () {});
+  navigator.serviceWorker.ready.then(function (r) {
+    reg = r;
+    return r.pushManager.getSubscription();
+  }).then(function (x) {
+    sub = x;
+    try { on = !!(x && localStorage.getItem(KEY)); } catch (e) { on = false; }
+    paint();
+  }).catch(function () { card.style.display = 'none'; });
+
+  btn.onclick = function () {
+    btn.disabled = true;
+
+    if (on && sub) {
+      fetch('/pickup/m/' + MT + '/notify/off', {
+        method: 'POST', headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({endpoint: sub.endpoint})
+      }).then(function () {
+        on = false; flag(false); paint();
+        note.textContent = s('Кабар өчүрүлдү.', 'Уведомления отключены.');
+      }).catch(function () {}).then(function () { btn.disabled = false; });
+      return;
+    }
+
+    note.textContent = s('Күтө туруңуз…', 'Подождите…');
+
+    Promise.resolve(sub || Notification.requestPermission().then(function (p) {
+      if (p !== 'granted') throw new Error('denied');
+      return fetch('/push/key').then(function (r) { return r.json(); })
+        .then(function (d) {
+          if (!d.on || !d.key) throw new Error('off');
+          return reg.pushManager.subscribe({
+            userVisibleOnly: true, applicationServerKey: b64(d.key)
+          });
+        });
+    })).then(function (ns) {
+      sub = ns;
+      return fetch('/pickup/m/' + MT + '/notify', {
+        method: 'POST', headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({subscription: ns.toJSON ? ns.toJSON() : ns})
+      });
+    }).then(function (r) {
+      return (r && r.json ? r.json() : Promise.resolve({}))
+        .catch(function () { return {}; });
+    }).then(function (d) {
+      if (!d || !d.ok) throw new Error('save');
+      on = true; flag(true); paint();
+      note.textContent = s(
+        '✅ Даяр. Жүргүнчү белгиленген сайын телефонуңузга кабар келет — бул бет жабык турса да.',
+        '✅ Готово. Уведомление придёт при каждой отметке — даже если эта страница закрыта.');
+    }).catch(function (e) {
+      var m = String(e && e.message);
+      if (m === 'denied') {
+        note.textContent = s(
+          'Кабарга уруксат берилген жок. Браузердин жөндөөлөрүнөн уруксат берип, кайра аракет кылыңыз.',
+          'Разрешение не выдано. Включите уведомления в настройках браузера и попробуйте снова.');
+      } else if (m === 'save') {
+        note.textContent = s('Жазылуу сакталган жок. Бир аздан кийин кайра аракет кылыңыз.',
+                             'Подписка не сохранилась. Попробуйте чуть позже.');
+      } else {
+        note.textContent = s('Кабар кызматы азырынча жеткиликсиз.',
+                             'Сервис уведомлений пока недоступен.');
+      }
+    }).then(function () { btn.disabled = false; });
+  };
+})();
 
 var LINK = document.getElementById('plink').textContent.trim();
 var WHO = {{ (p.name or '')|tojson }};

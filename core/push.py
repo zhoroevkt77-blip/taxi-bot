@@ -32,7 +32,7 @@ from urllib.parse import quote
 
 from core.db import db
 
-PUSH_VERSION = "v3-multi"
+PUSH_VERSION = "v170-pickup"
 print(f"🔔 core/push.py жүктөлдү. Версия = {PUSH_VERSION}")
 
 VAPID_PUBLIC = os.environ.get("VAPID_PUBLIC_KEY", "").strip()
@@ -41,6 +41,12 @@ VAPID_EMAIL = os.environ.get("VAPID_EMAIL", "admin@taxirobot.kg").strip()
 
 SITE_URL = os.environ.get(
     "SITE_URL", "https://taxi-bot-taxirobot.up.railway.app").rstrip("/")
+
+# v170: чогултуу кабарлары ошол эле push_subs таблицасында жатат,
+# бирок багыттын ордуна ушул белги коюлат. Жаңы таблица керек эмес.
+# Бул белги чыныгы шаардын аты болушу мүмкүн эмес, ошондуктан
+# башка жазуулар менен чаташпайт.
+PICKUP_TAG = "__pickup__"
 
 
 def enabled():
@@ -146,9 +152,10 @@ def routes_of(endpoint):
     try:
         with db() as conn:
             cur = conn.cursor()
+            # v170: чогултуу жазуусу багыт эмес — тизмеде чыкпасын
             cur.execute("SELECT from_city, to_city FROM push_subs "
-                        "WHERE endpoint = %s ORDER BY created_at",
-                        (endpoint,))
+                        "WHERE endpoint = %s AND from_city <> %s "
+                        "ORDER BY created_at", (endpoint, PICKUP_TAG))
             return [dict(r) for r in cur.fetchall()]
     except Exception as e:
         print("[push] тизме катасы:", e)
@@ -221,6 +228,87 @@ def _body(p, lang="ky"):
     if not parts:
         return "Жаңы айдоочу чыкты" if lang != "ru" else "Появился водитель"
     return "\n".join(parts)
+
+
+# ============ 🗺 ЧОГУЛТУУ КАБАРЫ (v170) ============
+
+def subscribe_pickup(sub, mtoken, lang="ky"):
+    """Айдоочунун браузерин ушул чогултууга жазат."""
+    if not mtoken:
+        return False
+    return subscribe(sub, PICKUP_TAG, mtoken, lang)
+
+
+def unsubscribe_pickup(endpoint, mtoken):
+    """Ушул чогултуунун кабарын өчүрөт. Башка жазылуулары калат."""
+    if not (endpoint and mtoken):
+        return False
+    return unsubscribe(endpoint, PICKUP_TAG, mtoken)
+
+
+def notify_pickup(mtoken, name, total):
+    """Жүргүнчү белгиленди — айдоочунун телефонуна кабар.
+
+    Кабар кошумча мүмкүнчүлүк: ката болсо да чекит базада калат,
+    жүргүнчүгө эч нерсе билинбейт.
+    """
+    if not (enabled() and mtoken):
+        return 0
+
+    subs = _subs_for(PICKUP_TAG, mtoken)
+    if not subs:
+        return 0
+
+    try:
+        from pywebpush import webpush, WebPushException
+    except ImportError:
+        print("[push] pywebpush орнотулган эмес — кабар жиберилбейт.")
+        return 0
+
+    url = f"{SITE_URL}/pickup/m/{quote(str(mtoken))}"
+    who = (str(name or "").strip() or "—")[:40]
+
+    sent = 0
+    for s in subs:
+        lang = s.get("lang") or "ky"
+        if lang == "ru":
+            title, body = "🧳 Пассажир отметился", f"{who} · готовы: {total}"
+        else:
+            title, body = "🧳 Жүргүнчү белгиленди", f"{who} · даяр: {total}"
+
+        payload = json.dumps({
+            "title": title,
+            "body": body,
+            "url": f"{url}?lang={lang}",
+            # Бир эле чогултуунун кабарлары бири-бирин алмаштырсын,
+            # телефондун экранын толтурбасын
+            "tag": f"pickup-{mtoken}",
+        }, ensure_ascii=False)
+
+        try:
+            webpush(
+                subscription_info={
+                    "endpoint": s["endpoint"],
+                    "keys": {"p256dh": s["p256dh"], "auth": s["auth"]},
+                },
+                data=payload,
+                vapid_private_key=VAPID_PRIVATE,
+                vapid_claims={"sub": f"mailto:{VAPID_EMAIL}"},
+                timeout=15,
+            )
+            sent += 1
+        except WebPushException as e:
+            code = getattr(getattr(e, "response", None), "status_code", None)
+            if code in (404, 410):
+                _drop(s["endpoint"])
+            else:
+                print(f"[push] чогултуу кабары ({code}):", e)
+        except Exception as e:
+            print("[push] чогултуу кабары, күтүлбөгөн ката:", e)
+
+    if sent:
+        print(f"🔔 чогултуу {mtoken}: {sent} кабар жиберилди.")
+    return sent
 
 
 def notify_route(from_city, to_city, post=None):
