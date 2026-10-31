@@ -19,7 +19,7 @@ import math
 import secrets
 from core.db import db
 
-PICKUP_VERSION = "v174-mergefix"
+PICKUP_VERSION = "v175-safe"
 print(f"📍 core/pickup.py жүктөлдү. Версия = {PICKUP_VERSION}")
 
 MAX_POINTS = 12          # бир сапарга эң көп чекит
@@ -151,42 +151,85 @@ def _merge_duplicates(cur, post_id):
           "бириктирилди")
 
 
+def _safe(conn, cur, what, fn):
+    """v175: бир кадамды аткарат, ката болсо жыгылбайт.
+
+    SQL катасынан кийин Postgres транзакцияны «бузулган» деп
+    белгилеп коёт — андан кийинки ар бир сурам да ката берет.
+    Ошондуктан rollback кылып, ЖАҢЫ курсор кайтарабыз.
+
+    Кайтарат: (ийгиликтүүбү, курсор)
+    """
+    try:
+        fn(cur)
+        return True, cur
+    except Exception as e:
+        print(f"[pickup] {what} аткарылган жок:", e)
+        try:
+            conn.rollback()
+        except Exception:
+            pass
+        return False, conn.cursor()
+
+
 def create(post_id, account_id):
     """Сапарга шилтеме түзөт. Бар болсо — ошол эле кайтарылат.
 
-    v173: алгач ашыкча шилтемелер бириктирилет, ошондон кийин бир
-    гана калат. `ORDER BY created_at` коюлду: кандай болбосун ар
-    дайым ошол эле шилтеме кайтсын, кокустан алмашпасын — мурда
-    так ушундан улам айдоочу бош карта көрүп калчу.
+    v175: бириктирүү да, иреттөө да ӨЗ-ӨЗҮНЧӨ корголгон. Экөө тең
+    ЖАКШЫРТУУ гана: иштебей калса, журналга жазылат да, карта
+    кадимкидей ачыла берет. Мурда бир SQL катасы бүт мүмкүнчүлүктү
+    жаап салчу.
     """
     cleanup()
     with db() as conn:
         cur = conn.cursor()
-        _merge_duplicates(cur, post_id)
-        cur.execute("SELECT token, mtoken FROM pickups WHERE post_id = %s "
-                    "ORDER BY created_at LIMIT 1", (post_id,))
-        row = cur.fetchone()
+
+        # 1) Ашыкча шилтемелерди бириктирүү — оңдоо, милдеттүү эмес
+        ok, cur = _safe(conn, cur, "бириктирүү",
+                        lambda c: _merge_duplicates(c, post_id))
+        if ok:
+            try:
+                conn.commit()
+            except Exception as e:
+                print("[pickup] бириктирүүнү сактоо:", e)
+
+        # 2) Бар шилтемени алуу.
+        #    Чекити эң көп болгонун алабыз — бул жүргүнчүлөр ЧЫНДАП
+        #    колдонуп жаткан шилтеме. Ошондуктан бириктирүү иштебей
+        #    калса да, айдоочу туура картаны көрөт.
+        #    Теңме-тең болсо `token` боюнча — тандоо ар дайым бирдей
+        #    чыгат. `created_at` бул жерде керек эмес.
+        box = {}
+
+        def _best(c):
+            c.execute("SELECT p.token AS token, p.mtoken AS mtoken, "
+                      "COUNT(pp.id) AS n "
+                      "FROM pickups p "
+                      "LEFT JOIN pickup_points pp ON pp.token = p.token "
+                      "WHERE p.post_id = %s "
+                      "GROUP BY p.token, p.mtoken "
+                      "ORDER BY n DESC, p.token ASC LIMIT 1", (post_id,))
+            box["row"] = c.fetchone()
+
+        def _plain(c):
+            c.execute("SELECT token, mtoken FROM pickups WHERE post_id = %s",
+                      (post_id,))
+            box["row"] = c.fetchone()
+
+        ok, cur = _safe(conn, cur, "чекити көп шилтемени табуу", _best)
+        if not ok:
+            ok, cur = _safe(conn, cur, "шилтемени издөө", _plain)
+
+        row = box.get("row")
         if row:
-            conn.commit()          # бириктирүү сакталсын
             return row["token"], row["mtoken"]
 
-
+        # 3) Жок болсо — жаңысын түзөбүз
         token, mtoken = secrets.token_urlsafe(6), secrets.token_urlsafe(8)
         cur.execute("INSERT INTO pickups (token, mtoken, post_id, account_id) "
                     "VALUES (%s, %s, %s, %s)", (token, mtoken, post_id, account_id))
         conn.commit()
-
-        # Эки сурам чогуу келген болушу мүмкүн — дагы бир текшерип,
-        # экинчиси биринчисиникин алсын.
-        _merge_duplicates(cur, post_id)
-        cur.execute("SELECT token, mtoken FROM pickups WHERE post_id = %s "
-                    "ORDER BY created_at LIMIT 1", (post_id,))
-        row = cur.fetchone()
-        conn.commit()
-        if row:
-            return row["token"], row["mtoken"]
         return token, mtoken
-
 
 def by_token(token, manager=False):
     col = "mtoken" if manager else "token"

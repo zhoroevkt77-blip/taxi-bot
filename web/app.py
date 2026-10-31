@@ -42,7 +42,7 @@ from core import logic as _logic
 from core.texts import render as tr_render
 from core.texts import FREE_MODE, INVITE_GOAL   # v135
 
-WEB_VERSION = "v172-badge"
+WEB_VERSION = "v175-safe"
 print(f"🌐 web/app.py жүктөлдү. Версия = {WEB_VERSION}")
 
 BOT_USERNAME = os.environ.get("BOT_USERNAME", "taxirobot_bot")
@@ -1127,7 +1127,9 @@ def myposts_pickup(post_id):
         _token, mtoken = pickup.create(post_id, me["account_id"])
     except Exception as e:
         print("[web] чогултуу катасы:", e)
-        return jsonify(error="fail"), 500
+        # v175: себеп экранда көрүнсүн — журналды аңдып издебей эле.
+        # Бул дарек жарыянын ЭЭСИНЕ гана ачык, жогоруда текшерилген.
+        return jsonify(error="fail", msg=str(e).strip()[:180]), 500
     return jsonify(ok=True, url="/pickup/m/" + mtoken)
 
 
