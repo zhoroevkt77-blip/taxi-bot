@@ -188,7 +188,12 @@ function draw(d){
 }
 
 function load(){
-  fetch('/pickup/m/' + MT + '/data').then(function(r){ return r.json(); }).then(draw);
+  /* v176: убакыт белгиси — эски service worker жаңыртылганга
+     чейин да карта таза маалымат алсын. Мурда анын кампасындагы
+     бош жооп түбөлүк кайтарылып турчу. */
+  fetch('/pickup/m/' + MT + '/data?t=' + Date.now(),
+        {cache: 'no-store'})
+    .then(function(r){ return r.json(); }).then(draw);
 }
 load();
 setInterval(load, 20000);
