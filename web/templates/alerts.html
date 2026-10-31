@@ -61,7 +61,8 @@
                  'Подписаться можно, даже если объявлений пока нет. Направлений можно добавить сколько угодно.') }}</span>
     </div>
 
-    <div class="sec"><span>{{ t('Кайдан', 'Откуда') }}</span></div>
+    {# v168: жарыя берүү бетиндегидей аталыш #}
+    <div class="sec"><span>{{ t('Кай жактан', 'Откуда') }}</span></div>
     <div class="fld">
       {# v160: мааниси жашыруун input'та — беттин калган коду
          мурдагыдай эле wFrom деп окуй берет #}
@@ -70,7 +71,7 @@
         {{ t('— тандаңыз —', '— выберите —') }}</button>
     </div>
 
-    <div class="sec"><span>{{ t('Кайда', 'Куда') }}</span></div>
+    <div class="sec"><span>{{ t('Кай жака', 'Куда') }}</span></div>
     <div class="fld">
       <input type="hidden" id="wTo" value="">
       <button type="button" class="pick" id="pickTo">

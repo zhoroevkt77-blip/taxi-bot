@@ -141,7 +141,8 @@
                  'Выберите направление и нажмите кнопку. Как только по этому маршруту появится водитель, вам придёт уведомление — даже если сайт закрыт. Подписаться можно, даже если объявлений пока нет.') }}</span>
     </div>
 
-    <div class="sec"><span>{{ t('Кайдан', 'Откуда') }}</span></div>
+    {# v168: бардык бетте бирдей аталыш #}
+    <div class="sec"><span>{{ t('Кай жактан', 'Откуда') }}</span></div>
     <div class="fld">
       <div class="sel">
         <select id="wFrom">
@@ -157,7 +158,7 @@
       </div>
     </div>
 
-    <div class="sec"><span>{{ t('Кайда', 'Куда') }}</span></div>
+    <div class="sec"><span>{{ t('Кай жака', 'Куда') }}</span></div>
     <div class="fld">
       <div class="sel">
         <select id="wTo">
@@ -208,7 +209,7 @@
     <input type="hidden" name="role" value="passenger">
   {% endif %}
 
-  <div class="sec"><span>{{ t('Кайсы жерден', 'Откуда') }}</span></div>
+  <div class="sec"><span>{{ t('Кай жактан', 'Откуда') }}</span></div>
 
   <div class="fld">
     <label>{{ t('Облус · шаар', 'Область · город') }}</label>
@@ -238,7 +239,7 @@
     </div>
   </div>
 
-  <div class="sec"><span>{{ t('Кайда', 'Куда') }}</span></div>
+  <div class="sec"><span>{{ t('Кай жака', 'Куда') }}</span></div>
 
   <div class="fld">
     <label>{{ t('Облус · шаар', 'Область · город') }}</label>
