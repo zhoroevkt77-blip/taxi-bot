@@ -37,76 +37,151 @@
     <div class="meta">🚘 {{ p.car or '' }} · 📅 {{ p.date_text or '' }} · ⏰ {{ p.time_text or '' }}</div>
   </div>
 
+  {# v171: бир басуу — жөнөтүлдү. Мурда «Ырастоо» деген экинчи
+     баскыч картанын астында калып, адам ага жетпей бетти жабып
+     коюучу — айдоочуга эч нерсе барчу эмес. #}
   <div id="form">
     <input id="name" maxlength="40" placeholder="{{ t('Атыңыз (милдеттүү эмес)', 'Ваше имя (необязательно)') }}">
     <button id="go">📍 {{ t('Мен ушул жердемин', 'Я нахожусь здесь') }}</button>
-    <div id="map"></div>
-    <div id="confirm" style="display:none">
-      <button id="save">✅ {{ t('Ырастоо', 'Подтвердить') }}</button>
-      <p class="hint">{{ t('Белги туура эмес турса — картадан кармап жылдырыңыз.',
-                           'Если метка стоит неточно — перетащите её на карте.') }}</p>
-    </div>
     <p class="hint">{{ t('Браузер жайгашкан жериңизди сурайт — «Уруксат берүү» басыңыз. Так болушу үчүн көчөгө чыгып жөнөтүңүз.',
                          'Браузер запросит доступ к геопозиции — нажмите «Разрешить». Для точности отправляйте на улице.') }}</p>
     <div id="err" class="err"></div>
   </div>
 
   <div id="done" style="display:none">
-    <div class="ok">✅ {{ t('Жөнөтүлдү! Айдоочу сизди картадан көрөт.',
-                           'Отправлено! Водитель увидит вас на карте.') }}</div>
-    <p class="hint">{{ t('Жериңиз өзгөрсө, ушул бетти кайра ачып жаңы жерди жөнөтө аласыз.',
-                         'Если вы перешли в другое место, откройте эту страницу снова и отправьте заново.') }}</p>
+    <div class="ok" id="okBox">✅ {{ t('Жөнөтүлдү! Айдоочу сизди картадан көрөт.',
+                                      'Отправлено! Водитель увидит вас на карте.') }}</div>
+    <div id="map"></div>
+    <p class="hint">{{ t('Орду туура эмеспи? Белгини картадан кармап жылдырыңыз, же атыңызды жазыңыз — анан төмөнкүнү басыңыз.',
+                         'Метка стоит неточно? Перетащите её на карте или впишите своё имя — затем нажмите кнопку ниже.') }}</p>
+    <input id="name2" maxlength="40" placeholder="{{ t('Атыңыз (милдеттүү эмес)', 'Ваше имя (необязательно)') }}">
+    <button id="again" class="ghost">📍 {{ t('Жаңы ордумду жөнөтүү', 'Отправить новое место') }}</button>
+    <div id="err2" class="err"></div>
   </div>
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <script>
+/* ============================================================
+   v171: БИР БАСУУ — ЖӨНӨТҮЛДҮ.
+   Жайгашкан жер табылар замат серверге кетет. Карта андан кийин
+   чыгат — ордун тактагысы келгендер үчүн, милдеттүү эмес.
+   ============================================================ */
 var map, marker;
 var TOKEN = {{ token|tojson }};
-function show(msg){ document.getElementById('err').textContent = msg; }
+var PKEY = 'tr_pt_' + TOKEN;
+var PID = null;
+try { PID = parseInt(localStorage.getItem(PKEY) || '', 10) || null; } catch (e) {}
 
-document.getElementById('go').onclick = function(){
-  if (!navigator.geolocation) { show("{{ t('Браузер геолокацияны колдобойт.', 'Браузер не поддерживает геолокацию.') }}"); return; }
-  this.disabled = true;
-  this.textContent = "⏳ {{ t('Изделүүдө…', 'Определяем…') }}";
+function show(msg) { document.getElementById('err').textContent = msg || ''; }
+function show2(msg) { document.getElementById('err2').textContent = msg || ''; }
+
+function nameOf() {
+  var a = document.getElementById('name2');
+  if (a && a.value.trim()) { return a.value; }
+  return document.getElementById('name').value;
+}
+
+/* Чекитти жөнөтөт. Мурда жөнөткөн болсо — ошол эле жазууну
+   жаңыртат, экинчи чекит кошпойт. Айдоочу аны өчүрүп салган
+   болсо, сервер «gone» дейт да, жаңысын кошобуз. */
+function send(lat, lon) {
+  var url = PID ? ('/pickup/' + TOKEN + '/point/' + PID)
+                : ('/pickup/' + TOKEN + '/point');
+  return fetch(url, {
+    method: 'POST', headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({name: nameOf(), lat: lat, lon: lon})
+  }).then(function (r) {
+    return r.json().catch(function () { return {}; });
+  }).then(function (d) {
+    if (!d.ok && d.error === 'gone' && PID) {
+      PID = null;
+      try { localStorage.removeItem(PKEY); } catch (e) {}
+      return send(lat, lon);
+    }
+    if (d.ok && d.id) {
+      PID = d.id;
+      try { localStorage.setItem(PKEY, String(d.id)); } catch (e) {}
+    }
+    return d;
+  });
+}
+
+function drawMap(lat, lon) {
+  var el = document.getElementById('map');
+  el.style.display = 'block';
+  map = L.map('map').setView([lat, lon], 16);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+              {maxZoom: 19, attribution: '© OpenStreetMap'}).addTo(map);
+  map.attributionControl.setPrefix('');
+  marker = L.marker([lat, lon], {draggable: true}).addTo(map);
+  setTimeout(function () { map.invalidateSize(); }, 200);
+}
+
+document.getElementById('go').onclick = function () {
+  if (!navigator.geolocation) {
+    show("{{ t('Браузер геолокацияны колдобойт.', 'Браузер не поддерживает геолокацию.') }}");
+    return;
+  }
   var btn = this;
-  navigator.geolocation.getCurrentPosition(function(pos){
-    btn.style.display = 'none';
-    var el = document.getElementById('map');
-    el.style.display = 'block';
-    document.getElementById('confirm').style.display = 'block';
-    map = L.map('map').setView([pos.coords.latitude, pos.coords.longitude], 16);
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
-                {maxZoom: 19, attribution: '© OpenStreetMap'}).addTo(map);
-map.attributionControl.setPrefix('');
-    marker = L.marker([pos.coords.latitude, pos.coords.longitude], {draggable: true}).addTo(map);
-    setTimeout(function(){ map.invalidateSize(); }, 200);
-  }, function(e){
+  btn.disabled = true;
+  btn.textContent = "⏳ {{ t('Изделүүдө…', 'Определяем…') }}";
+  show('');
+
+  navigator.geolocation.getCurrentPosition(function (pos) {
+    var la = pos.coords.latitude, lo = pos.coords.longitude;
+    btn.textContent = "⏳ {{ t('Жөнөтүлүүдө…', 'Отправляем…') }}";
+
+    send(la, lo).then(function (d) {
+      if (!d.ok) {
+        btn.disabled = false;
+        btn.textContent = "📍 {{ t('Мен ушул жердемин', 'Я нахожусь здесь') }}";
+        if (d.error === 'limit') {
+          show("{{ t('Өтө көп жөнөтүлдү. Бир аздан кийин кайра аракет кылыңыз.', 'Слишком много отправок. Попробуйте чуть позже.') }}");
+        } else if (d.error === 'full') {
+          show("{{ t('Бул сапарда орун толуп калды. Айдоочуга кабарлаңыз.', 'На этой поездке мест больше нет. Сообщите водителю.') }}");
+        } else if (d.error === 'none') {
+          show("{{ t('Шилтеме эскирген. Айдоочудан жаңысын сураңыз.', 'Ссылка устарела. Попросите у водителя новую.') }}");
+        } else {
+          show("{{ t('Жөнөтүлгөн жок. Кайра аракет кылыңыз.', 'Не отправилось. Попробуйте ещё раз.') }}");
+        }
+        return;
+      }
+      /* Жөнөтүлдү. Карта эми чыгат — тактоо үчүн, милдеттүү эмес. */
+      var nm = document.getElementById('name').value;
+      if (nm) { document.getElementById('name2').value = nm; }
+      document.getElementById('form').style.display = 'none';
+      document.getElementById('done').style.display = 'block';
+      drawMap(la, lo);
+    }).catch(function () {
+      btn.disabled = false;
+      btn.textContent = "📍 {{ t('Мен ушул жердемин', 'Я нахожусь здесь') }}";
+      show("{{ t('Интернет жок окшойт.', 'Похоже, нет интернета.') }}");
+    });
+
+  }, function (e) {
     btn.disabled = false;
     btn.textContent = "📍 {{ t('Мен ушул жердемин', 'Я нахожусь здесь') }}";
     show("{{ t('Жайгашкан жер алынган жок. Уруксат бериңиз, GPS күйгүзүлсүн.', 'Не удалось получить геопозицию. Разрешите доступ или включите GPS.') }}");
   }, {enableHighAccuracy: true, timeout: 15000, maximumAge: 0});
 };
 
-document.getElementById('save').onclick = function(){
-  var c = marker.getLatLng();
-  this.disabled = true;
-  fetch('/pickup/' + TOKEN + '/point', {
-    method: 'POST',
-    headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify({name: document.getElementById('name').value,
-                          lat: c.lat, lon: c.lng})
-  }).then(function(r){ return r.json(); }).then(function(d){
+document.getElementById('again').onclick = function () {
+  if (!marker) { return; }
+  var btn = this, c = marker.getLatLng();
+  btn.disabled = true;
+  show2('');
+  send(c.lat, c.lng).then(function (d) {
+    btn.disabled = false;
     if (d.ok) {
-      document.getElementById('form').style.display = 'none';
-      document.getElementById('done').style.display = 'block';
+      document.getElementById('okBox').textContent =
+        "✅ {{ t('Жаңырды! Айдоочу жаңы ордуңузду көрөт.', 'Обновлено! Водитель видит ваше новое место.') }}";
     } else {
-      document.getElementById('save').disabled = false;
-      show(d.error || 'Ката');
+      show2("{{ t('Жаңырган жок. Кайра аракет кылыңыз.', 'Не обновилось. Попробуйте ещё раз.') }}");
     }
-  }).catch(function(){
-    document.getElementById('save').disabled = false;
-    show("{{ t('Интернет жок окшойт.', 'Похоже, нет интернета.') }}");
+  }).catch(function () {
+    btn.disabled = false;
+    show2("{{ t('Интернет жок окшойт.', 'Похоже, нет интернета.') }}");
   });
 };
 </script>

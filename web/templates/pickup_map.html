@@ -15,7 +15,9 @@
  .card{border:1px solid #eee;border-radius:14px;padding:14px;margin-bottom:12px}
  .route{font-size:17px;font-weight:600}
  .meta{color:#666;font-size:14px;margin-top:4px}
- #map{height:300px;border-radius:14px;margin-bottom:12px}
+ /* v171: чекит жок кезде карта көрүнбөйт — туура эмес шаарды
+    көрсөткөндөн көрө, такыр көрсөтпөгөн артык */
+ #map{height:300px;border-radius:14px;margin-bottom:12px;display:none}
  ol{padding-left:22px;margin:0}
  li{padding:8px 0;border-bottom:1px solid #f2f2f2;font-size:16px}
  li:last-child{border-bottom:0}
@@ -56,6 +58,11 @@
   </div>
 
   <div id="map"></div>
+  {# v171 #}
+  <div class="card" id="mapNone">
+    {{ t('Жүргүнчү өз ордун белгилегенде, карта ушул жерде чыгат.',
+          'Карта появится здесь, когда пассажир отметит своё место.') }}
+  </div>
 
   <div class="card">
     <div style="font-weight:600;margin-bottom:6px">{{ t('Чогултуу тартиби', 'Порядок сбора') }}</div>
@@ -157,7 +164,18 @@ function draw(d){
     li.appendChild(row);
     list.appendChild(li);
   });
-  if (bounds.length) map.fitBounds(bounds, {padding: [40, 40], maxZoom: 15});
+  /* v171: карта чекит бар кезде гана. Жашырылган картанын
+     өлчөмүн Leaflet билбейт, ошондуктан көрсөткөндөн кийин
+     invalidateSize() чакырылат — болбосо боз калып калат. */
+  var mapEl = document.getElementById('map');
+  var wasHidden = (mapEl.style.display === 'none' || !mapEl.style.display);
+  mapEl.style.display = pts.length ? 'block' : 'none';
+  var mapNone = document.getElementById('mapNone');
+  if (mapNone) { mapNone.style.display = pts.length ? 'none' : 'block'; }
+  if (bounds.length) {
+    if (wasHidden) { map.invalidateSize(); }
+    map.fitBounds(bounds, {padding: [40, 40], maxZoom: 15});
+  }
 
   var navs = document.getElementById('navs');
   navs.innerHTML = '';

@@ -19,7 +19,7 @@ import math
 import secrets
 from core.db import db
 
-PICKUP_VERSION = "v1-web"
+PICKUP_VERSION = "v171-onetap"
 print(f"📍 core/pickup.py жүктөлдү. Версия = {PICKUP_VERSION}")
 
 MAX_POINTS = 12          # бир сапарга эң көп чекит
@@ -144,17 +144,40 @@ def points(token):
 
 
 def add_point(token, name, lat, lon):
-    """Жаңы чекит кошот. Чектен ашса False кайтарат."""
+    """Жаңы чекит кошот.
+
+    v171: кошулган чекиттин НОМЕРИН кайтарат. Жүргүнчүнүн браузери
+    аны эстеп калат да, кийин ордун тактаганда экинчи чекит кошпой,
+    ошол эле жазууну жаңыртат.
+    Чектен ашса False кайтарат (мурдагыдай).
+    """
     with db() as conn:
         cur = conn.cursor()
         cur.execute("SELECT COUNT(*) AS c FROM pickup_points WHERE token = %s", (token,))
         if cur.fetchone()["c"] >= MAX_POINTS:
             return False
         cur.execute("INSERT INTO pickup_points (token, name, lat, lon) "
-                    "VALUES (%s, %s, %s, %s)",
+                    "VALUES (%s, %s, %s, %s) RETURNING id",
                     (token, (name or "").strip()[:40], float(lat), float(lon)))
+        row = cur.fetchone()
         conn.commit()
-        return True
+        return (row or {}).get("id") or True
+
+
+def move_point(token, point_id, name, lat, lon):
+    """v171: бар чекиттин ордун жана атын жаңыртат.
+
+    Табылбаса False кайтарат — айдоочу аны өчүрүп салган болушу
+    мүмкүн. Ошондо чакыруучу жак жаңы чекит кошот.
+    """
+    with db() as conn:
+        cur = conn.cursor()
+        cur.execute("UPDATE pickup_points SET name = %s, lat = %s, lon = %s "
+                    "WHERE token = %s AND id = %s",
+                    ((name or "").strip()[:40], float(lat), float(lon),
+                     token, int(point_id)))
+        conn.commit()
+        return cur.rowcount > 0
 
 
 def del_point(token, point_id):

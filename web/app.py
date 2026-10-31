@@ -42,7 +42,7 @@ from core import logic as _logic
 from core.texts import render as tr_render
 from core.texts import FREE_MODE, INVITE_GOAL   # v135
 
-WEB_VERSION = "v170-pknotify"
+WEB_VERSION = "v171-onetap"
 print(f"🌐 web/app.py жүктөлдү. Версия = {WEB_VERSION}")
 
 BOT_USERNAME = os.environ.get("BOT_USERNAME", "taxirobot_bot")
@@ -1992,7 +1992,8 @@ def pickup_add_point(token):
     if not (-90 <= lat <= 90 and -180 <= lon <= 180):
         return jsonify(error="bad"), 400
     name = (d.get("name") or "").strip()[:40] or _t("Жүргүнчү", "Пассажир")
-    if not pickup.add_point(token, name, lat, lon):
+    pid = pickup.add_point(token, name, lat, lon)
+    if not pid:
         return jsonify(error="full"), 409
 
     # v170: айдоочуга кабар. Кабар кошумча мүмкүнчүлүк — ката болсо
@@ -2003,7 +2004,36 @@ def pickup_add_point(token):
     except Exception as e:
         print("[web] чогултуу кабары жөнөтүлгөн жок:", e)
 
-    return jsonify(ok=True)
+    # v171: номери браузерде эстелет — кийин ордун тактаганда
+    # экинчи чекит кошулбасын
+    return jsonify(ok=True, id=pid)
+
+
+@app.route("/pickup/<token>/point/<int:pid>", methods=["POST"])
+def pickup_move_point(token, pid):
+    """v171: мурда коюлган чекиттин ордун тактоо.
+
+    Айдоочуга кабар жиберилбейт: орун жылдырылганда ал мурунтан
+    эле билет, ар бир жылдырууда кабар келсе тажатып жиберет.
+    """
+    from flask import jsonify
+    if not _pickup_allowed(_client_ip()):
+        return jsonify(error="limit"), 429
+    if not pickup.by_token(token):
+        return jsonify(error="none"), 404
+    d = request.get_json(silent=True) or {}
+    try:
+        lat, lon = float(d.get("lat")), float(d.get("lon"))
+    except (TypeError, ValueError):
+        return jsonify(error="bad"), 400
+    if not (-90 <= lat <= 90 and -180 <= lon <= 180):
+        return jsonify(error="bad"), 400
+    name = (d.get("name") or "").strip()[:40] or _t("Жүргүнчү", "Пассажир")
+    # Чекит табылбады — айдоочу аны өчүрүп салган. Браузер муну
+    # көрүп, жаңы чекит кошот.
+    if not pickup.move_point(token, pid, name, lat, lon):
+        return jsonify(ok=False, error="gone"), 404
+    return jsonify(ok=True, id=pid)
 
 
 @app.route("/pickup/m/<mtoken>")
