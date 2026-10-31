@@ -19,7 +19,7 @@ import math
 import secrets
 from core.db import db
 
-PICKUP_VERSION = "v173-merge"
+PICKUP_VERSION = "v174-mergefix"
 print(f"📍 core/pickup.py жүктөлдү. Версия = {PICKUP_VERSION}")
 
 MAX_POINTS = 12          # бир сапарга эң көп чекит
@@ -123,17 +123,21 @@ def _merge_duplicates(cur, post_id):
     ЧЫНДАП КОЛДОНУП ЖАТКАН шилтеме. Аны калтырсак, алардын
     колундагы шилтеме иштей берет; эски-жаңысына карап тандасак,
     жүргүнчүлөргө жаңы шилтеме таратууга туура келмек.
-    Чекити теңме-тең болсо — эң эскиси (номери кичинеси), ошондо
-    тандоо ар дайым бирдей чыгат.
+    Чекити теңме-тең болсо — эң эскиси, ошондо тандоо ар дайым
+    бирдей чыгат.
 
     Калгандарынын чекиттери ошого көчөт — бир да чекит жоголбойт.
     """
-    cur.execute("SELECT p.id AS id, p.token AS token, COUNT(pp.id) AS n "
+    # v174: `pickups` таблицасында `id` тилкеси ЖОК — ачкычы `token`.
+    # Иреттөөнү `created_at` боюнча кылабыз: ал тилке бар, эски
+    # сапарларды тазалоо ошону колдонот.
+    cur.execute("SELECT p.token AS token, p.created_at AS ts, "
+                "COUNT(pp.id) AS n "
                 "FROM pickups p "
                 "LEFT JOIN pickup_points pp ON pp.token = p.token "
                 "WHERE p.post_id = %s "
-                "GROUP BY p.id, p.token "
-                "ORDER BY n DESC, p.id ASC", (post_id,))
+                "GROUP BY p.token, p.created_at "
+                "ORDER BY n DESC, p.created_at ASC", (post_id,))
     rows = [dict(r) for r in cur.fetchall()]
     if len(rows) < 2:
         return
@@ -141,8 +145,8 @@ def _merge_duplicates(cur, post_id):
     for r in extra:
         cur.execute("UPDATE pickup_points SET token = %s WHERE token = %s",
                     (keep["token"], r["token"]))
-    cur.execute("DELETE FROM pickups WHERE id = ANY(%s)",
-                ([r["id"] for r in extra],))
+    cur.execute("DELETE FROM pickups WHERE token = ANY(%s)",
+                ([r["token"] for r in extra],))
     print(f"[pickup] жарыя {post_id}: {len(extra)} ашыкча шилтеме "
           "бириктирилди")
 
@@ -151,16 +155,16 @@ def create(post_id, account_id):
     """Сапарга шилтеме түзөт. Бар болсо — ошол эле кайтарылат.
 
     v173: алгач ашыкча шилтемелер бириктирилет, ошондон кийин бир
-    гана калат. `ORDER BY id` коюлду: кандай болбосун ар дайым
-    ошол эле шилтеме кайтсын, кокустан алмашпасын — мурда так
-    ушундан улам айдоочу бош карта көрүп калчу.
+    гана калат. `ORDER BY created_at` коюлду: кандай болбосун ар
+    дайым ошол эле шилтеме кайтсын, кокустан алмашпасын — мурда
+    так ушундан улам айдоочу бош карта көрүп калчу.
     """
     cleanup()
     with db() as conn:
         cur = conn.cursor()
         _merge_duplicates(cur, post_id)
         cur.execute("SELECT token, mtoken FROM pickups WHERE post_id = %s "
-                    "ORDER BY id LIMIT 1", (post_id,))
+                    "ORDER BY created_at LIMIT 1", (post_id,))
         row = cur.fetchone()
         if row:
             conn.commit()          # бириктирүү сакталсын
@@ -176,7 +180,7 @@ def create(post_id, account_id):
         # экинчиси биринчисиникин алсын.
         _merge_duplicates(cur, post_id)
         cur.execute("SELECT token, mtoken FROM pickups WHERE post_id = %s "
-                    "ORDER BY id LIMIT 1", (post_id,))
+                    "ORDER BY created_at LIMIT 1", (post_id,))
         row = cur.fetchone()
         conn.commit()
         if row:
