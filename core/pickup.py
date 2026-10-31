@@ -19,7 +19,7 @@ import math
 import secrets
 from core.db import db
 
-PICKUP_VERSION = "v172-badge"
+PICKUP_VERSION = "v173-merge"
 print(f"📍 core/pickup.py жүктөлдү. Версия = {PICKUP_VERSION}")
 
 MAX_POINTS = 12          # бир сапарга эң көп чекит
@@ -111,19 +111,76 @@ def nav_links(pts, dest=None):
 
 # ============ БАЗА ============
 
+def _merge_duplicates(cur, post_id):
+    """v173: бир жарыяга түзүлүп калган ашыкча шилтемелерди бириктирет.
+
+    Эмне үчүн керек: `create()` алгач издеп, таппаса жазат. Эки
+    сурам бир убакта келсе (баскычты шарт-шарт эки басканда), экөө
+    тең «жок» деп көрүп, экөө тең жазып салат. Ошондо чекиттер
+    биринин алдына түшөт, айдоочу экинчисин ачып, бош карта көрөт.
+
+    КАЙСЫСЫ КАЛАТ: чекити эң көп болгону. Себеби ал — жүргүнчүлөр
+    ЧЫНДАП КОЛДОНУП ЖАТКАН шилтеме. Аны калтырсак, алардын
+    колундагы шилтеме иштей берет; эски-жаңысына карап тандасак,
+    жүргүнчүлөргө жаңы шилтеме таратууга туура келмек.
+    Чекити теңме-тең болсо — эң эскиси (номери кичинеси), ошондо
+    тандоо ар дайым бирдей чыгат.
+
+    Калгандарынын чекиттери ошого көчөт — бир да чекит жоголбойт.
+    """
+    cur.execute("SELECT p.id AS id, p.token AS token, COUNT(pp.id) AS n "
+                "FROM pickups p "
+                "LEFT JOIN pickup_points pp ON pp.token = p.token "
+                "WHERE p.post_id = %s "
+                "GROUP BY p.id, p.token "
+                "ORDER BY n DESC, p.id ASC", (post_id,))
+    rows = [dict(r) for r in cur.fetchall()]
+    if len(rows) < 2:
+        return
+    keep, extra = rows[0], rows[1:]
+    for r in extra:
+        cur.execute("UPDATE pickup_points SET token = %s WHERE token = %s",
+                    (keep["token"], r["token"]))
+    cur.execute("DELETE FROM pickups WHERE id = ANY(%s)",
+                ([r["id"] for r in extra],))
+    print(f"[pickup] жарыя {post_id}: {len(extra)} ашыкча шилтеме "
+          "бириктирилди")
+
+
 def create(post_id, account_id):
-    """Сапарга шилтеме түзөт. Бар болсо — ошол эле кайтарылат."""
+    """Сапарга шилтеме түзөт. Бар болсо — ошол эле кайтарылат.
+
+    v173: алгач ашыкча шилтемелер бириктирилет, ошондон кийин бир
+    гана калат. `ORDER BY id` коюлду: кандай болбосун ар дайым
+    ошол эле шилтеме кайтсын, кокустан алмашпасын — мурда так
+    ушундан улам айдоочу бош карта көрүп калчу.
+    """
     cleanup()
     with db() as conn:
         cur = conn.cursor()
-        cur.execute("SELECT token, mtoken FROM pickups WHERE post_id = %s", (post_id,))
+        _merge_duplicates(cur, post_id)
+        cur.execute("SELECT token, mtoken FROM pickups WHERE post_id = %s "
+                    "ORDER BY id LIMIT 1", (post_id,))
         row = cur.fetchone()
         if row:
+            conn.commit()          # бириктирүү сакталсын
             return row["token"], row["mtoken"]
+
+
         token, mtoken = secrets.token_urlsafe(6), secrets.token_urlsafe(8)
         cur.execute("INSERT INTO pickups (token, mtoken, post_id, account_id) "
                     "VALUES (%s, %s, %s, %s)", (token, mtoken, post_id, account_id))
         conn.commit()
+
+        # Эки сурам чогуу келген болушу мүмкүн — дагы бир текшерип,
+        # экинчиси биринчисиникин алсын.
+        _merge_duplicates(cur, post_id)
+        cur.execute("SELECT token, mtoken FROM pickups WHERE post_id = %s "
+                    "ORDER BY id LIMIT 1", (post_id,))
+        row = cur.fetchone()
+        conn.commit()
+        if row:
+            return row["token"], row["mtoken"]
         return token, mtoken
 
 
