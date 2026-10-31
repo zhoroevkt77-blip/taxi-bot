@@ -27,6 +27,15 @@
   .brandpic + .info-card {
     margin-top: 0; border-radius: 0 0 16px 16px;
   }
+  /* v172: жүргүнчү белгиленсе — катардын өзүндө сан */
+  .row-n {
+    margin-left: auto; min-width: 23px; height: 23px; border-radius: 12px;
+    display: inline-flex; align-items: center; justify-content: center;
+    padding: 0 7px; font-size: 12.5px; font-weight: 900; color: #16161a;
+    background: linear-gradient(135deg, #ffc61a 0%, #ffb703 100%);
+  }
+  /* Сан турганда жебе четке жабышып калбасын */
+  .row-n + .chev { margin-left: 9px; }
 </style>
 
 <div class="page-head">
@@ -58,6 +67,8 @@
 <a class="row-item" href="/myposts?lang={{ lang }}">
   <span class="ico">📋</span>
   <span class="nm">{{ t("Менин жарыяларым", "Мои объявления") }}</span>
+  {# v172: чогултуу картасында канча жүргүнчү күтүп жатат #}
+  {% if pk_total %}<span class="row-n">{{ pk_total }}</span>{% endif %}
   <span class="chev">›</span>
 </a>
 

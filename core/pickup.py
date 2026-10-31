@@ -19,7 +19,7 @@ import math
 import secrets
 from core.db import db
 
-PICKUP_VERSION = "v171-onetap"
+PICKUP_VERSION = "v172-badge"
 print(f"📍 core/pickup.py жүктөлдү. Версия = {PICKUP_VERSION}")
 
 MAX_POINTS = 12          # бир сапарга эң көп чекит
@@ -187,6 +187,61 @@ def del_point(token, point_id):
                     (token, point_id))
         conn.commit()
         return cur.rowcount > 0
+
+
+def counts_for_posts(post_ids):
+    """v172: ар бир жарыяда канча жүргүнчү ордун белгиледи.
+
+    Бардык жарыя үчүн БИР сурам — «Менин жарыяларым» бетинде
+    жарыя канча болсо да, базага бир эле жолу барабыз.
+
+    Кайтарат: {жарыянын_номери: сан}. Нөл болгондору кирбейт,
+    ошондуктан калыпта жөн гана бар-жогун текшерсе болот.
+    """
+    ids = []
+    for i in (post_ids or []):
+        try:
+            ids.append(int(i))
+        except (TypeError, ValueError):
+            pass
+    if not ids:
+        return {}
+    try:
+        with db() as conn:
+            cur = conn.cursor()
+            cur.execute("""
+                SELECT p.post_id AS pid, COUNT(pp.id) AS n
+                FROM pickups p
+                LEFT JOIN pickup_points pp ON pp.token = p.token
+                WHERE p.post_id = ANY(%s)
+                GROUP BY p.post_id
+            """, (ids,))
+            return {r["pid"]: r["n"] for r in cur.fetchall() if r["n"]}
+    except Exception as e:
+        print("[pickup] сандарды эсептөө катасы:", e)
+        return {}
+
+
+def count_for_account(account_id):
+    """v172: ушул колдонуучунун БАРДЫК активдүү сапарларындагы
+    белгиленген жүргүнчүлөрдүн жалпы саны. Кабинеттеги сан ушул."""
+    if not account_id:
+        return 0
+    try:
+        with db() as conn:
+            cur = conn.cursor()
+            cur.execute("""
+                SELECT COUNT(pp.id) AS n
+                FROM pickups p
+                JOIN pickup_points pp ON pp.token = p.token
+                JOIN posts po ON po.id = p.post_id
+                WHERE p.account_id = %s AND po.active = 1
+            """, (account_id,))
+            row = cur.fetchone()
+            return (row or {}).get("n") or 0
+    except Exception as e:
+        print("[pickup] жалпы сан катасы:", e)
+        return 0
 
 
 def cleanup():

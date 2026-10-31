@@ -42,7 +42,7 @@ from core import logic as _logic
 from core.texts import render as tr_render
 from core.texts import FREE_MODE, INVITE_GOAL   # v135
 
-WEB_VERSION = "v171-onetap"
+WEB_VERSION = "v172-badge"
 print(f"🌐 web/app.py жүктөлдү. Версия = {WEB_VERSION}")
 
 BOT_USERNAME = os.environ.get("BOT_USERNAME", "taxirobot_bot")
@@ -1142,7 +1142,10 @@ def myposts_page():
     except Exception as e:
         print("[web] жарыяларды алуу катасы:", e)
         rows = []
+    # v172: ар бир жарыяда канча жүргүнчү белгиленген — бир сурам
+    pk_counts = pickup.counts_for_posts([r.get("id") for r in rows])
     html = render_template("myposts.html", rows=rows,
+                           pk_counts=pk_counts,
                            hours=_logic.day_hours(), **_base_ctx())
     return _with_lang(make_response(html))
 
@@ -1889,7 +1892,12 @@ def logout_page():
 
 def me_page():
     """«👤 Кабинет» — тил, шилтемелер, платформа тууралуу."""
-    html = render_template("me.html", **_base_ctx())
+    # v172: «Менин жарыяларым» катарындагы сан — ичине кирбей
+    # туруп эле жүргүнчү белгиленгенин көрсүн
+    me = current_account()
+    pk_total = pickup.count_for_account(
+        (me or {}).get("account_id")) if me else 0
+    html = render_template("me.html", pk_total=pk_total, **_base_ctx())
     return _with_lang(make_response(html))
 
 
