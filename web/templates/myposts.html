@@ -81,7 +81,7 @@
       🎒 {{ p.baggage or '—' }}<br>
     {% endif %}
     💰 {{ p.price or '—' }}<br>
-    📅 {{ p.date_text or '' }} · ⏰ <span id="time{{ p.id }}">{{ p.time_text or '' }}</span>
+    📅 <span id="date{{ p.id }}">{{ p.date_text or '' }}</span> · ⏰ <span id="time{{ p.id }}">{{ p.time_text or '' }}</span>
     {% if p.comment %}<br>📝 {{ p.comment }}{% endif %}
   </div>
 
@@ -109,6 +109,18 @@
   </div>
 
   <div class="mp-pick" id="pickTime{{ p.id }}">
+    {# v178: сапар бир күнгө жылса, жарыяны баштан жазуунун кереги жок #}
+    <div class="pl">{{ t('Кайсы күнү чыгасыз?', 'В какой день выезжаете?') }}</div>
+    <div class="mp-grid">
+      <button type="button" data-act="setday" data-id="{{ p.id }}" data-v="0"
+              style="flex:1 1 calc(50% - 3px)">
+        📅 {{ t('Бүгүн', 'Сегодня') }}</button>
+      <button type="button" data-act="setday" data-id="{{ p.id }}" data-v="1"
+              style="flex:1 1 calc(50% - 3px)">
+        📅 {{ t('Эртең', 'Завтра') }}</button>
+    </div>
+
+    <div style="height:14px"></div>
     <div class="pl">{{ t('Жаңы убакытты тандаңыз:', 'Выберите новое время:') }}</div>
     <div class="mp-grid">
       {% for h in hours %}
@@ -189,6 +201,16 @@
         document.getElementById("seats" + id).textContent = d.seats;
         document.getElementById("pickSeats" + id).style.display = "none";
         note(id, "✅ " + s("Бош орун жаңырды", "Места обновлены"), "ok");
+      });
+      return;
+    }
+
+    if (act === "setday") {
+      send("/myposts/day/" + id, { day: b.dataset.v }).then(function (d) {
+        if (!d.ok) return note(id, s("Сакталган жок.", "Не сохранилось."), "warn");
+        var box = document.getElementById("date" + id);
+        if (box) { box.textContent = d.date_text; }
+        note(id, "✅ " + s("Күнү жаңырды", "День обновлён"), "ok");
       });
       return;
     }

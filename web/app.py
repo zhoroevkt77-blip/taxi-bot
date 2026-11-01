@@ -42,7 +42,7 @@ from core import logic as _logic
 from core.texts import render as tr_render
 from core.texts import FREE_MODE, INVITE_GOAL   # v135
 
-WEB_VERSION = "v177-invite"
+WEB_VERSION = "v178-day"
 print(f"🌐 web/app.py жүктөлдү. Версия = {WEB_VERSION}")
 
 BOT_USERNAME = os.environ.get("BOT_USERNAME", "taxirobot_bot")
@@ -1100,6 +1100,30 @@ def myposts_time(post_id):
     _set_post_fields(post_id, me["account_id"], time_text=new_time)
     _channel_refresh(post_id)
     return jsonify(ok=True, time_text=new_time)
+
+
+@app.route("/myposts/day/<int:post_id>", methods=["POST"])
+def myposts_day(post_id):
+    """v178: сапардын күнүн алмаштыруу — бүгүн же эртең.
+
+    Айдоочунун сапары көп учурда бир күнгө жылат. Мурда ал үчүн
+    жарыяны өчүрүп, баштан жазууга туура келчү. Саатты өзгөртүү
+    кандай иштесе, бул да ошондой: ээси гана, ошол замат.
+    """
+    me, p = _post_of_mine(post_id)
+    if not me:
+        return jsonify(error="auth"), 401
+    if not p:
+        return jsonify(error="none"), 404
+
+    val = str((request.get_json(silent=True) or {}).get("day") or "").strip()
+    if val not in ("0", "1"):
+        return jsonify(error="bad"), 400
+
+    new_date = _logic.date_label(int(val))
+    _set_post_fields(post_id, me["account_id"], date_text=new_date)
+    _channel_refresh(post_id)
+    return jsonify(ok=True, date_text=new_date)
 
 
 @app.route("/myposts/delete/<int:post_id>", methods=["POST"])
