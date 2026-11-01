@@ -42,7 +42,7 @@ from core import logic as _logic
 from core.texts import render as tr_render
 from core.texts import FREE_MODE, INVITE_GOAL   # v135
 
-WEB_VERSION = "v178-day"
+WEB_VERSION = "v179-name"
 print(f"🌐 web/app.py жүктөлдү. Версия = {WEB_VERSION}")
 
 BOT_USERNAME = os.environ.get("BOT_USERNAME", "taxirobot_bot")
@@ -1914,6 +1914,49 @@ def logout_page():
     return resp
 
 
+def _name_from_posts(account_id):
+    """v179: адамдын акыргы жарыясында жазган атын алып келет.
+
+    Ат базада бар — жөн гана башка таблицада: адам ар бир
+    жарыясында өз атын жазат. Аккаунтта ат жок болсо, ошондон
+    алабыз.
+
+    Ката болсо бош сап кайтарат: Кабинет аттын айынан
+    ачылбай калбашы керек.
+    """
+    if not account_id:
+        return ""
+    try:
+        with db() as conn:
+            cur = conn.cursor()
+            cur.execute("SELECT name FROM posts WHERE account_id = %s "
+                        "AND COALESCE(TRIM(name), '') <> '' "
+                        "ORDER BY id DESC LIMIT 1", (account_id,))
+            row = cur.fetchone()
+        return (row["name"] or "").strip() if row else ""
+    except Exception as e:
+        print("[web] атты издөө:", e)
+        return ""
+
+
+def _remember_name(account_id, name):
+    """v179: табылган атты аккаунтка бир жолу жазып коёт.
+
+    `first_name` бош болсо гана жазылат — адам кийин атын
+    өзгөрткөн болсо, аны басып кетпейбиз.
+    """
+    try:
+        with db() as conn:
+            cur = conn.cursor()
+            cur.execute("UPDATE accounts SET first_name = %s "
+                        "WHERE account_id = %s "
+                        "AND COALESCE(TRIM(first_name), '') = ''",
+                        (name, account_id))
+            conn.commit()
+    except Exception as e:
+        print("[web] атты сактоо:", e)
+
+
 @app.route("/me")
 
 def me_page():
@@ -1921,9 +1964,24 @@ def me_page():
     # v172: «Менин жарыяларым» катарындагы сан — ичине кирбей
     # туруп эле жүргүнчү белгиленгенин көрсүн
     me = current_account()
+
+    # v179: аккаунтта ат жок болсо — өз жарыясында жазган атын
+    # алып, ошол замат аккаунтка көчүрөбүз. Мурда бул жерде
+    # «Колдонуучу» деген жалпы сөз менен номер гана чыкчу.
+    if me and not str(me.get("first_name") or "").strip():
+        _nm = _name_from_posts(me.get("account_id"))
+        if _nm:
+            _remember_name(me.get("account_id"), _nm)
+            me = dict(me)
+            me["first_name"] = _nm
+
     pk_total = pickup.count_for_account(
         (me or {}).get("account_id")) if me else 0
-    html = render_template("me.html", pk_total=pk_total, **_base_ctx())
+    # Жаңы ат ушул замат көрүнсүн: `_base_ctx()` аккаунтты
+    # өзүнчө окуйт, ошондуктан үстүнөн жазып коёбуз.
+    ctx = _base_ctx()
+    ctx["me"] = me
+    html = render_template("me.html", pk_total=pk_total, **ctx)
     return _with_lang(make_response(html))
 
 
