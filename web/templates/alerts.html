@@ -42,6 +42,34 @@
     margin-top: 8px; border: 0; border-radius: 12px; padding: 12px;
     font-size: 15px; background: #f5f5f5; color: #111; cursor: pointer;
   }
+
+  /* v181: эки тандагычтын арасы кысылат — 18px'тен 12px'ке.
+     Катарлаш четтер кошулбай, чоңу алынат: ошондуктан аралыкты
+     .sec'тин үстү чечет. Стиль ушул бетте жазылгандыктан,
+     «Жарыя берүү» бетиндеги ошол эле .sec/.fld тийбейт. */
+  .flt-box .sec { margin: 12px 0 7px; }
+  .flt-box .fld { margin-bottom: 6px; }
+
+  /* v181: тез багыт чиптери — 2 мамыча, 3 катар.
+     Сол мамыча ар дайым «барам», оң мамыча «кайтам»;
+     ар бир катар — бир жер. Ошондо көз менен окуу оңой. */
+  #airGrid {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 6px;
+    margin: 2px 0 8px;
+  }
+  #airGrid .airp {
+    font-size: 13px; font-weight: 700; line-height: 1.32;
+    padding: 10px 7px; border: 1.5px solid var(--mist, #E3E8F0);
+    border-radius: 12px; background: var(--card, #fff); color: #111;
+    cursor: pointer; text-align: center;
+  }
+  #airGrid .airp.on {
+    border-color: var(--yellow-2, #ffb703); background: #FFF8E6;
+  }
+  #airHint {
+    font-size: 13px; line-height: 1.45; color: #666; margin-bottom: 8px;
+  }
+  #airHint:empty { display: none; }
 </style>
 
 <div class="page-head">
@@ -60,6 +88,36 @@
       <span>{{ t('Жарыя азыр жок болсо да жазылса болот. Каалаганча багыт кошсоңуз болот.',
                  'Подписаться можно, даже если объявлений пока нет. Направлений можно добавить сколько угодно.') }}</span>
     </div>
+
+    {# v181: эң көп керектелген багыттар бир басууга чыкты.
+       Аэропорттор шаар тизмесинде мурдатан бар болчу, бирок узун
+       тизменин ичинде көрүнбөй калчу. Сол мамыча — барам,
+       оң мамыча — кайтам. #}
+    <div id="airGrid">
+      <button type="button" class="airp"
+              data-air="Бишкек шаары" data-dir="to">
+        🏙 {{ t('Бишкекке барам', 'В Бишкек') }}</button>
+      <button type="button" class="airp"
+              data-air="Бишкек шаары" data-dir="from">
+        🏙 {{ t('Бишкектен кайтам', 'Из Бишкека') }}</button>
+      <button type="button" class="airp"
+              data-air="Манас аэропорту" data-dir="to">
+        ✈️ {{ t('Манас аэропортуна барам',
+                'В аэропорт «Манас»') }}</button>
+      <button type="button" class="airp"
+              data-air="Манас аэропорту" data-dir="from">
+        🛬 {{ t('Манас аэропортунан кайтам',
+                'Из аэропорта «Манас»') }}</button>
+      <button type="button" class="airp"
+              data-air="Ош аэропорту" data-dir="to">
+        ✈️ {{ t('Ош аэропортуна барам',
+                'В аэропорт «Ош»') }}</button>
+      <button type="button" class="airp"
+              data-air="Ош аэропорту" data-dir="from">
+        🛬 {{ t('Ош аэропортунан кайтам',
+                'Из аэропорта «Ош»') }}</button>
+    </div>
+    <div id="airHint"></div>
 
     {# v168: жарыя берүү бетиндегидей аталыш #}
     <div class="sec"><span>{{ t('Кай жактан', 'Откуда') }}</span></div>
@@ -225,6 +283,76 @@
       setCity(target, it.dataset.v);
       closePick();
     });
+  })();
+
+  /* ---- v181: тез багыт чиптери ----
+     Эң көп керектелген жерлер шаар тизмесинде мурдатан бар болчу,
+     бирок узун тизменин ичинде көрүнбөй калчу. Бул чиптер аларды
+     бир басууга чыгарат: чип бир гана жагын толтурат, экинчисин
+     колдонуучу өзү тандайт.
+
+     Эки мамыча өз-өзүнчө иштейт: «Бишкектен кайтам» менен «Ош
+     аэропортуна барам» — чыныгы багыт, ошондуктан экөө тең
+     белгилүү тура берет. Белги ар дайым талаалардын чыныгы
+     мазмунунан эсептелет, ошондо ал эч качан жалган болбойт. */
+  (function () {
+    var grid = document.getElementById("airGrid");
+    var hint = document.getElementById("airHint");
+    if (!grid || !hint) return;
+
+    function val(which) {
+      var el = document.getElementById(which === "from" ? "wFrom" : "wTo");
+      return el ? el.value : "";
+    }
+
+    function set(which, v) {
+      if (window.trSetCity) { window.trSetCity(which, v); return; }
+      var el = document.getElementById(which === "from" ? "wFrom" : "wTo");
+      if (el) { el.value = v; }
+    }
+
+    /* Белгини талаалардын мазмунуна карап коёбуз — колдонуучу
+       талааны колу менен өзгөрткөндө да туура болуп калат. */
+    function sync() {
+      var all = grid.querySelectorAll(".airp");
+      for (var i = 0; i < all.length; i++) {
+        var c = all[i];
+        if (val(c.dataset.dir) === c.dataset.air) {
+          c.classList.add("on");
+        } else {
+          c.classList.remove("on");
+        }
+      }
+      if (val("from") && val("to")) { hint.textContent = ""; }
+    }
+
+    grid.addEventListener("click", function (e) {
+      var b = e.target.closest(".airp");
+      if (!b) return;
+
+      var air = b.dataset.air;
+      var dir = b.dataset.dir;              /* to = барам, from = кайтам */
+      var other = (dir === "to") ? "from" : "to";
+
+      /* Эки жагы бир жер болуп калбасын: «Бишкектен Бишкекке»
+         деген багыт жок. */
+      if (val(other) === air) { set(other, ""); }
+      set(dir, air);
+      sync();
+
+      if (val(other)) { hint.textContent = ""; return; }
+      hint.textContent = (other === "from")
+        ? s("Эми кайсы шаардан чыгаарыңызды тандаңыз.",
+            "Теперь выберите, из какого города выезжаете.")
+        : s("Эми кайсы шаарга барарыңызды тандаңыз.",
+            "Теперь выберите, в какой город едете.");
+    });
+
+    ["wFrom", "wTo"].forEach(function (id) {
+      var el = document.getElementById(id);
+      if (el) { el.addEventListener("change", sync); }
+    });
+    sync();
   })();
 
   /* ---- v158: тандалган багыт ошол замат көрүнөт ----
