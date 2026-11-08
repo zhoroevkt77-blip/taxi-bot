@@ -32,7 +32,7 @@ from urllib.parse import quote
 
 from core.db import db
 
-PUSH_VERSION = "v170-pickup"
+PUSH_VERSION = "v182-role"
 print(f"🔔 core/push.py жүктөлдү. Версия = {PUSH_VERSION}")
 
 VAPID_PUBLIC = os.environ.get("VAPID_PUBLIC_KEY", "").strip()
@@ -79,9 +79,19 @@ def init():
                             "DROP CONSTRAINT IF EXISTS push_subs_endpoint_key")
             except Exception as e:
                 print("[push] эски чектөөнү алуу:", e)
-            # Бир браузер + бир багыт = бир жазуу
-            cur.execute("CREATE UNIQUE INDEX IF NOT EXISTS push_uni_idx "
-                        "ON push_subs (endpoint, from_city, to_city)")
+            # v182: жазылуу кимдин жарыясын күтөт — 'driver' же
+            # 'passenger'. Мурдагылардын баары 'driver' болуп калат:
+            # алар жүргүнчүлөр, айдоочу күтүшөт.
+            cur.execute("ALTER TABLE push_subs ADD COLUMN IF NOT EXISTS "
+                        "want TEXT DEFAULT 'driver'")
+            cur.execute("UPDATE push_subs SET want = 'driver' "
+                        "WHERE want IS NULL")
+            # Бир браузер + бир багыт + бир рол = бир жазуу.
+            # Эски индекс ролду билчү эмес: айдоочу менен жүргүнчү
+            # бир браузерден бир багытка жазыла алмак эмес.
+            cur.execute("DROP INDEX IF EXISTS push_uni_idx")
+            cur.execute("CREATE UNIQUE INDEX IF NOT EXISTS push_uni2_idx "
+                        "ON push_subs (endpoint, from_city, to_city, want)")
             cur.execute("CREATE INDEX IF NOT EXISTS push_route_idx "
                         "ON push_subs (from_city, to_city)")
             conn.commit()
@@ -97,14 +107,45 @@ init_push_table = init
 
 # ============ ЖАЗЫЛУУ ============
 
-def subscribe(sub, from_city, to_city, lang="ky"):
-    """Браузерди багытка жазат. Кайра жазылса — жаңыртат."""
+def _want(w):
+    """v182: 'passenger' болбосо — 'driver'. Башка маани кабыл алынбайт."""
+    return "passenger" if w == "passenger" else "driver"
+
+
+def subscribe(sub, from_city, to_city, lang="ky", want="driver"):
+    """Браузерди багытка жазат. Кайра жазылса — жаңыртат.
+
+    v182: want — кимдин жарыясы күтүлөт: 'driver' (жүргүнчү
+    жазылат) же 'passenger' (айдоочу жазылат).
+    """
+    want = _want(want)
+    endpoint = sub.get("endpoint")
+    keys = sub.get("keys") or {}
+    p256dh, auth = keys.get("p256dh"), keys.get("auth")
+    if not (endpoint and p256dh and auth):
+        return False
     try:
-        endpoint = sub.get("endpoint")
-        keys = sub.get("keys") or {}
-        p256dh, auth = keys.get("p256dh"), keys.get("auth")
-        if not (endpoint and p256dh and auth):
-            return False
+        with db() as conn:
+            cur = conn.cursor()
+            cur.execute("""
+                INSERT INTO push_subs (endpoint, p256dh, auth, from_city,
+                                       to_city, lang, fails, want)
+                VALUES (%s,%s,%s,%s,%s,%s,0,%s)
+                ON CONFLICT (endpoint, from_city, to_city, want) DO UPDATE SET
+                    p256dh = EXCLUDED.p256dh,
+                    auth = EXCLUDED.auth,
+                    lang = EXCLUDED.lang,
+                    fails = 0
+            """, (endpoint, p256dh, auth, from_city, to_city, lang, want))
+            conn.commit()
+        return True
+    except Exception as e:
+        print("[push] жазылуу катасы:", e)
+    # База жаңыланбай калса — айдоочу жарыясына жазылуу эски
+    # жол менен иштей берсин. Жаңы мүмкүнчүлүк гана токтойт.
+    if want != "driver":
+        return False
+    try:
         with db() as conn:
             cur = conn.cursor()
             cur.execute("""
@@ -120,16 +161,31 @@ def subscribe(sub, from_city, to_city, lang="ky"):
             conn.commit()
         return True
     except Exception as e:
-        print("[push] жазылуу катасы:", e)
+        print("[push] жазылуу катасы (эски жол):", e)
         return False
 
 
-def unsubscribe(endpoint, from_city=None, to_city=None):
+def unsubscribe(endpoint, from_city=None, to_city=None, want=None):
     """Жазылууну өчүрөт.
 
     Багыт берилсе — ошол багыт гана. Берилбесе — ушул браузердин
     бардык жазылуулары (браузер уруксатты алып салганда керек).
+
+    v182: want берилсе — ошол багыттын ошол ролу гана өчөт.
     """
+    if from_city and to_city and want:
+        try:
+            with db() as conn:
+                cur = conn.cursor()
+                cur.execute("DELETE FROM push_subs WHERE endpoint = %s "
+                            "AND from_city = %s AND to_city = %s "
+                            "AND COALESCE(want, 'driver') = %s",
+                            (endpoint, from_city, to_city, _want(want)))
+                conn.commit()
+                return cur.rowcount > 0
+        except Exception as e:
+            print("[push] өчүрүү катасы (рол менен):", e)
+            # тилке жок болсо — төмөндөгү эски жол менен өчөт
     try:
         with db() as conn:
             cur = conn.cursor()
@@ -148,7 +204,21 @@ def unsubscribe(endpoint, from_city=None, to_city=None):
 
 
 def routes_of(endpoint):
-    """Ушул браузер кайсы багыттарга жазылган."""
+    """Ушул браузер кайсы багыттарга жазылган.
+
+    v182: ар бир багыт менен кошо кимдин жарыясы күтүлөрү да
+    кайтат (want). Тилке жок болсо — мурдагыдай, ролсуз.
+    """
+    try:
+        with db() as conn:
+            cur = conn.cursor()
+            cur.execute("SELECT from_city, to_city, "
+                        "COALESCE(want, 'driver') AS want FROM push_subs "
+                        "WHERE endpoint = %s AND from_city <> %s "
+                        "ORDER BY created_at", (endpoint, PICKUP_TAG))
+            return [dict(r) for r in cur.fetchall()]
+    except Exception as e:
+        print("[push] тизме (рол менен):", e)
     try:
         with db() as conn:
             cur = conn.cursor()
@@ -175,7 +245,28 @@ def count_for(from_city, to_city):
         return 0
 
 
-def _subs_for(from_city, to_city):
+def _subs_for(from_city, to_city, want=None):
+    """Ушул багытка жазылгандар.
+
+    v182: want берилсе — ошол ролдун жарыясын күткөндөр гана.
+    Тилке жок болсо, айдоочу жарыясы үчүн эски жол менен табылат,
+    ал эми жүргүнчү жарыясы үчүн эч ким табылбайт — ашыкча кабар
+    кеткенден көрө, кетпегени жакшы.
+    """
+    if want:
+        want = _want(want)
+        try:
+            with db() as conn:
+                cur = conn.cursor()
+                cur.execute("SELECT * FROM push_subs "
+                            "WHERE from_city = %s AND to_city = %s "
+                            "AND COALESCE(want, 'driver') = %s",
+                            (from_city, to_city, want))
+                return [dict(r) for r in cur.fetchall()]
+        except Exception as e:
+            print("[push] тизме катасы (рол менен):", e)
+            if want != "driver":
+                return []
     try:
         with db() as conn:
             cur = conn.cursor()
@@ -227,6 +318,33 @@ def _body(p, lang="ky"):
 
     if not parts:
         return "Жаңы айдоочу чыкты" if lang != "ru" else "Появился водитель"
+    return "\n".join(parts)
+
+
+def _body_p(p, lang="ky"):
+    """v182: жүргүнчүнүн жарыясынын кыска тексти."""
+    parts = []
+    if p.get("name"):
+        parts.append(str(p["name"]))
+
+    when = " ".join(x for x in [p.get("date_text"), p.get("time_text")] if x)
+    if when:
+        parts.append(when)
+
+    tail = []
+    n = str(p.get("people_count") or "").strip()
+    if n:
+        if n.isdigit():
+            tail.append(f"{n} киши" if lang != "ru" else f"{n} чел.")
+        else:
+            tail.append(n)              # «Салон» ж.б.
+    if p.get("price"):
+        tail.append(str(p["price"]))
+    if tail:
+        parts.append(" · ".join(tail))
+
+    if not parts:
+        return "Жаңы жүргүнчү чыкты" if lang != "ru" else "Появился пассажир"
     return "\n".join(parts)
 
 
@@ -311,16 +429,20 @@ def notify_pickup(mtoken, name, total):
     return sent
 
 
-def notify_route(from_city, to_city, post=None):
+def notify_route(from_city, to_city, post=None, want="driver"):
     """Ошол багытка жазылгандардын баарына кабар жиберет.
 
     Жиберилген кабарлардын санын кайтарат. Ката болсо да программа
     токтобойт — кабар кошумча мүмкүнчүлүк, негизги иш эмес.
+
+    v182: want — кимдин жарыясы чыкты. 'driver' болсо жүргүнчүлөргө,
+    'passenger' болсо айдоочуларга кетет.
     """
     if not enabled():
         return 0
 
-    subs = _subs_for(from_city, to_city)
+    want = _want(want)
+    subs = _subs_for(from_city, to_city, want)
     if not subs:
         return 0
 
@@ -333,15 +455,25 @@ def notify_route(from_city, to_city, post=None):
     p = post or {}
     url = (f"{SITE_URL}/route?from={quote(from_city or '')}"
            f"&to={quote(to_city or '')}")
+    if want == "passenger":
+        # Басканда ошол багыттагы ЖҮРГҮНЧҮЛӨРДҮН тизмеси ачылсын
+        url += "&role=passenger"
 
     sent = 0
     for s in subs:
         lang = s.get("lang") or "ky"
+        if want == "passenger":
+            who = "Пассажир" if lang == "ru" else "Жүргүнчү"
+            title = f"🧍 {who}: {from_city} → {to_city}"
+            body = _body_p(p, lang)
+        else:
+            title = f"🚖 {from_city} → {to_city}"
+            body = _body(p, lang)
         payload = json.dumps({
-            "title": f"🚖 {from_city} → {to_city}",
-            "body": _body(p, lang),
+            "title": title,
+            "body": body,
             "url": f"{url}&lang={lang}",
-            "tag": f"route-{from_city}-{to_city}",
+            "tag": f"route-{want}-{from_city}-{to_city}",
         }, ensure_ascii=False)
 
         try:

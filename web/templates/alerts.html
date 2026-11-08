@@ -70,21 +70,55 @@
     font-size: 13px; line-height: 1.45; color: #666; margin-bottom: 8px;
   }
   #airHint:empty { display: none; }
+
+  /* v182: ким катары жазылат */
+  #wRole {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 6px;
+    margin-bottom: 10px;
+  }
+  #wRole button {
+    font-size: 15px; font-weight: 800; padding: 12px 8px;
+    border: 1.5px solid var(--mist, #E3E8F0); border-radius: 14px;
+    background: var(--card, #fff); color: #111; cursor: pointer;
+  }
+  #wRole button.on {
+    background: var(--yellow, #ffc61a); border-color: var(--yellow, #ffc61a);
+  }
+  .w-tag {
+    display: inline-block; font-size: 11.5px; font-weight: 800;
+    color: #555; background: #f2f3f5; border-radius: 8px;
+    padding: 2px 7px; margin-left: 6px; vertical-align: middle;
+    white-space: nowrap;
+  }
 </style>
 
 <div class="page-head">
   <h1>🔔 {{ t('Кабарлар', 'Уведомления') }}</h1>
   <p class="lead">
-    {{ t('Керектүү багытты жазып коюңуз — ошол багытка айдоочу жарыя бергенде, телефонуңузга заматта кабар келет. Сайт жабык турса да иштейт.',
-         'Подпишитесь на нужное направление — как только по нему появится водитель, вам придёт уведомление. Работает, даже когда сайт закрыт.') }}
+    {{ t('Керектүү багытты жазып коюңуз — ошол багытта жаңы жарыя чыкканда, телефонуңузга заматта кабар келет. Сайт жабык турса да иштейт.',
+         'Подпишитесь на нужное направление — как только по нему появится новое объявление, вам придёт уведомление. Работает, даже когда сайт закрыт.') }}
   </p>
 </div>
 
 <div class="flt-box" style="display:block">
   <div class="flt">
-    <div class="w-lead">
+    {# v182: ким катары жазылат. Жүргүнчү айдоочулардын жарыясын
+       күтөт, айдоочу — жүргүнчүлөрдүн. #}
+    <div id="wRole">
+      <button type="button" data-r="passenger" class="on">
+        🧍 {{ t('Жүргүнчүмүн', 'Я пассажир') }}</button>
+      <button type="button" data-r="driver">
+        🚗 {{ t('Айдоочумун', 'Я водитель') }}</button>
+    </div>
+    <div class="w-lead" data-for="passenger">
       <b>{{ t('Жүргүнчүмүн — айдоочулардын жаңы жарыялары жөнүндө билгим келет.',
               'Я пассажир — хочу знать о новых объявлениях водителей.') }}</b>
+      <span>{{ t('Жарыя азыр жок болсо да жазылса болот. Каалаганча багыт кошсоңуз болот.',
+                 'Подписаться можно, даже если объявлений пока нет. Направлений можно добавить сколько угодно.') }}</span>
+    </div>
+    <div class="w-lead" data-for="driver" style="display:none">
+      <b>{{ t('Айдоочумун — жүргүнчүлөрдүн жаңы жарыялары жөнүндө билгим келет.',
+              'Я водитель — хочу знать о новых объявлениях пассажиров.') }}</b>
       <span>{{ t('Жарыя азыр жок болсо да жазылса болот. Каалаганча багыт кошсоңуз болот.',
                  'Подписаться можно, даже если объявлений пока нет. Направлений можно добавить сколько угодно.') }}</span>
     </div>
@@ -194,6 +228,49 @@
     note.textContent = m || "";
     note.className = "watch-note" + (cls ? " " + cls : "");
   }
+
+  /* ---- v182: ким катары жазылат ----
+     ROLE — колдонуучунун өзү. Жүргүнчү айдоочулардын жарыясын
+     күтөт, айдоочу — жүргүнчүлөрдүн. Тандоо ушул браузерде
+     эсте калат; сакталбай калса да бет иштей берет. */
+  var ROLE = "passenger";
+  try {
+    if (localStorage.getItem("tr_alert_role") === "driver") { ROLE = "driver"; }
+  } catch (e) {}
+  /* v183: Башкы беттен келсе — ошол өтмөккө жараша. Ушул жолу гана:
+     адамдын өзү сактаган тандоосу өзгөрбөйт. */
+  var _as = (location.search.match(/[?&]as=(driver|passenger)(?:&|$)/) || [])[1];
+  if (_as) { ROLE = _as; }
+
+  function want() { return ROLE === "driver" ? "passenger" : "driver"; }
+  window.trWant = want;
+
+  function paintRole() {
+    var bs = document.querySelectorAll("#wRole button");
+    for (var i = 0; i < bs.length; i++) {
+      if (bs[i].dataset.r === ROLE) { bs[i].classList.add("on"); }
+      else { bs[i].classList.remove("on"); }
+    }
+    var ls = document.querySelectorAll(".w-lead[data-for]");
+    for (var j = 0; j < ls.length; j++) {
+      ls[j].style.display = (ls[j].dataset["for"] === ROLE) ? "" : "none";
+    }
+  }
+
+  (function () {
+    var box = document.getElementById("wRole");
+    if (!box) return;
+    box.addEventListener("click", function (e) {
+      var b = e.target.closest("button[data-r]");
+      if (!b || b.dataset.r === ROLE) return;
+      ROLE = b.dataset.r;
+      try { localStorage.setItem("tr_alert_role", ROLE); } catch (e2) {}
+      paintRole();
+      say("");
+      if (window.trPickShow) { window.trPickShow(); }
+    });
+  })();
+  paintRole();
 
   /* ---- v160: шаар тандоо ----
      «➕ Жарыя берүү» бетиндеги тандагычтын дал өзү: ылдыйдан чыккан
@@ -367,6 +444,12 @@
     for (var i = 0; i < ROUTES.length; i++) {
       CNT[ROUTES[i].from_city + "|" + ROUTES[i].to_city] = ROUTES[i].n;
     }
+    /* v182: жүргүнчүлөрдүн жарыялары — айдоочу тандаганда */
+    var ROUTES_P = {{ (routes_p or [])|tojson }};
+    var CNT_P = Object.create(null);
+    for (var k = 0; k < ROUTES_P.length; k++) {
+      CNT_P[ROUTES_P[k].from_city + "|" + ROUTES_P[k].to_city] = ROUTES_P[k].n;
+    }
 
     var pn = document.getElementById("pn");
     var pnR = document.getElementById("pnR");
@@ -395,22 +478,35 @@
         return;
       }
 
-      var n = CNT[f + "|" + t] || 0;
+      /* v182: айдоочу тандаса — жүргүнчүлөрдүн саны жана тизмеси */
+      var isP = (window.trWant && window.trWant() === "passenger");
+      var n = (isP ? CNT_P : CNT)[f + "|" + t] || 0;
       if (n > 0) {
         pn.className = "pn has";
-        pnS.textContent = s(
-          "Бул багытта азыр " + n + " айдоочу бар — күтпөй эле чалсаңыз болот.",
-          "Сейчас по этому направлению водителей: " + n + " — можно позвонить прямо сейчас.");
-        pnGo.textContent = "🚗 " + s("Жарыяларды көрүү",
-                                     "Посмотреть объявления");
+        if (isP) {
+          pnS.textContent = s(
+            "Бул багытта азыр " + n + " жүргүнчү бар — күтпөй эле чалсаңыз болот.",
+            "Сейчас по этому направлению пассажиров: " + n + " — можно позвонить прямо сейчас.");
+          pnGo.textContent = "🧍 " + s("Жүргүнчүлөрдү көрүү",
+                                       "Посмотреть пассажиров");
+        } else {
+          pnS.textContent = s(
+            "Бул багытта азыр " + n + " айдоочу бар — күтпөй эле чалсаңыз болот.",
+            "Сейчас по этому направлению водителей: " + n + " — можно позвонить прямо сейчас.");
+          pnGo.textContent = "🚗 " + s("Жарыяларды көрүү",
+                                       "Посмотреть объявления");
+        }
         pnGo.href = "/route?from=" + encodeURIComponent(f) +
-                    "&to=" + encodeURIComponent(t) + "&lang=" + LANG;
+                    "&to=" + encodeURIComponent(t) + "&lang=" + LANG +
+                    (isP ? "&role=passenger" : "");
         pnGo.style.display = "block";
       } else {
         pn.className = "pn";
-        pnS.textContent = s(
-          "Азырынча бул багытта айдоочу жок. Жазылып койсоңуз, биринчи жарыя чыкканда кабар келет.",
-          "Пока по этому направлению водителей нет. Подпишитесь — и вы узнаете о первом же объявлении.");
+        pnS.textContent = isP
+          ? s("Азырынча бул багытта жүргүнчү жок. Жазылып койсоңуз, биринчи жарыя чыкканда кабар келет.",
+              "Пока по этому направлению пассажиров нет. Подпишитесь — и вы узнаете о первом же объявлении.")
+          : s("Азырынча бул багытта айдоочу жок. Жазылып койсоңуз, биринчи жарыя чыкканда кабар келет.",
+              "Пока по этому направлению водителей нет. Подпишитесь — и вы узнаете о первом же объявлении.");
         pnGo.style.display = "none";
       }
     }
@@ -455,6 +551,12 @@
   }
 
   /* ---- Жазылган багыттар ---- */
+  function esc(x) {                                       /* v182 */
+    return String(x == null ? "" : x).replace(/[&<>"]/g, function (c) {
+      return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c];
+    });
+  }
+
   function draw(routes) {
     routes = routes || [];
     if (!routes.length) {
@@ -467,10 +569,18 @@
       '<div class="sec"><span>' +
       s("Жазылган багыттарыңыз", "Ваши подписки") + '</span></div>' +
       routes.map(function (r) {
+        /* v182: кимдин жарыясы күтүлөрү көрүнсүн. Шаардын аты
+           HTML катары эмес, текст катары чыгат. */
+        var w = (r.want === "passenger") ? "passenger" : "driver";
+        var tag = (w === "passenger")
+          ? "🧍 " + s("жүргүнчүлөр", "пассажиры")
+          : "🚗 " + s("айдоочулар", "водители");
         return '<div class="w-item">' +
-          '<span>' + r.from_city + ' <b>→</b> ' + r.to_city + '</span>' +
-          '<button type="button" data-f="' + r.from_city +
-          '" data-t="' + r.to_city + '">✕</button></div>';
+          '<span>' + esc(r.from_city) + ' <b>→</b> ' + esc(r.to_city) +
+          '<i class="w-tag">' + tag + '</i></span>' +
+          '<button type="button" data-f="' + esc(r.from_city) +
+          '" data-t="' + esc(r.to_city) + '" data-w="' + w +
+          '">✕</button></div>';
       }).join("");
 
     list.querySelectorAll("button").forEach(function (b) {
@@ -480,7 +590,8 @@
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            endpoint: sub.endpoint, from: b.dataset.f, to: b.dataset.t
+            endpoint: sub.endpoint, from: b.dataset.f, to: b.dataset.t,
+            want: b.dataset.w                             /* v182 */
           })
         }).then(refresh);
       });
@@ -538,7 +649,8 @@
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          subscription: sub.toJSON ? sub.toJSON() : sub, from: f, to: t
+          subscription: sub.toJSON ? sub.toJSON() : sub, from: f, to: t,
+          want: want()                                    /* v182 */
         })
       });
     }).then(function (r) {

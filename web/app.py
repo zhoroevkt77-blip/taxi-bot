@@ -42,7 +42,7 @@ from core import logic as _logic
 from core.texts import render as tr_render
 from core.texts import FREE_MODE, INVITE_GOAL   # v135
 
-WEB_VERSION = "v181-airalerts"
+WEB_VERSION = "v183-homealert"
 print(f"🌐 web/app.py жүктөлдү. Версия = {WEB_VERSION}")
 
 BOT_USERNAME = os.environ.get("BOT_USERNAME", "taxirobot_bot")
@@ -1475,8 +1475,12 @@ def push_subscribe():
     to = (data.get("to") or "").strip()
     if not (sub and frm and to):
         return jsonify({"ok": False}), 400
+    # v182: кимдин жарыясы күтүлөт. Эски беттер жибербейт —
+    # анда мурдагыдай айдоочунун жарыясы.
+    want = ("passenger" if data.get("want") == "passenger"
+            else "driver")
     from core import push
-    ok = push.subscribe(sub, frm, to, _lang())
+    ok = push.subscribe(sub, frm, to, _lang(), want)
     return jsonify({"ok": bool(ok)})
 
 
@@ -1491,7 +1495,10 @@ def push_unsubscribe():
     frm = (data.get("from") or "").strip() or None
     to = (data.get("to") or "").strip() or None
     from core import push
-    return jsonify({"ok": bool(push.unsubscribe(ep, frm, to))})
+    # v182: рол берилсе — ошол рол гана өчөт
+    w = (data.get("want") or "").strip()
+    want = w if w in ("driver", "passenger") else None
+    return jsonify({"ok": bool(push.unsubscribe(ep, frm, to, want))})
 
 
 @app.route("/view/<int:post_id>", methods=["POST"])
@@ -1743,6 +1750,8 @@ def alerts_page():
                            all_cities=ALL_CITIES,
                            oblast_list=OBLAST_LIST,
                            routes=driver_routes(),
+                           # v182: айдоочу тандаса — жүргүнчүлөрдүн саны
+                           routes_p=driver_routes("passenger"),
                            **_base_ctx())
     return _with_lang(make_response(html))
 
