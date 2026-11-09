@@ -964,6 +964,25 @@ LOGIN_WAIT = {}     # user_id -> token (номер күтүлүүдө)
 
 def web_login(messenger, msg, account, token):
     """Сайттагы «Кирүү» кодун ботто ырастоо."""
+    # v192-kgonly: сайтка Кыргызстандын (+996) номери менен гана.
+    # WhatsApp — номер чат ID'сынан, Telegram — ырасталган номерден.
+    # Номер али жок болсо (Telegram) — login_phone өзү текшерет.
+    try:
+        _kg = str(account.get("verified_phone") or "")
+    except Exception:
+        _kg = ""
+    _uid = str(getattr(msg, "user_id", "") or "")
+    if _uid.startswith("wa:"):
+        _kg = _uid[3:]
+    _kg = "".join(ch for ch in _kg if ch.isdigit())
+    if _kg and not (_kg.startswith("996") and len(_kg) == 12):
+        return _say(messenger, msg, account, L(
+            "⚠️ Сайтка Кыргызстандын номери (+996…) менен гана кирсе "
+            "болот. Кыргызстандын номериңизден кайра жазыңыз.",
+            "⚠️ Войти на сайт можно только с номером Кыргызстана "
+            "(+996…). Напишите ещё раз с кыргызстанского номера."),
+            back_kb())
+
     row = _wsession.get(token)
     if not row or row.get("expired"):
         return _say(messenger, msg, account, L(
