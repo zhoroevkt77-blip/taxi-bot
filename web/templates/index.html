@@ -155,8 +155,8 @@
                       color: #8a8a95; }
 </style>
 <a class="watch-link" id="watchLink"
-   data-want="{{ 'passenger' if role == 'passenger' else 'driver' }}"
-   href="/alerts?lang={{ lang }}{% if role == 'passenger' %}&amp;as=driver{% endif %}">
+   data-want="{{ 'driver' if role == 'passenger' else 'passenger' }}"
+   href="/alerts?lang={{ lang }}{% if role != 'passenger' %}&amp;as=driver{% endif %}">
   <span class="wl-ico">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
          stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -165,12 +165,14 @@
     </svg>
   </span>
   <span class="wl-t">
+    {# v187: өтмөк «мен киммин» деп окулат — Жүргүнчүлөр тандалса,
+       жүргүнчүгө айдоочу керек. Сап менен шилтеме бирге алмашкан. #}
     {% if role == 'passenger' %}
-      <b>{{ t('Жаңы жүргүнчү чыкса — кабар алам',
-              'Сообщать о новых пассажирах') }}</b>
-    {% else %}
       <b>{{ t('Жаңы айдоочу чыкса — кабар алам',
               'Сообщать о новых водителях') }}</b>
+    {% else %}
+      <b>{{ t('Жаңы жүргүнчү чыкса — кабар алам',
+              'Сообщать о новых пассажирах') }}</b>
     {% endif %}
     <span>{{ t('Багыт тандайсыз — кабар келет',
                'Выберите маршрут — придёт уведомление') }}</span>
