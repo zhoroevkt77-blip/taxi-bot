@@ -129,6 +129,15 @@
     margin-top: 8px; border: 0; border-radius: 12px; padding: 12px;
     font-size: 15px; background: #f5f5f5; color: #111; cursor: pointer;
   }
+  /* v185: аталыштар суроо түрүндө — кадимки тамга, жоон, батпаса
+     экинчи сапка түшөт. Мурда ЧОҢ ТАМГА жана бир сап болчу:
+     узун суроо телефондун энинен чыгып кетмек. Ушул бетте гана. */
+  #formBox .sec span {
+    text-transform: none; letter-spacing: -.1px; white-space: normal;
+    font-size: 15.5px; font-weight: 800; line-height: 1.35;
+    flex: 0 1 auto; min-width: 0;
+  }
+  #formBox .sec::after { min-width: 16px; }
 </style>
 
 <div class="page-head">
@@ -148,7 +157,7 @@
 <div id="formBox" class="flt-box" style="display:block">
   <div class="flt">
 
-    <div class="sec"><span>{{ t('Ким катары', 'Кто вы') }}</span></div>
+    <div class="sec"><span>{{ t('Ким катары жарыя бересиз?', 'Вы водитель или пассажир?') }}</span></div>
     <div class="fld rolerow">
       <button type="button" class="go role on" data-role="driver">
         🚗 {{ t('Айдоочумун', 'Я водитель') }}</button>
@@ -213,7 +222,7 @@
     </div>
 
     <div id="boxFrom">
-    <div class="sec"><span>{{ t('Каяктан', 'Откуда') }}</span></div>
+    <div class="sec"><span>{{ t('Каяктан?', 'Откуда?') }}</span></div>
     <div class="fld">
       <button type="button" class="pick" id="pickFrom" data-t="from">
         {{ t('— тандаңыз —', '— выберите —') }}</button>
@@ -221,14 +230,14 @@
     </div>
 
     <div id="boxTo">
-    <div class="sec"><span>{{ t('Каякка', 'Куда') }}</span></div>
+    <div class="sec"><span>{{ t('Каякка?', 'Куда?') }}</span></div>
     <div class="fld">
       <button type="button" class="pick" id="pickTo" data-t="to">
         {{ t('— тандаңыз —', '— выберите —') }}</button>
     </div>
     </div>
 
-    <div class="sec"><span>{{ t('Күнү жана убактысы', 'Дата и время') }}</span></div>
+    <div class="sec"><span>{{ t('Кайсы күнү жана кайсы убакта жолго чыгасыз?', 'В какой день и во сколько выезжаете?') }}</span></div>
     <div class="fld datecol">
       <div class="sel">
         <select id="fDate">
@@ -244,27 +253,27 @@
     </div>
 
     <div id="driverFields">
-      <div class="sec"><span>{{ t('Бош орун', 'Свободных мест') }}</span></div>
+      <div class="sec"><span>{{ t('Канча бош орун бар?', 'Сколько свободных мест?') }}</span></div>
       <div class="fld"><div class="sel">
         <select id="fSeats">
           {% for n in [1,2,3,4,5,6,7] %}<option value="{{ n }}">{{ n }}</option>{% endfor %}
         </select>
       </div></div>
 
-      <div class="sec"><span>{{ t('Унаа', 'Машина') }}</span></div>
+      <div class="sec"><span>{{ t('Унааңыздын маркасы жана модели кандай?', 'Какая у вас машина — марка и модель?') }}</span></div>
       <div class="fld"><input id="fCar" maxlength="40"
         placeholder="{{ t('Мисалы: Toyota Alphard, ак', 'Например: Toyota Alphard, белая') }}"></div>
     </div>
 
     <div id="paxFields" style="display:none">
-      <div class="sec"><span>{{ t('Канча киши', 'Сколько человек') }}</span></div>
+      <div class="sec"><span>{{ t('Канча жүргүнчү жолго чыгасыз?', 'Сколько человек едет?') }}</span></div>
       <div class="fld"><div class="sel">
         <select id="fPeople">
           {% for n in [1,2,3,4,5,6,7] %}<option value="{{ n }}">{{ n }}</option>{% endfor %}
         </select>
       </div></div>
 
-      <div class="sec"><span>{{ t('Жүк', 'Багаж') }}</span></div>
+      <div class="sec"><span>{{ t('Жүгүңүз кандай?', 'Какой у вас багаж?') }}</span></div>
       <div class="fld">
         <div class="sel">
           <select id="fBag">
@@ -283,10 +292,10 @@
     </div>
 
     {# v136: жазуусу жана мисалы ролго жараша JS менен коюлат #}
-    <div class="sec"><span id="priceLbl">{{ t('Бир орундун баасы', 'Цена за место') }}</span></div>
+    <div class="sec"><span id="priceLbl">{{ t('Бир орундукка жол кире акысы канча?', 'Сколько стоит одно место?') }}</span></div>
     <div class="fld"><input id="fPrice" maxlength="30"></div>
 
-    <div class="sec"><span>{{ t('Атыңыз', 'Ваше имя') }}</span></div>
+    <div class="sec"><span>{{ t('Атыңыз ким?', 'Как вас зовут?') }}</span></div>
     <div class="fld"><input id="fName" maxlength="30"
       placeholder="{{ t('Мисалы: Данияр', 'Например: Данияр') }}"></div>
 
@@ -431,9 +440,12 @@
   /* v136: ролго жараша жазуулар жана мисалдар.
      Айдоочу менен жүргүнчү бир эле форманы эки башка максатта
      толтурат — ошондуктан суроолор да ар башка болушу керек. */
+  /* v185: суроо түрүндө */
   var PRICE_LBL = {
-    driver: s("Бир орундун баасы", "Цена за место"),
-    passenger: s("Канча төлөйсүз", "Сколько готовы заплатить")
+    driver: s("Бир орундукка жол кире акысы канча?",
+              "Сколько стоит одно место?"),
+    passenger: s("Бир жүргүнчүгө канча төлөйсүз?",
+                 "Сколько платите за одного пассажира?")
   };
   var PRICE_PH = {
     driver: s("Мисалы: 1500 сом же келишим",
@@ -664,8 +676,8 @@
       return;
     }
     el.textContent = (airDir === "to"
-        ? s("Кайдан чыгасыз: ", "Откуда едете: ")
-        : s("Кайда барасыз: ", "Куда едете: "))
+        ? s("Каяктан чыгасыз: ", "Откуда едете: ")
+        : s("Каякка барасыз: ", "Куда едете: "))
       + airInfo().zone + ". "
       + s("Башка жер керек болсо, тизменин аягындагы «Башка жерден» дегенди басыңыз.",
           "Нужно другое место — нажмите «Другое место» внизу списка.");
@@ -839,7 +851,7 @@
     }
 
     if (!body.from_city || !body.to_city) {
-      say(s("Кайдан жана кайда — экөөнү тең тандаңыз.", "Выберите оба пункта."), "warn"); return;
+      say(s("Каяктан жана каякка — экөөнү тең тандаңыз.", "Выберите оба пункта."), "warn"); return;
     }
     if (body.from_city === body.to_city) {
       say(s("Чыгуу жана баруу жери бирдей болбошу керек.",
