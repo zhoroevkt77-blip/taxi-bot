@@ -71,18 +71,23 @@
   }
   #airHint:empty { display: none; }
 
-  /* v182: ким катары жазылат */
+  /* v182: ким катары жазылат.
+     v188: Жарыя берүүдөгү баскычтардай — бирин-бири астында, бүт
+     энин ээлейт, тандалганы сары, экинчиси боз. */
   #wRole {
-    display: grid; grid-template-columns: 1fr 1fr; gap: 6px;
-    margin-bottom: 10px;
+    display: flex; flex-direction: column; gap: 10px;
+    margin-bottom: 12px;
   }
   #wRole button {
-    font-size: 15px; font-weight: 800; padding: 12px 8px;
-    border: 1.5px solid var(--mist, #E3E8F0); border-radius: 14px;
-    background: var(--card, #fff); color: #111; cursor: pointer;
+    width: 100%; border: 0; font-family: inherit;
+    font-size: 14px; font-weight: 800; padding: 10px 14px;
+    border-radius: 18px; box-shadow: none; cursor: pointer;
+    background: #f5f5f5; color: #111;
   }
   #wRole button.on {
-    background: var(--yellow, #ffc61a); border-color: var(--yellow, #ffc61a);
+    background: linear-gradient(135deg, var(--yellow, #ffc61a) 0%,
+                                        var(--yellow-2, #ffb703) 100%);
+    color: var(--black, #16161a);
   }
   .w-tag {
     display: inline-block; font-size: 11.5px; font-weight: 800;
@@ -105,10 +110,11 @@
     {# v182: ким катары жазылат. Жүргүнчү айдоочулардын жарыясын
        күтөт, айдоочу — жүргүнчүлөрдүн. #}
     <div id="wRole">
-      <button type="button" data-r="passenger" class="on">
-        🧍 {{ t('Жүргүнчүмүн', 'Я пассажир') }}</button>
+      {# v188: Жарыя берүүдөгүдөй — Айдоочумун үстүндө #}
       <button type="button" data-r="driver">
         🚗 {{ t('Айдоочумун', 'Я водитель') }}</button>
+      <button type="button" data-r="passenger" class="on">
+        🧳 {{ t('Жүргүнчүмүн', 'Я пассажир') }}</button>
     </div>
     <div class="w-lead" data-for="passenger">
       <b>{{ t('Жүргүнчүмүн — айдоочулардын жаңы жарыялары жөнүндө билгим келет.',
@@ -573,7 +579,7 @@
            HTML катары эмес, текст катары чыгат. */
         var w = (r.want === "passenger") ? "passenger" : "driver";
         var tag = (w === "passenger")
-          ? "🧍 " + s("жүргүнчүлөр", "пассажиры")
+          ? "🧳 " + s("жүргүнчүлөр", "пассажиры")          /* v188 */
           : "🚗 " + s("айдоочулар", "водители");
         return '<div class="w-item">' +
           '<span>' + esc(r.from_city) + ' <b>→</b> ' + esc(r.to_city) +
