@@ -74,6 +74,14 @@ var PID = null;
 try { PID = parseInt(localStorage.getItem(PKEY) || '', 10) || null; } catch (e) {}
 
 function show(msg) { document.getElementById('err').textContent = msg || ''; }
+
+/* v194: точка жөнөй турган жерден алыс */
+function farMsg(d) {
+  return "{{ t('⚠️ Бул жер жөнөй турган жерден ({city}) {km} км алыс. Айдоочу жүргүнчүлөрдү {limit} км ичинде гана чогултат. Ошол жерге жеткенде кайра белгилеңиз.', '⚠️ Это место в {km} км от пункта отправления ({city}). Водитель собирает пассажиров только в радиусе {limit} км. Отметьтесь, когда будете там.') }}"
+    .replace('{city}', d.city || '')
+    .replace('{km}', d.km)
+    .replace('{limit}', d.limit);
+}
 function show2(msg) { document.getElementById('err2').textContent = msg || ''; }
 
 function nameOf() {
@@ -136,7 +144,9 @@ document.getElementById('go').onclick = function () {
       if (!d.ok) {
         btn.disabled = false;
         btn.textContent = "📍 {{ t('Мен ушул жердемин', 'Я нахожусь здесь') }}";
-        if (d.error === 'limit') {
+        if (d.error === 'far') {           /* v194 */
+          show(farMsg(d));
+        } else if (d.error === 'limit') {
           show("{{ t('Өтө көп жөнөтүлдү. Бир аздан кийин кайра аракет кылыңыз.', 'Слишком много отправок. Попробуйте чуть позже.') }}");
         } else if (d.error === 'full') {
           show("{{ t('Бул сапарда орун толуп калды. Айдоочуга кабарлаңыз.', 'На этой поездке мест больше нет. Сообщите водителю.') }}");
@@ -176,6 +186,8 @@ document.getElementById('again').onclick = function () {
     if (d.ok) {
       document.getElementById('okBox').textContent =
         "✅ {{ t('Жаңырды! Айдоочу жаңы ордуңузду көрөт.', 'Обновлено! Водитель видит ваше новое место.') }}";
+    } else if (d.error === 'far') {     /* v194 */
+      show2(farMsg(d));
     } else {
       show2("{{ t('Жаңырган жок. Кайра аракет кылыңыз.', 'Не обновилось. Попробуйте ещё раз.') }}");
     }

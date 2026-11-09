@@ -42,7 +42,7 @@ from core import logic as _logic
 from core.texts import render as tr_render
 from core.texts import FREE_MODE, INVITE_GOAL   # v135
 
-WEB_VERSION = "v193-name"
+WEB_VERSION = "v194-near"
 print(f"🌐 web/app.py жүктөлдү. Версия = {WEB_VERSION}")
 
 BOT_USERNAME = os.environ.get("BOT_USERNAME", "taxirobot_bot")
@@ -2103,6 +2103,24 @@ def _https(url):
     return url
 
 
+def _pickup_far(trip, lat, lon):
+    """v194: точка алыс болсо — ката сөздүгү, жакын болсо None.
+
+    Текшерүү иштебей калса (ката) — точка кабыл алынат: жүргүнчү
+    биздин катабыздан улам жолдо калбашы керек.
+    """
+    try:
+        fc = (_pickup_post(trip) or {}).get("from_city") or ""
+        ok, dist, lim = pickup.check_near(fc, lat, lon)
+        if ok:
+            return None
+        return {"error": "far", "km": int(round(dist)), "limit": lim,
+                "city": fc}
+    except Exception as e:
+        print("[web] чогултуу аралыгы:", e)
+        return None
+
+
 @app.route("/pickup/<token>")
 def pickup_page(token):
     """Жүргүнчүнүн бети."""
@@ -2131,6 +2149,10 @@ def pickup_add_point(token):
     if not (-90 <= lat <= 90 and -180 <= lon <= 180):
         return jsonify(error="bad"), 400
     name = (d.get("name") or "").strip()[:40] or _t("Жүргүнчү", "Пассажир")
+    # v194: точка жөнөй турган жердин жанында гана
+    _far = _pickup_far(trip, lat, lon)
+    if _far:
+        return jsonify(**_far), 422
     pid = pickup.add_point(token, name, lat, lon)
     if not pid:
         return jsonify(error="full"), 409
@@ -2158,7 +2180,8 @@ def pickup_move_point(token, pid):
     from flask import jsonify
     if not _pickup_allowed(_client_ip()):
         return jsonify(error="limit"), 429
-    if not pickup.by_token(token):
+    _trip = pickup.by_token(token)
+    if not _trip:
         return jsonify(error="none"), 404
     d = request.get_json(silent=True) or {}
     try:
@@ -2168,6 +2191,10 @@ def pickup_move_point(token, pid):
     if not (-90 <= lat <= 90 and -180 <= lon <= 180):
         return jsonify(error="bad"), 400
     name = (d.get("name") or "").strip()[:40] or _t("Жүргүнчү", "Пассажир")
+    # v194: жылдырганда да жөнөй турган жердин жанында гана
+    _far = _pickup_far(_trip, lat, lon)
+    if _far:
+        return jsonify(**_far), 422
     # Чекит табылбады — айдоочу аны өчүрүп салган. Браузер муну
     # көрүп, жаңы чекит кошот.
     if not pickup.move_point(token, pid, name, lat, lon):
@@ -2199,6 +2226,16 @@ def pickup_map_data(mtoken):
     p = _pickup_post(row)
     pts = pickup.order_points(pickup.points(row["token"]),
                               pickup.city_coord(p.get("to_city")))
+    # v194: ар бир жүргүнчү жөнөй турган жерден канча алыс
+    _fc = pickup.city_coord(p.get("from_city"))
+    _lim = pickup.near_limit(p.get("from_city"))
+    for _pt in pts:
+        try:
+            if _fc:
+                _pt["dist"] = round(pickup.km(_fc, (_pt["lat"], _pt["lon"])), 1)
+                _pt["far"] = bool(_lim and _pt["dist"] > _lim)
+        except Exception:
+            pass
     resp = jsonify(points=pts,
                    nav=pickup.nav_links(pts, pickup.city_coord(p.get("to_city"))))
     resp.headers["Cache-Control"] = "no-store"
