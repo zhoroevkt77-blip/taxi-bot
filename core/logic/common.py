@@ -59,7 +59,7 @@ _SEARCH_CACHE = TTLDict(ttl=2 * 3600)
 PAY_WAIT = TTLDict(ttl=24 * 3600)     # user_id -> "access" | "vip" (чек күтүлүүдө)
 NAV = TTLDict(ttl=2 * 3600)          # user_id -> [экран действиелери] — "Артка" үчүн тарых
 BOT_USERNAME = "taxirobot_bot"
-WA_BOT_NUMBER = os.environ.get("WA_BOT_NUMBER", "996227155603")
+WA_BOT_NUMBER = os.environ.get("WA_BOT_NUMBER", "996700034054")  # v196: жаңы бот номери
 CHANNEL_LINK = os.environ.get("CHANNEL_LINK", "https://t.me/taxirobotbot")
 
 # WhatsApp'тагы «издөө» кабарынын башталышы. Каналдагы баскыч ушул
