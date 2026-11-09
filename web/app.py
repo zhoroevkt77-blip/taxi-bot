@@ -42,7 +42,7 @@ from core import logic as _logic
 from core.texts import render as tr_render
 from core.texts import FREE_MODE, INVITE_GOAL   # v135
 
-WEB_VERSION = "v191-help"
+WEB_VERSION = "v193-name"
 print(f"🌐 web/app.py жүктөлдү. Версия = {WEB_VERSION}")
 
 BOT_USERNAME = os.environ.get("BOT_USERNAME", "taxirobot_bot")
@@ -1830,6 +1830,12 @@ def current_account():
     me = None
     try:
         me = websession.account_of(request.cookies.get(SID_COOKIE))
+        # v193: сайтка Кыргызстандын (+996) номери менен гана —
+        # мурда кирип калган чет өлкө номери да кирбейт.
+        _ph = "".join(ch for ch in str((me or {}).get("verified_phone") or "")
+                      if ch.isdigit())
+        if me and _ph and not (_ph.startswith("996") and len(_ph) == 12):
+            me = None
     except Exception as e:
         print("[web] сессия катасы:", e)
 
@@ -1864,9 +1870,12 @@ def login_page():
     row = websession.get(token) if token else None
 
     # Бот мурда эле ырастаган болсо — дароо киргизебиз
-    if row and row.get("account_id"):
-        return _set_session_cookie(redirect("/me?lang=" + _lang()),
-                                   row["account_id"])
+    # v193: код бир жолу гана колдонулат — колдонулган замат өчөт
+    if row and row.get("account_id") and not row.get("expired"):
+        _aid = websession.consume(token)
+        if _aid:
+            return _set_session_cookie(redirect("/me?lang=" + _lang()), _aid)
+        row = None
 
     if not row or row.get("expired"):
         token = websession.start()
@@ -1896,9 +1905,14 @@ def login_status(token):
         resp.headers["Cache-Control"] = "no-store"
         return resp
 
+    # v193: код бир жолу гана — колдонулган замат базадан өчөт.
+    # Бир убакта эки сурам келсе, cookie биринчисине гана берилет.
+    _aid = websession.consume(token)
     resp = jsonify(status="done")
     resp.headers["Cache-Control"] = "no-store"
-    return _set_session_cookie(resp, row["account_id"])
+    if not _aid:
+        return resp
+    return _set_session_cookie(resp, _aid)
 
 
 @app.route("/whoami")
@@ -1920,6 +1934,8 @@ def logout_page():
     websession.close_session(sid)
     resp = redirect("/me?lang=" + _lang())
     resp.delete_cookie(SID_COOKIE, path="/")
+    # v193: эски кирүү коду браузерде калбасын
+    resp.delete_cookie(LOGIN_COOKIE, path="/")
     return resp
 
 
@@ -1964,6 +1980,28 @@ def _remember_name(account_id, name):
             conn.commit()
     except Exception as e:
         print("[web] атты сактоо:", e)
+
+
+@app.route("/me/name", methods=["POST"])
+def me_name():
+    """v193: ✏️ Кабинетте атты алмаштыруу."""
+    me = current_account()
+    if not me:
+        return redirect("/login?lang=" + _lang())
+    raw = request.form.get("name") or ""
+    nm = " ".join(raw.replace("<", "").replace(">", "").split())
+    if not (2 <= len(nm) <= 40):
+        return redirect("/me?lang=%s&name=bad" % _lang())
+    try:
+        with db() as conn:
+            cur = conn.cursor()
+            cur.execute("UPDATE accounts SET first_name = %s "
+                        "WHERE account_id = %s", (nm, me.get("account_id")))
+            conn.commit()
+    except Exception as e:
+        print("[web] атты алмаштыруу:", e)
+        return redirect("/me?lang=%s&name=bad" % _lang())
+    return redirect("/me?lang=%s&name=ok" % _lang())
 
 
 @app.route("/me")

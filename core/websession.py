@@ -16,7 +16,7 @@ core/websession.py
 import secrets
 from core.db import db
 
-WEBSESSION_VERSION = "v157-pool"
+WEBSESSION_VERSION = "v193-once"
 print(f"🔑 core/websession.py жүктөлдү. Версия = {WEBSESSION_VERSION}")
 
 TOKEN_MINUTES = 10      # кирүү коду ушунча убакыт жашайт
@@ -49,7 +49,9 @@ def get(token):
     if not row:
         return None
     row = dict(row)
-    row["expired"] = bool(row.pop("old", False)) and not row["account_id"]
+    # v193: ырасталган код да 10 мүнөттөн кийин эскирет —
+    # мурда ырасталганы түбөлүк жарактуу болуп калчу.
+    row["expired"] = bool(row.pop("old", False))
     return row
 
 
@@ -61,6 +63,33 @@ def attach(token, account_id):
                     (account_id, token))
         conn.commit()
     print(f"[websession] {token} → account {account_id}")
+
+
+def consume(token):
+    """v193: ырасталган кодду БИР ЖОЛУ колдонот.
+
+    Кодду базадан өчүрүп, account_id кайтарат. Код ырастала элек,
+    эскирген же мурда колдонулган болсо — None. DELETE ... RETURNING
+    бир эле сурам болгондуктан, эки сурам бир убакта келсе да
+    бирөөнө гана account_id тиет.
+    """
+    if not token:
+        return None
+    with db() as conn:
+        cur = conn.cursor()
+        cur.execute(
+            "DELETE FROM web_logins WHERE token = %%s "
+            "AND account_id IS NOT NULL "
+            "AND created_at > NOW() - INTERVAL '%s minutes' "
+            "RETURNING account_id" % TOKEN_MINUTES, (token,))
+        row = cur.fetchone()
+        conn.commit()
+    if not row:
+        return None
+    try:
+        return row["account_id"]
+    except (TypeError, KeyError, IndexError):
+        return row[0]
 
 
 # ============ СЕССИЯ (cookie) ============
