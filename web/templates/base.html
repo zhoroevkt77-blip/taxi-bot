@@ -809,9 +809,35 @@
   }
   .tab.add .i svg { width: 25px; height: 25px; stroke-width: 2.6; }
   .tab.add:active .i { transform: scale(.94); }
+
+  /* v195: баскыч басылганда үстүндөгү ичке жүктөлүү сызыгы */
+  #navBar {
+    position: fixed; top: 0; left: 0; height: 3px; width: 0;
+    z-index: 60; pointer-events: none; opacity: 0;
+    background: linear-gradient(90deg, var(--yellow) 0%, var(--yellow-2) 100%);
+    box-shadow: 0 0 8px rgba(255,183,3,.7);
+  }
+  #navBar.go {
+    opacity: 1; width: 85%;
+    transition: width 2.5s cubic-bezier(.1,.7,.3,1), opacity .1s;
+  }
 </style>
+{# v195: Chrome бетти манжа тийгенде алдын ала жүктөйт #}
+{% raw %}
+<script type="speculationrules">
+{"prefetch": [{"where": {"and": [
+  {"href_matches": "/*"},
+  {"not": {"href_matches": "/logout*"}},
+  {"not": {"href_matches": "/login*"}},
+  {"not": {"href_matches": "/admin*"}},
+  {"not": {"href_matches": "/pickup*"}},
+  {"not": {"href_matches": "/static/*"}}
+]}, "eagerness": "moderate"}]}
+</script>
+{% endraw %}
 </head>
 <body>
+<div id="navBar"></div>
 
 <div class="top">
   <div class="top-row">
@@ -1014,6 +1040,12 @@
      Бир эле дарек эки жолу суралбайт. Башка домендер, «#» жана
      жаңы терезеде ачылуучу шилтемелер тийилбейт. */
   (function () {
+    /* v195: Chrome «speculation rules» менен өзү жүктөйт — бул
+       эски ыкма эки жолу суратпашы үчүн өчөт */
+    try {
+      if (HTMLScriptElement.supports &&
+          HTMLScriptElement.supports("speculationrules")) return;
+    } catch (e) {}
     var asked = Object.create(null);
 
     function ask(a) {
@@ -1041,6 +1073,40 @@
 
     document.addEventListener("pointerdown", onTouch, { passive: true });
     document.addEventListener("touchstart", onTouch, { passive: true });
+  })();
+
+  /* ---- v195: басканда дароо жооп ----
+     Бет жүктөлүп жатканда экран катып турбасын: тандалган бөлүм
+     ошол замат белгиленет, үстүндө жүктөлүү сызыгы жүрөт. */
+  (function () {
+    var bar = document.getElementById("navBar");
+    if (!bar) return;
+    function go() { bar.classList.remove("go"); void bar.offsetWidth; bar.classList.add("go"); }
+    function stop() { bar.classList.remove("go"); }
+
+    document.addEventListener("click", function (e) {
+      if (e.defaultPrevented || e.button !== 0 ||
+          e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+      var a = e.target && e.target.closest && e.target.closest("a[href]");
+      if (!a || a.target === "_blank" || a.hasAttribute("download")) return;
+      if (a.origin !== location.origin) return;
+      var h = a.getAttribute("href") || "";
+      if (!h || h.charAt(0) === "#" || /^(javascript|tel|mailto):/i.test(h)) return;
+      if (a.pathname === location.pathname && a.search === location.search &&
+          a.hash) return;
+      if (a.classList.contains("tab")) {
+        var tabs = document.querySelectorAll(".tabbar .tab");
+        for (var i = 0; i < tabs.length; i++) tabs[i].classList.remove("on");
+        a.classList.add("on");
+      }
+      go();
+    });
+    document.addEventListener("submit", function (e) {
+      var f = e.target;
+      if (!e.defaultPrevented && f && f.method !== "dialog" && f.target !== "_blank") go();
+    });
+    /* «Артка» менен кайтканда сызык илинип калбасын */
+    window.addEventListener("pageshow", stop);
   })();
 </script>
 

@@ -42,7 +42,7 @@ from core import logic as _logic
 from core.texts import render as tr_render
 from core.texts import FREE_MODE, INVITE_GOAL   # v135
 
-WEB_VERSION = "v194-near"
+WEB_VERSION = "v195-speed"
 print(f"🌐 web/app.py жүктөлдү. Версия = {WEB_VERSION}")
 
 BOT_USERNAME = os.environ.get("BOT_USERNAME", "taxirobot_bot")
@@ -757,6 +757,47 @@ def _no_cache(resp):
         resp.headers["Cache-Control"] = "no-store, max-age=0"
     else:
         resp.headers["Cache-Control"] = "private, max-age=8"
+    return resp
+
+
+# ============ v195: gzip кысуу ============
+import gzip as _gzip
+
+GZIP_TYPES = ("text/html", "application/json", "text/css",
+              "application/javascript", "text/javascript",
+              "image/svg+xml", "application/manifest+json")
+
+
+@app.after_request
+def _gzip_resp(resp):
+    """Жоопту gzip менен кысат — бет телефонго тезирээк жетет.
+
+    Кысылбайт: сүрөт/статикалык файл (direct_passthrough), агым,
+    мурда кысылган, 1 КБ'тан кичине жооп, 2xx'тен башка статус,
+    же браузер gzip колдобосо. Ката чыкса — жооп кысылбай кетет.
+    """
+    try:
+        if (not 200 <= resp.status_code < 300
+                or resp.direct_passthrough or resp.is_streamed
+                or "Content-Encoding" in resp.headers
+                or resp.mimetype not in GZIP_TYPES
+                or "gzip" not in (request.headers.get("Accept-Encoding")
+                                  or "").lower()):
+            return resp
+        data = resp.get_data()
+        if len(data) < 1024:
+            return resp
+        z = _gzip.compress(data, compresslevel=6)
+        resp.set_data(z)
+        resp.headers["Content-Encoding"] = "gzip"
+        resp.headers["Content-Length"] = str(len(z))
+        v = resp.headers.get("Vary")
+        if not v:
+            resp.headers["Vary"] = "Accept-Encoding"
+        elif "accept-encoding" not in v.lower():
+            resp.headers["Vary"] = v + ", Accept-Encoding"
+    except Exception as e:
+        print("[web] gzip:", e)
     return resp
 
 
