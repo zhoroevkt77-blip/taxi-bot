@@ -70,6 +70,15 @@
     font-size: 13px; line-height: 1.45; color: #666; margin-bottom: 8px;
   }
   #airHint:empty { display: none; }
+  /* v189: толтурулбаган талаа — кызыл чек жана астында түшүндүрмө */
+  .pick.bad, input.bad {
+    border-color: #d92d20 !important; background: #fff6f5 !important;
+  }
+  .ferr {
+    display: none; font-size: 13px; font-weight: 700; color: #b42318;
+    margin-top: 6px; line-height: 1.4;
+  }
+  .ferr.on { display: block; }
 
   /* v182: ким катары жазылат.
      v188: Жарыя берүүдөгү баскычтардай — бирин-бири астында, бүт
@@ -167,6 +176,7 @@
       <input type="hidden" id="wFrom" value="">
       <button type="button" class="pick" id="pickFrom">
         {{ t('— тандаңыз —', '— выберите —') }}</button>
+      <div class="ferr" id="e_from"></div>
     </div>
 
     <div class="sec"><span>{{ t('Каякка', 'Куда') }}</span></div>
@@ -174,6 +184,7 @@
       <input type="hidden" id="wTo" value="">
       <button type="button" class="pick" id="pickTo">
         {{ t('— тандаңыз —', '— выберите —') }}</button>
+      <div class="ferr" id="e_to"></div>
     </div>
 
     {# v158: тандалган багыт жана ошол багыттагы айдоочулар #}
@@ -229,6 +240,22 @@
   var note = document.getElementById("wNote");
   var list = document.getElementById("wList");
   if (!addBtn) return;
+
+  /* v189: бош калса кызыл, тандалары менен өчөт */
+  function badPick(which, msg) {
+    var b = document.getElementById(which === "from" ? "pickFrom" : "pickTo");
+    var e = document.getElementById("e_" + which);
+    if (b) { if (msg) { b.classList.add("bad"); } else { b.classList.remove("bad"); } }
+    if (e) { e.textContent = msg || ""; if (msg) { e.classList.add("on"); } else { e.classList.remove("on"); } }
+  }
+  [["wFrom", "from"], ["wTo", "to"]].forEach(function (x) {
+    var inp = document.getElementById(x[0]);
+    if (inp) {
+      inp.addEventListener("change", function () {
+        if (inp.value) { badPick(x[1], ""); }
+      });
+    }
+  });
 
   function say(m, cls) {
     note.textContent = m || "";
@@ -627,7 +654,16 @@
   addBtn.addEventListener("click", function () {
     var f = fromSel.value, t = toSel.value;
     if (!f || !t) {
-      say(s("Эки жерди тең тандаңыз.", "Выберите оба пункта."), "warn");
+      /* v189: бош калганы кызыл болот */
+      badPick("from", f ? "" : s("Кайсы жерден экенин тандаңыз.", "Выберите, откуда."));
+      badPick("to", t ? "" : s("Кайсы жерге экенин тандаңыз.", "Выберите, куда."));
+      say(s("Кызыл менен белгиленген жерди тандаңыз.",
+            "Выберите пункт, отмеченный красным."), "warn");
+      var fb = document.getElementById(f ? "pickTo" : "pickFrom");
+      if (fb) {
+        try { fb.scrollIntoView({ behavior: "smooth", block: "center" }); }
+        catch (e) { fb.scrollIntoView(); }
+      }
       return;
     }
     if (f === t) {

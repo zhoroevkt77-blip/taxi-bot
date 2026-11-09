@@ -138,6 +138,27 @@
     flex: 0 1 auto; min-width: 0;
   }
   #formBox .sec::after { min-width: 16px; }
+  /* v189: толтурулбаган талаа — кызыл чек жана астында түшүндүрмө */
+  .pick.bad, input.bad {
+    border-color: #d92d20 !important; background: #fff6f5 !important;
+  }
+  .ferr {
+    display: none; font-size: 13px; font-weight: 700; color: #b42318;
+    margin-top: 6px; line-height: 1.4;
+  }
+  .ferr.on { display: block; }
+  /* v189: «🤝 Келишим» — баа талаасынын астында */
+  .dealchip {
+    margin-top: 8px; border: 1.5px solid var(--mist, #E3E8F0);
+    background: var(--card, #fff); color: #111; border-radius: 999px;
+    padding: 8px 15px; font-family: inherit; font-size: 14px;
+    font-weight: 700; cursor: pointer;
+  }
+  .dealchip.on {
+    background: linear-gradient(135deg, var(--yellow, #ffc61a) 0%,
+                                        var(--yellow-2, #ffb703) 100%);
+    border-color: var(--yellow, #ffc61a);
+  }
 </style>
 
 <div class="page-head">
@@ -226,6 +247,7 @@
     <div class="fld">
       <button type="button" class="pick" id="pickFrom" data-t="from">
         {{ t('— тандаңыз —', '— выберите —') }}</button>
+      <div class="ferr" id="e_from"></div>
     </div>
     </div>
 
@@ -234,6 +256,7 @@
     <div class="fld">
       <button type="button" class="pick" id="pickTo" data-t="to">
         {{ t('— тандаңыз —', '— выберите —') }}</button>
+      <div class="ferr" id="e_to"></div>
     </div>
     </div>
 
@@ -262,7 +285,8 @@
 
       <div class="sec"><span>{{ t('Унааңыздын маркасы жана модели кандай?', 'Какая у вас машина — марка и модель?') }}</span></div>
       <div class="fld"><input id="fCar" maxlength="40"
-        placeholder="{{ t('Мисалы: Toyota Alphard, ак', 'Например: Toyota Alphard, белая') }}"></div>
+        placeholder="{{ t('Мисалы: Toyota Alphard, ак', 'Например: Toyota Alphard, белая') }}">
+        <div class="ferr" id="e_car"></div></div>
     </div>
 
     <div id="paxFields" style="display:none">
@@ -293,11 +317,15 @@
 
     {# v136: жазуусу жана мисалы ролго жараша JS менен коюлат #}
     <div class="sec"><span id="priceLbl">{{ t('Бир орундукка жол кире акысы канча?', 'Сколько стоит одно место?') }}</span></div>
-    <div class="fld"><input id="fPrice" maxlength="30"></div>
+    <div class="fld"><input id="fPrice" maxlength="30">
+      {# v189: ботто да ушундай баскыч бар #}
+      <button type="button" class="dealchip" id="fDeal">🤝 {{ t('Келишим', 'Договорная') }}</button>
+      <div class="ferr" id="e_price"></div></div>
 
     <div class="sec"><span>{{ t('Атыңыз ким?', 'Как вас зовут?') }}</span></div>
     <div class="fld"><input id="fName" maxlength="30"
-      placeholder="{{ t('Мисалы: Данияр', 'Например: Данияр') }}"></div>
+      placeholder="{{ t('Мисалы: Данияр', 'Например: Данияр') }}">
+      <div class="ferr" id="e_name"></div></div>
 
     <div class="sec"><span>{{ t('Кошумча (милдеттүү эмес)', 'Комментарий (необязательно)') }}</span></div>
     <div class="fld"><input id="fComment" maxlength="120"></div>
@@ -448,8 +476,8 @@
                  "Сколько платите за одного пассажира?")
   };
   var PRICE_PH = {
-    driver: s("Мисалы: 1500 сом же келишим",
-              "Например: 1500 сом или договорная"),
+    driver: s("Мисалы: 1500 сом",                        /* v189: астында «Келишим» баскычы */
+              "Например: 1500 сом"),
     passenger: s("Мисалы: 1500 сом · бош калса — келишим",
                  "Например: 1500 сом · пусто — договорная")
   };
@@ -479,6 +507,7 @@
   document.querySelectorAll(".role").forEach(function (b) {
     b.addEventListener("click", function () {
       role = b.dataset.role;
+      if (window.trClearBad) { window.trClearBad(); }     /* v189 */
       document.querySelectorAll(".role").forEach(function (x) {
         var on = x === b;
         x.style.background = on ? "" : "#f5f5f5";
@@ -763,6 +792,7 @@
     var it = e.target.closest(".it");
     if (!it) return;
     chosen[target] = it.dataset.v;
+    if (window.trMark) { window.trMark(target, ""); }   /* v189 */
     var btn = document.getElementById(target === "from" ? "pickFrom" : "pickTo");
     btn.textContent = it.dataset.v;
     btn.classList.add("set");
@@ -791,6 +821,7 @@
     b.addEventListener("click", function () {
       airCode = b.dataset.air;
       airDir = b.dataset.dir;
+      if (window.trClearBad) { window.trClearBad(); }     /* v189 */
       airAll = false;
       document.querySelectorAll(".airb").forEach(function (x) {
         var on = x === b;
@@ -808,6 +839,7 @@
   document.querySelectorAll(".mode").forEach(function (b) {
     b.addEventListener("click", function () {
       mode = b.dataset.mode;
+      if (window.trClearBad) { window.trClearBad(); }     /* v189 */
       if (mode === "air") { airAll = false; }      /* v149 */
       document.querySelectorAll(".mode").forEach(function (x) {
         var on = x === b;
@@ -819,6 +851,85 @@
     });
   });
   applyMode();
+
+  /* ---- v189: бош талаалар бир учурда кызыл болот ----
+     Мурда бир гана эскертүү эң ылдыйда чыкчу — адам эмнени
+     толтурбаганын издеп калчу. Эми ар бир бош талаа өзү белгиленет,
+     астында эмне кылуу керектиги жазылат. */
+  var ERR = {
+    from: s("Кайсы жерден чыгарыңызды тандаңыз.", "Выберите, откуда выезжаете."),
+    to: s("Кайсы жерге барарыңызды тандаңыз.", "Выберите, куда едете."),
+    same: s("Каяктан жана каякка бирдей болбошу керек.",
+            "Пункты отправления и назначения должны отличаться."),
+    car: s("Унааңыздын маркасын жана моделин жазыңыз.",
+           "Укажите марку и модель машины."),
+    price: s("Сумманы жазыңыз же «Келишим» басыңыз.",
+             "Укажите сумму или нажмите «Договорная»."),
+    name: s("Атыңызды жазыңыз.", "Укажите имя.")
+  };
+  var FIELD = { from: "pickFrom", to: "pickTo", car: "fCar",
+                price: "fPrice", name: "fName" };
+
+  function mark(key, msg) {
+    var el = document.getElementById(FIELD[key]);
+    var e = document.getElementById("e_" + key);
+    if (el) { if (msg) { el.classList.add("bad"); } else { el.classList.remove("bad"); } }
+    if (e) { e.textContent = msg || ""; if (msg) { e.classList.add("on"); } else { e.classList.remove("on"); } }
+  }
+  function clearBad() { for (var k in FIELD) { mark(k, ""); } }
+  window.trMark = mark;
+  window.trClearBad = clearBad;
+
+  function shown(id) {
+    var el = document.getElementById(id);
+    return !!el && el.offsetParent !== null;
+  }
+
+  /* Жазылары менен кызыл өчөт */
+  ["car", "price", "name"].forEach(function (k) {
+    var el = document.getElementById(FIELD[k]);
+    if (el) {
+      el.addEventListener("input", function () {
+        if (el.value.trim()) { mark(k, ""); }
+      });
+    }
+  });
+
+  /* «🤝 Келишим»: басылса талаага жазылат, кайра басылса өчөт */
+  (function () {
+    var chip = document.getElementById("fDeal");
+    var inp = document.getElementById("fPrice");
+    if (!chip || !inp) return;
+    var DEAL = s("Келишим", "Договорная");
+    function paint() {
+      if (inp.value.trim() === DEAL) { chip.classList.add("on"); }
+      else { chip.classList.remove("on"); }
+    }
+    chip.addEventListener("click", function () {
+      inp.value = (inp.value.trim() === DEAL) ? "" : DEAL;
+      paint();
+      if (inp.value) { mark("price", ""); }
+    });
+    inp.addEventListener("input", paint);
+  })();
+
+  /* Бардык бош талааны бир учурда белгилейт. Кайтарат: бош
+     талаалардын ачкычтары, биринчиси — беттеги эң үстүнкүсү. */
+  function checkAll(body) {
+    clearBad();
+    var bad = [];
+    function add(k, msg) { mark(k, msg); if (bad.indexOf(k) < 0) { bad.push(k); } }
+    if (!body.from_city) { add("from", ERR.from); }
+    if (!body.to_city) { add("to", ERR.to); }
+    if (body.from_city && body.to_city && body.from_city === body.to_city) {
+      if (shown("pickFrom")) { add("from", ERR.same); }
+      if (shown("pickTo")) { add("to", ERR.same); }
+    }
+    if (role === "driver" && !body.car) { add("car", ERR.car); }
+    if (role === "driver" && !body.price) { add("price", ERR.price); }
+    if (!body.name) { add("name", ERR.name); }
+    return bad;
+  }
 
   document.getElementById("send").addEventListener("click", function () {
     var body = {
@@ -850,23 +961,31 @@
       }
     }
 
-    if (!body.from_city || !body.to_city) {
-      say(s("Каяктан жана каякка — экөөнү тең тандаңыз.", "Выберите оба пункта."), "warn"); return;
-    }
-    if (body.from_city === body.to_city) {
-      say(s("Чыгуу жана баруу жери бирдей болбошу керек.",
-            "Пункты отправления и назначения должны отличаться."), "warn"); return;
-    }
-    if (!body.name) { say(s("Атыңызды жазыңыз.", "Укажите имя."), "warn"); return; }
-    /* v136: жүргүнчү баанын так санын көп учурда билбейт —
-       бош калтырса «Келишим» деп жазабыз. Айдоочуга милдеттүү. */
-    if (!body.price) {
-      if (role === "driver") {
-        say(s("Бир орундун баасын жазыңыз.", "Укажите цену за место."), "warn");
-        return;
+    /* v189: бош талаалардын баары бир учурда кызыл болот */
+    var bad = checkAll(body);
+    if (bad.length) {
+      say(bad.length === 1
+          ? s("Бир жер толтурулган жок — кызыл менен белгиленди.",
+              "Одно поле не заполнено — отмечено красным.")
+          : s(bad.length + " жер толтурулган жок — кызыл менен белгиленди.",
+              "Не заполнено полей: " + bad.length + " — отмечены красным."),
+          "warn");
+      var first = document.getElementById(FIELD[bad[0]]);
+      if (first) {
+        try { first.scrollIntoView({ behavior: "smooth", block: "center" }); }
+        catch (e) { first.scrollIntoView(); }
+        if (first.tagName === "INPUT") {
+          setTimeout(function () {
+            try { first.focus({ preventScroll: true }); } catch (e) { first.focus(); }
+          }, 400);
+        }
       }
-      body.price = s("Келишим", "Договорная");
+      return;
     }
+    say("");
+    /* v136: жүргүнчү баанын так санын көп учурда билбейт —
+       бош калтырса «Келишим» деп жазабыз. */
+    if (!body.price) { body.price = s("Келишим", "Договорная"); }
 
     /* v144: айдоочуга алгач эскертүү. Жүргүнчүгө керек эмес —
        эскертүү айдоочунун жоопкерчилиги жөнүндө. */
