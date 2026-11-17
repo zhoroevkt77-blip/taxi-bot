@@ -58,7 +58,8 @@ SESSIONS = TTLDict(ttl=2 * 3600)  # 2 саат тийилбесе өчөт
 _SEARCH_CACHE = TTLDict(ttl=2 * 3600)
 PAY_WAIT = TTLDict(ttl=24 * 3600)     # user_id -> "access" | "vip" (чек күтүлүүдө)
 NAV = TTLDict(ttl=2 * 3600)          # user_id -> [экран действиелери] — "Артка" үчүн тарых
-BOT_USERNAME = "taxirobot_bot"
+# v198: Railway'деги BOT_USERNAME өзгөрмөсүнөн окулат
+BOT_USERNAME = os.environ.get("BOT_USERNAME", "taxi_tap_region_bot")
 WA_BOT_NUMBER = os.environ.get("WA_BOT_NUMBER", "996700034054")  # v196: жаңы бот номери
 CHANNEL_LINK = os.environ.get("CHANNEL_LINK", "https://t.me/taxirobotbot")
 

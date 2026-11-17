@@ -45,7 +45,7 @@ from core.texts import FREE_MODE, INVITE_GOAL   # v135
 WEB_VERSION = "v195-speed"
 print(f"🌐 web/app.py жүктөлдү. Версия = {WEB_VERSION}")
 
-BOT_USERNAME = os.environ.get("BOT_USERNAME", "taxirobot_bot")
+BOT_USERNAME = os.environ.get("BOT_USERNAME", "taxi_tap_region_bot")
 WA_BOT_NUMBER = os.environ.get("WA_BOT_NUMBER", "996700034054")  # v196: жаңы бот номери
 CHANNEL_LINK = os.environ.get("CHANNEL_LINK", "https://t.me/taxirobotbot")
 
