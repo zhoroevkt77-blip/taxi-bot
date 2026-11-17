@@ -3,92 +3,104 @@
 {% block title %}{{ t('Кабинет', 'Кабинет') }} — Такси ТАП! Регион{% endblock %}
 
 {% block content %}
-
+{# v200: Кабинет жаңы стилде — сары-кара көлөмдүү иконкалар,
+   профиль башы, 4 чакан карточка, түшүндүрмөлүү катарлар. #}
 <style>
-  /* Колдонуучунун сабы — калган саптардан айырмаланбасын */
-  .me-row { cursor: default; }
-  .me-row .nm .sub {
-    display: block; font-weight: 500; font-size: 13px;
-    color: var(--grey); margin-top: 2px; letter-spacing: 0;
-  }
-  /* v139: аягындагы жазуунун үстүндөгү сүрөт.
-     Сүрөт менен текст бир блок болуп окулсун — ошондуктан
-     сүрөттүн асты, тексттин үстү тик бурч калат. */
-  .brandpic {
-    margin-top: 14px; border-radius: 16px 16px 0 0;
-    overflow: hidden; line-height: 0; background: #fff;
-  }
-  /* v140: аспект катышы бекитилди — браузер сүрөттү
-     эч качан өзүнчө чоюп жибербейт. */
-  .brandpic img {
-    width: 100%; height: auto; display: block;
-    aspect-ratio: 900 / 498;
-  }
-  .brandpic + .info-card {
-    margin-top: 0; border-radius: 0 0 16px 16px;
-  }
-  /* v172: жүргүнчү белгиленсе — катардын өзүндө сан */
-  .row-n {
-    margin-left: auto; min-width: 23px; height: 23px; border-radius: 12px;
-    display: inline-flex; align-items: center; justify-content: center;
-    padding: 0 7px; font-size: 12.5px; font-weight: 900; color: #16161a;
-    background: linear-gradient(135deg, #ffc61a 0%, #ffb703 100%);
-  }
-  /* Сан турганда жебе четке жабышып калбасын */
-  .row-n + .chev { margin-left: 9px; }
+  .mx-prof { display: flex; flex-direction: column; align-items: center;
+             padding: 14px 0 18px; }
+  .mx-ava { width: 92px; height: 92px; border-radius: 50%; padding: 4px;
+            background: linear-gradient(135deg, var(--yellow) 0%, var(--yellow-2) 100%);
+            box-shadow: 0 6px 18px rgba(255,183,3,.45); position: relative; }
+  .mx-ava > div { width: 100%; height: 100%; border-radius: 50%; background: #fff;
+                  display: flex; align-items: center; justify-content: center; }
+  .mx-ava > div svg { width: 58px; height: 58px; }
+  .mx-edit { position: absolute; right: -2px; bottom: -2px; width: 34px; height: 34px;
+             border-radius: 50%; background: var(--black); border: 3px solid #fff;
+             display: flex; align-items: center; justify-content: center;
+             font-size: 14px; cursor: pointer; padding: 0; }
+  .mx-prof h2 { margin: 12px 0 2px; font-size: 26px; font-weight: 900;
+                letter-spacing: -.6px; text-align: center; }
+  .mx-prof .ph { font-weight: 800; font-size: 16px; color: #33333a; }
 
-  /* v193: ✏️ атты алмаштыруу */
-  .me-edit {
-    margin-left: auto; flex: none; width: 40px; height: 40px;
-    border: 0; border-radius: 12px; cursor: pointer;
-    background: #f5f5f5; font-size: 18px; line-height: 1;
-  }
-  .me-name {
-    background: var(--card, #fff); border-radius: var(--r, 18px);
-    box-shadow: var(--shadow, none); padding: 14px; margin: -4px 0 12px;
-  }
-  .me-name label {
-    display: block; font-size: 14px; font-weight: 800; margin-bottom: 8px;
-  }
-  .me-name input {
-    width: 100%; box-sizing: border-box; font: inherit; font-size: 16px;
-    padding: 12px 14px; border: 1.5px solid #e3e8f0; border-radius: 14px;
-  }
-  .me-name input:focus { outline: none; border-color: var(--yellow, #ffc61a); }
+  .mx-tiles { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px;
+              margin-bottom: 14px; }
+  .mx-tile { background: var(--card); border-radius: 18px; box-shadow: var(--shadow);
+             padding: 12px 2px 11px; display: flex; flex-direction: column;
+             align-items: center; gap: 7px; position: relative;
+             transition: transform .13s; }
+  .mx-tile:active { transform: scale(.96); }
+  .mx-tile svg { width: 40px; height: 40px; }
+  .mx-tile span { font-size: 10.5px; font-weight: 800; letter-spacing: -.3px;
+                  text-align: center; line-height: 1.2; }
+  .mx-tile .mx-n { position: absolute; top: 6px; right: 6px; min-width: 21px; height: 21px;
+                   border-radius: 11px; padding: 0 6px; font-size: 11.5px; font-weight: 900;
+                   display: flex; align-items: center; justify-content: center;
+                   background: linear-gradient(135deg, var(--yellow) 0%, var(--yellow-2) 100%); }
+
+  .mx-row { display: flex; align-items: center; gap: 14px; background: var(--card);
+            border-radius: 22px; padding: 13px 16px 13px 12px; margin-bottom: 11px;
+            box-shadow: var(--shadow); transition: transform .13s; }
+  .mx-row:active { transform: scale(.985); }
+  .mx-row svg { width: 52px; height: 52px; flex: 0 0 auto; }
+  .mx-row .t { flex: 1; min-width: 0; }
+  .mx-row b { display: block; font-size: 17px; font-weight: 900; letter-spacing: -.3px; }
+  .mx-row small { display: block; font-size: 13.5px; color: var(--grey); margin-top: 2px; }
+  .mx-row .ch { font-size: 26px; font-weight: 900; color: var(--black); }
+
+  .mx-out { display: flex; align-items: center; justify-content: center; gap: 10px;
+            margin: 18px auto 6px; width: 78%; padding: 17px; border-radius: 30px;
+            font-weight: 900; font-size: 18px; color: var(--black);
+            background: linear-gradient(135deg, var(--yellow) 0%, var(--yellow-2) 100%);
+            box-shadow: var(--glow); }
+
+  /* v193: атты алмаштыруу формасы */
+  .me-name { background: var(--card); border-radius: var(--r); box-shadow: var(--shadow);
+             padding: 14px; margin: 0 0 14px; }
+  .me-name label { display: block; font-size: 14px; font-weight: 800; margin-bottom: 8px; }
+  .me-name input { width: 100%; box-sizing: border-box; font: inherit; font-size: 16px;
+                   padding: 12px 14px; border: 1.5px solid #e3e8f0; border-radius: 14px; }
+  .me-name input:focus { outline: none; border-color: var(--yellow); }
   .me-name .btns { display: flex; gap: 8px; margin-top: 10px; }
-  .me-name .btns button {
-    flex: 1; border: 0; border-radius: 14px; padding: 12px;
-    font: inherit; font-weight: 800; cursor: pointer;
-  }
-  .me-name .save {
-    background: linear-gradient(135deg, #ffc61a 0%, #ffb703 100%);
-    color: #16161a;
-  }
+  .me-name .btns button { flex: 1; border: 0; border-radius: 14px; padding: 12px;
+                          font: inherit; font-weight: 800; cursor: pointer; }
+  .me-name .save { background: linear-gradient(135deg, var(--yellow) 0%, var(--yellow-2) 100%);
+                   color: var(--black); }
   .me-name .cancel { background: #f5f5f5; color: #111; }
-  .me-msg {
-    font-size: 13.5px; font-weight: 700; margin: -4px 4px 12px;
-  }
+  .me-msg { font-size: 13.5px; font-weight: 700; margin: -6px 4px 12px; text-align: center; }
   .me-msg.ok { color: #1a7f37; }
   .me-msg.bad { color: #d92d20; }
 </style>
 
-<div class="page-head">
-  <h1>{{ t('Кабинет', 'Кабинет') }}</h1>
-</div>
+{# Иконкалардын жалпы түстөрү #}
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <linearGradient id="mxY" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffe066"/><stop offset=".55" stop-color="#ffc61a"/>
+      <stop offset="1" stop-color="#f29e00"/></linearGradient>
+    <linearGradient id="mxK" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#3a3a42"/><stop offset="1" stop-color="#0d0d10"/></linearGradient>
+    <filter id="mxS" x="-20%" y="-20%" width="140%" height="150%">
+      <feDropShadow dx="0" dy="2.5" stdDeviation="1.8" flood-color="#000" flood-opacity=".28"/></filter>
+  </defs>
+</svg>
 
 {% if me %}
-  {# v193: ✏️ атты алмаштыруу. first_name биринчи — ал алмашат #}
   {% set _nm = me.first_name or me.name or '' %}
   {% set _st = request.args.get('name', '') %}
-  <div class="row-item me-row">
-    <span class="ico">👤</span>
-    <span class="nm">
-      {{ _nm or t('Колдонуучу', 'Пользователь') }}
-      {% if me.verified_phone %}<span class="sub">{{ me.verified_phone }}</span>{% endif %}
-    </span>
-    <button type="button" class="me-edit" id="meEditBtn"
-            aria-label="{{ t('Атты алмаштыруу', 'Изменить имя') }}">✏️</button>
+  {% set _p = (me.verified_phone or '')|string %}
+  <div class="mx-prof">
+    <div class="mx-ava">
+      <div><svg viewBox="0 0 64 64"><circle cx="32" cy="24" r="12" fill="url(#mxK)"/>
+        <path d="M10 58a22 20 0 0 1 44 0z" fill="url(#mxK)"/></svg></div>
+      <button type="button" class="mx-edit" id="meEditBtn"
+              aria-label="{{ t('Атты алмаштыруу', 'Изменить имя') }}">✏️</button>
+    </div>
+    <h2>{{ _nm or t('Колдонуучу', 'Пользователь') }}</h2>
+    {% if _p %}
+      <div class="ph">{% if _p|length == 12 and _p[:3] == '996' %}+996 {{ _p[3:6] }} {{ _p[6:9] }} {{ _p[9:] }}{% else %}{{ _p }}{% endif %}</div>
+    {% endif %}
   </div>
+
   {% if _st == 'ok' %}
     <div class="me-msg ok">✅ {{ t('Атыңыз сакталды', 'Имя сохранено') }}</div>
   {% endif %}
@@ -100,113 +112,144 @@
            placeholder="{{ t('Мисалы: Азамат', 'Например: Азамат') }}">
     {% if _st == 'bad' %}
       <div class="me-msg bad" style="margin:8px 2px 0">
-        {{ t('Атты 2–40 белги менен жазыңыз', 'Напишите имя: 2–40 символов') }}
-      </div>
+        {{ t('Атты 2–40 белги менен жазыңыз', 'Напишите имя: 2–40 символов') }}</div>
     {% endif %}
     <div class="btns">
       <button type="submit" class="save">{{ t('Сактоо', 'Сохранить') }}</button>
-      <button type="button" class="cancel" id="meNameCancel">
-        {{ t('Жокко чыгаруу', 'Отмена') }}</button>
+      <button type="button" class="cancel" id="meNameCancel">{{ t('Жокко чыгаруу', 'Отмена') }}</button>
     </div>
   </form>
-  <script>
-  (function () {
-    var b = document.getElementById("meEditBtn"),
-        f = document.getElementById("meNameForm"),
-        c = document.getElementById("meNameCancel"),
-        i = document.getElementById("meNameIn");
-    if (!b || !f) return;
-    b.addEventListener("click", function () {
-      f.hidden = !f.hidden;
-      if (!f.hidden && i) { i.focus(); i.select(); }
-    });
-    if (c) c.addEventListener("click", function () { f.hidden = true; });
-  })();
-  </script>
 {% else %}
-  <a class="row-item" href="/login?lang={{ lang }}">
-    <span class="ico">🔐</span>
-    <span class="nm">{{ t('Кирүү — номерди ырастоо', 'Вход — подтвердить номер') }}</span>
-    <span class="chev">›</span>
+  <div class="mx-prof">
+    <div class="mx-ava"><div><svg viewBox="0 0 64 64"><circle cx="32" cy="24" r="12" fill="url(#mxK)"/>
+      <path d="M10 58a22 20 0 0 1 44 0z" fill="url(#mxK)"/></svg></div></div>
+    <h2>{{ t('Кош келиңиз!', 'Добро пожаловать!') }}</h2>
+  </div>
+  <a class="mx-row" href="/login?lang={{ lang }}">
+    <svg viewBox="0 0 56 56" filter="url(#mxS)"><rect x="10" y="24" width="36" height="26" rx="6" fill="url(#mxY)"/>
+      <path d="M17 24v-6a11 11 0 0 1 22 0v6" stroke="url(#mxK)" stroke-width="5" fill="none"/>
+      <circle cx="28" cy="35" r="4" fill="#16161a"/><rect x="26.5" y="36" width="3" height="7" rx="1.5" fill="#16161a"/></svg>
+    <div class="t"><b>{{ t('Кирүү', 'Войти') }}</b>
+      <small>{{ t('Номерди Telegram же WhatsApp аркылуу ырастоо', 'Подтвердить номер через Telegram или WhatsApp') }}</small></div>
+    <span class="ch">›</span>
   </a>
 {% endif %}
 
-<a class="row-item" href="{{ lang_ru_url if lang == 'ky' else lang_ky_url }}">
-  <span class="ico">🌐</span>
-  <span class="nm">{{ t('Тил: Кыргызча', 'Язык: Русский') }}</span>
-  <span class="chev">›</span>
-</a>
+<div class="mx-tiles">
+  <a class="mx-tile" href="/myposts?lang={{ lang }}">
+    {% if pk_total %}<span class="mx-n">{{ pk_total }}</span>{% endif %}
+    <svg viewBox="0 0 48 48" filter="url(#mxS)"><rect x="9" y="7" width="30" height="36" rx="5" fill="url(#mxK)"/>
+      <rect x="13" y="12" width="22" height="27" rx="2.5" fill="#fff"/><rect x="17" y="4" width="14" height="8" rx="3" fill="url(#mxY)"/>
+      <rect x="16.5" y="18" width="15" height="3" rx="1.5" fill="#ffc61a"/><rect x="16.5" y="24" width="15" height="3" rx="1.5" fill="#cfcfd6"/>
+      <rect x="16.5" y="30" width="10" height="3" rx="1.5" fill="#cfcfd6"/></svg>
+    <span>{{ t('Жарыяларым', 'Мои объявл.') }}</span>
+  </a>
+  <a class="mx-tile" href="/post?lang={{ lang }}">
+    <svg viewBox="0 0 48 48" filter="url(#mxS)"><path d="M8 19h7l17-10v30L15 29H8a3 3 0 0 1-3-3v-4a3 3 0 0 1 3-3z" fill="url(#mxY)"/>
+      <path d="M15 19v10" stroke="#16161a" stroke-width="2.5"/><path d="M11 29l3 10h6l-3-10z" fill="url(#mxK)"/>
+      <path d="M37 17q4 7 0 14" stroke="#16161a" stroke-width="3" fill="none" stroke-linecap="round"/>
+      <path d="M41 13q7 11 0 22" stroke="#16161a" stroke-width="3" fill="none" stroke-linecap="round"/></svg>
+    <span>{{ t('Жарыя берүү', 'Подать') }}</span>
+  </a>
+  <a class="mx-tile" href="/favorites?lang={{ lang }}">
+    <svg viewBox="0 0 48 48" filter="url(#mxS)"><path d="M24 41S6 30 6 18a9 9 0 0 1 18-4 9 9 0 0 1 18 4c0 12-18 23-18 23z" fill="url(#mxY)" stroke="#16161a" stroke-width="2.5"/>
+      <path d="M13 15a5 5 0 0 1 5-3" stroke="#fff" stroke-width="2.5" stroke-linecap="round" fill="none" opacity=".8"/></svg>
+    <span>{{ t('Тандалгандар', 'Избранное') }}</span>
+  </a>
+  <a class="mx-tile" href="https://t.me/Elismantk" target="_blank" rel="noopener">
+    <svg viewBox="0 0 48 48" filter="url(#mxS)"><path d="M10 27v-3a14 14 0 0 1 28 0v3" stroke="url(#mxK)" stroke-width="5" fill="none"/>
+      <rect x="6" y="25" width="9" height="14" rx="4" fill="url(#mxK)"/><rect x="33" y="25" width="9" height="14" rx="4" fill="url(#mxK)"/>
+      <path d="M37 39q0 5-8 5" stroke="#16161a" stroke-width="2.5" fill="none"/><rect x="24" y="41" width="7" height="5" rx="2.5" fill="url(#mxY)"/></svg>
+    <span>{{ t('Колдоо', 'Поддержка') }}</span>
+  </a>
+</div>
 
-<a class="row-item" href="/myposts?lang={{ lang }}">
-  <span class="ico">📋</span>
-  <span class="nm">{{ t("Менин жарыяларым", "Мои объявления") }}</span>
-  {# v172: чогултуу картасында канча жүргүнчү күтүп жатат #}
-  {% if pk_total %}<span class="row-n">{{ pk_total }}</span>{% endif %}
-  <span class="chev">›</span>
-</a>
-
-<a class="row-item" href="/post?lang={{ lang }}">
-  <span class="ico">📢</span>
-  <span class="nm">{{ t('Жарыя берүү', 'Дать объявление') }}</span>
-  <span class="chev">›</span>
-</a>
-
-<a class="row-item" href="/favorites?lang={{ lang }}">
-  <span class="ico">❤️</span>
-  <span class="nm">{{ t('Тандалгандар', 'Избранное') }}</span>
-  <span class="chev">›</span>
-</a>
-
-<a class="row-item" href="/balance?lang={{ lang }}">
-  <span class="ico">💼</span>
-  <span class="nm">{{ t('Менин балансым', 'Мой баланс') }}</span>
-  <span class="chev">›</span>
-</a>
-
-{# v135: азырынча баары акысыз — төлөмдүн ордунда дос чакыруу #}
 {% if free_mode %}
-<a class="row-item" href="/invite?lang={{ lang }}">
-  <span class="ico">🎁</span>
-  <span class="nm">{{ t('Досторду чакыруу', 'Пригласить друзей') }}</span>
-  <span class="chev">›</span>
+<a class="mx-row" href="/invite?lang={{ lang }}">
+  <svg viewBox="0 0 56 56" filter="url(#mxS)"><rect x="9" y="22" width="38" height="28" rx="4" fill="url(#mxY)"/>
+    <rect x="6" y="15" width="44" height="10" rx="3" fill="url(#mxY)"/><rect x="24" y="15" width="8" height="35" fill="url(#mxK)"/>
+    <rect x="6" y="20" width="44" height="3" fill="#000" opacity=".12"/>
+    <path d="M28 15c-6-9-15-8-13-2 1 3 8 3 13 2zM28 15c6-9 15-8 13-2-1 3-8 3-13 2z" fill="url(#mxK)"/></svg>
+  <div class="t"><b>{{ t('Досторду чакыруу', 'Пригласить друзей') }}</b>
+    <small>{{ t('3 досуңузду чакырыңыз', 'Пригласите 3 друзей') }}</small></div>
+  <span class="ch">›</span>
 </a>
 {% else %}
-<a class="row-item" href="/pay?lang={{ lang }}">
-  <span class="ico">💳</span>
-  <span class="nm">{{ t('Төлөм төлөймүн', 'Хочу оплатить') }}</span>
-  <span class="chev">›</span>
+<a class="mx-row" href="/pay?lang={{ lang }}">
+  <svg viewBox="0 0 56 56" filter="url(#mxS)"><rect x="5" y="13" width="46" height="32" rx="6" fill="url(#mxY)"/>
+    <rect x="5" y="19" width="46" height="6" fill="url(#mxK)"/><rect x="10" y="32" width="14" height="5" rx="2" fill="#16161a"/></svg>
+  <div class="t"><b>{{ t('Төлөм төлөймүн', 'Хочу оплатить') }}</b>
+    <small>{{ t('MBank аркылуу', 'Через MBank') }}</small></div>
+  <span class="ch">›</span>
 </a>
 {% endif %}
 
-<a class="row-item" href="{{ channel_url }}">
-  <span class="ico">📣</span>
-  <span class="nm">{{ t("Telegram каналыбызга жазылуу", "Подписаться на наш Telegram-канал") }}</span>
-  <span class="chev">›</span>
+<a class="mx-row" href="/balance?lang={{ lang }}">
+  <svg viewBox="0 0 56 56" filter="url(#mxS)"><rect x="5" y="13" width="46" height="34" rx="7" fill="url(#mxK)"/>
+    <rect x="5" y="19" width="46" height="5" fill="url(#mxY)"/><rect x="33" y="27" width="19" height="13" rx="4" fill="url(#mxY)"/>
+    <circle cx="39" cy="33.5" r="2.3" fill="#16161a"/></svg>
+  <div class="t"><b>{{ t('Менин балансым', 'Мой баланс') }}</b>
+    <small>{{ t('Мөөнөт, акысыз жарыялар', 'Срок доступа, бесплатные объявления') }}</small></div>
+  <span class="ch">›</span>
 </a>
 
-<a class="row-item" href="/help?lang={{ lang }}">
-  <span class="ico">❓</span>
-  <span class="nm">{{ t('Жардам', 'Помощь') }}</span>
-  <span class="chev">›</span>
+<a class="mx-row" href="/alerts?lang={{ lang }}">
+  <svg viewBox="0 0 56 56" filter="url(#mxS)"><path d="M6 44l13-6 9 6 9-6 13 6V20l-13-6-9 6-9-6-13 6z" fill="url(#mxK)"/>
+    <path d="M8 40l11-5 9 6 9-6 11 5" stroke="url(#mxY)" stroke-width="2.5" fill="none"/>
+    <path d="M28 39S16 27 16 19a12 12 0 0 1 24 0c0 8-12 20-12 20z" fill="url(#mxY)"/>
+    <circle cx="28" cy="19" r="4.5" fill="#fff" stroke="#16161a" stroke-width="2.5"/></svg>
+  <div class="t"><b>{{ t('Кабарлар', 'Уведомления') }}</b>
+    <small>{{ t('Жаңы жарыя чыкса — билдирүү', 'Сообщим о новых объявлениях') }}</small></div>
+  <span class="ch">›</span>
+</a>
+
+<a class="mx-row" href="{{ lang_ru_url if lang == 'ky' else lang_ky_url }}">
+  <svg viewBox="0 0 56 56" filter="url(#mxS)"><circle cx="28" cy="28" r="21" fill="url(#mxY)"/>
+    <path d="M28 7c-8 7-8 35 0 42M28 7c8 7 8 35 0 42M8 28h40M11 18h34M11 38h34" stroke="#16161a" stroke-width="2.6" fill="none"/>
+    <path d="M16 14a16 16 0 0 1 9-5" stroke="#fff" stroke-width="2.5" stroke-linecap="round" fill="none" opacity=".75"/></svg>
+  <div class="t"><b>{{ t('Тил: Кыргызча', 'Язык: Русский') }}</b>
+    <small>{{ t('Русский язык', 'Кыргыз тили') }}</small></div>
+  <span class="ch">›</span>
+</a>
+
+<a class="mx-row" href="{{ channel_url }}">
+  <svg viewBox="0 0 56 56" filter="url(#mxS)"><circle cx="28" cy="28" r="21" fill="url(#mxK)"/>
+    <path d="M15 27l24-10-4 22-7-6-4 5v-7l11-9-14 8z" fill="url(#mxY)"/></svg>
+  <div class="t"><b>{{ t('Telegram канал', 'Telegram-канал') }}</b>
+    <small>{{ t('Жаңы жарыялар бир жерде', 'Все новые объявления') }}</small></div>
+  <span class="ch">›</span>
+</a>
+
+<a class="mx-row" href="/help?lang={{ lang }}">
+  <svg viewBox="0 0 56 56" filter="url(#mxS)"><circle cx="28" cy="28" r="21" fill="url(#mxK)"/>
+    <circle cx="28" cy="17" r="3.6" fill="url(#mxY)"/><rect x="24" y="24" width="8" height="18" rx="3" fill="url(#mxY)"/>
+    <path d="M14 18a17 17 0 0 1 7-8" stroke="#fff" stroke-width="2.5" stroke-linecap="round" fill="none" opacity=".5"/></svg>
+  <div class="t"><b>{{ t('Жардам', 'Помощь') }}</b>
+    <small>{{ t('Нускама, суроо-жооп, эрежелер', 'Инструкция, вопросы, правила') }}</small></div>
+  <span class="ch">›</span>
 </a>
 
 {% if me %}
-<a class="row-item" href="/logout?lang={{ lang }}">
-  <span class="ico">🚪</span>
-  <span class="nm">{{ t('Чыгуу', 'Выйти') }}</span>
-  <span class="chev">›</span>
+<a class="mx-out" href="/logout?lang={{ lang }}">
+  <svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="#16161a" stroke-width="2.4"
+       stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h11M10 8l4 4-4 4"/>
+    <path d="M14 4h4a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-4"/></svg>
+  {{ t('Чыгуу', 'Выйти') }}
 </a>
 {% endif %}
 
-<div class="brandpic">
-  <img src="/static/robotaxi.jpg?v=5" alt="Такси ТАП! Регион"
-       loading="lazy" width="900" height="498">
-</div>
-
-<div class="info-card">
-  {# v134: баары сайтта, бот — номер ырастоо гана #}
-  {{ t('Такси ТАП! Регион — Кыргызстандын такси платформасы. Жарыя берүү, издөө жана төлөм ушул сайтта. Telegram жана WhatsApp боттору номерди ырастоо үчүн керек.',
-       'Такси ТАП! Регион — платформа поиска такси по Кыргызстану. Объявления, поиск и оплата — на этом сайте. Боты Telegram и WhatsApp нужны для подтверждения номера.') }}
-</div>
-
+<script>
+(function () {
+  var b = document.getElementById("meEditBtn"),
+      f = document.getElementById("meNameForm"),
+      c = document.getElementById("meNameCancel"),
+      i = document.getElementById("meNameIn");
+  if (!b || !f) return;
+  b.addEventListener("click", function () {
+    f.hidden = !f.hidden;
+    if (!f.hidden && i) { i.focus(); i.select(); }
+  });
+  if (c) c.addEventListener("click", function () { f.hidden = true; });
+})();
+</script>
 {% endblock %}

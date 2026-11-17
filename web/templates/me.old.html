@@ -1,0 +1,212 @@
+{% extends "base.html" %}
+
+{% block title %}{{ t('Кабинет', 'Кабинет') }} — Такси ТАП! Регион{% endblock %}
+
+{% block content %}
+
+<style>
+  /* Колдонуучунун сабы — калган саптардан айырмаланбасын */
+  .me-row { cursor: default; }
+  .me-row .nm .sub {
+    display: block; font-weight: 500; font-size: 13px;
+    color: var(--grey); margin-top: 2px; letter-spacing: 0;
+  }
+  /* v139: аягындагы жазуунун үстүндөгү сүрөт.
+     Сүрөт менен текст бир блок болуп окулсун — ошондуктан
+     сүрөттүн асты, тексттин үстү тик бурч калат. */
+  .brandpic {
+    margin-top: 14px; border-radius: 16px 16px 0 0;
+    overflow: hidden; line-height: 0; background: #fff;
+  }
+  /* v140: аспект катышы бекитилди — браузер сүрөттү
+     эч качан өзүнчө чоюп жибербейт. */
+  .brandpic img {
+    width: 100%; height: auto; display: block;
+    aspect-ratio: 900 / 498;
+  }
+  .brandpic + .info-card {
+    margin-top: 0; border-radius: 0 0 16px 16px;
+  }
+  /* v172: жүргүнчү белгиленсе — катардын өзүндө сан */
+  .row-n {
+    margin-left: auto; min-width: 23px; height: 23px; border-radius: 12px;
+    display: inline-flex; align-items: center; justify-content: center;
+    padding: 0 7px; font-size: 12.5px; font-weight: 900; color: #16161a;
+    background: linear-gradient(135deg, #ffc61a 0%, #ffb703 100%);
+  }
+  /* Сан турганда жебе четке жабышып калбасын */
+  .row-n + .chev { margin-left: 9px; }
+
+  /* v193: ✏️ атты алмаштыруу */
+  .me-edit {
+    margin-left: auto; flex: none; width: 40px; height: 40px;
+    border: 0; border-radius: 12px; cursor: pointer;
+    background: #f5f5f5; font-size: 18px; line-height: 1;
+  }
+  .me-name {
+    background: var(--card, #fff); border-radius: var(--r, 18px);
+    box-shadow: var(--shadow, none); padding: 14px; margin: -4px 0 12px;
+  }
+  .me-name label {
+    display: block; font-size: 14px; font-weight: 800; margin-bottom: 8px;
+  }
+  .me-name input {
+    width: 100%; box-sizing: border-box; font: inherit; font-size: 16px;
+    padding: 12px 14px; border: 1.5px solid #e3e8f0; border-radius: 14px;
+  }
+  .me-name input:focus { outline: none; border-color: var(--yellow, #ffc61a); }
+  .me-name .btns { display: flex; gap: 8px; margin-top: 10px; }
+  .me-name .btns button {
+    flex: 1; border: 0; border-radius: 14px; padding: 12px;
+    font: inherit; font-weight: 800; cursor: pointer;
+  }
+  .me-name .save {
+    background: linear-gradient(135deg, #ffc61a 0%, #ffb703 100%);
+    color: #16161a;
+  }
+  .me-name .cancel { background: #f5f5f5; color: #111; }
+  .me-msg {
+    font-size: 13.5px; font-weight: 700; margin: -4px 4px 12px;
+  }
+  .me-msg.ok { color: #1a7f37; }
+  .me-msg.bad { color: #d92d20; }
+</style>
+
+<div class="page-head">
+  <h1>{{ t('Кабинет', 'Кабинет') }}</h1>
+</div>
+
+{% if me %}
+  {# v193: ✏️ атты алмаштыруу. first_name биринчи — ал алмашат #}
+  {% set _nm = me.first_name or me.name or '' %}
+  {% set _st = request.args.get('name', '') %}
+  <div class="row-item me-row">
+    <span class="ico">👤</span>
+    <span class="nm">
+      {{ _nm or t('Колдонуучу', 'Пользователь') }}
+      {% if me.verified_phone %}<span class="sub">{{ me.verified_phone }}</span>{% endif %}
+    </span>
+    <button type="button" class="me-edit" id="meEditBtn"
+            aria-label="{{ t('Атты алмаштыруу', 'Изменить имя') }}">✏️</button>
+  </div>
+  {% if _st == 'ok' %}
+    <div class="me-msg ok">✅ {{ t('Атыңыз сакталды', 'Имя сохранено') }}</div>
+  {% endif %}
+  <form class="me-name" id="meNameForm" method="post"
+        action="/me/name?lang={{ lang }}"{% if _st != 'bad' %} hidden{% endif %}>
+    <label for="meNameIn">{{ t('Атыңыз', 'Ваше имя') }}</label>
+    <input id="meNameIn" name="name" value="{{ _nm }}" required
+           minlength="2" maxlength="40" autocomplete="given-name"
+           placeholder="{{ t('Мисалы: Азамат', 'Например: Азамат') }}">
+    {% if _st == 'bad' %}
+      <div class="me-msg bad" style="margin:8px 2px 0">
+        {{ t('Атты 2–40 белги менен жазыңыз', 'Напишите имя: 2–40 символов') }}
+      </div>
+    {% endif %}
+    <div class="btns">
+      <button type="submit" class="save">{{ t('Сактоо', 'Сохранить') }}</button>
+      <button type="button" class="cancel" id="meNameCancel">
+        {{ t('Жокко чыгаруу', 'Отмена') }}</button>
+    </div>
+  </form>
+  <script>
+  (function () {
+    var b = document.getElementById("meEditBtn"),
+        f = document.getElementById("meNameForm"),
+        c = document.getElementById("meNameCancel"),
+        i = document.getElementById("meNameIn");
+    if (!b || !f) return;
+    b.addEventListener("click", function () {
+      f.hidden = !f.hidden;
+      if (!f.hidden && i) { i.focus(); i.select(); }
+    });
+    if (c) c.addEventListener("click", function () { f.hidden = true; });
+  })();
+  </script>
+{% else %}
+  <a class="row-item" href="/login?lang={{ lang }}">
+    <span class="ico">🔐</span>
+    <span class="nm">{{ t('Кирүү — номерди ырастоо', 'Вход — подтвердить номер') }}</span>
+    <span class="chev">›</span>
+  </a>
+{% endif %}
+
+<a class="row-item" href="{{ lang_ru_url if lang == 'ky' else lang_ky_url }}">
+  <span class="ico">🌐</span>
+  <span class="nm">{{ t('Тил: Кыргызча', 'Язык: Русский') }}</span>
+  <span class="chev">›</span>
+</a>
+
+<a class="row-item" href="/myposts?lang={{ lang }}">
+  <span class="ico">📋</span>
+  <span class="nm">{{ t("Менин жарыяларым", "Мои объявления") }}</span>
+  {# v172: чогултуу картасында канча жүргүнчү күтүп жатат #}
+  {% if pk_total %}<span class="row-n">{{ pk_total }}</span>{% endif %}
+  <span class="chev">›</span>
+</a>
+
+<a class="row-item" href="/post?lang={{ lang }}">
+  <span class="ico">📢</span>
+  <span class="nm">{{ t('Жарыя берүү', 'Дать объявление') }}</span>
+  <span class="chev">›</span>
+</a>
+
+<a class="row-item" href="/favorites?lang={{ lang }}">
+  <span class="ico">❤️</span>
+  <span class="nm">{{ t('Тандалгандар', 'Избранное') }}</span>
+  <span class="chev">›</span>
+</a>
+
+<a class="row-item" href="/balance?lang={{ lang }}">
+  <span class="ico">💼</span>
+  <span class="nm">{{ t('Менин балансым', 'Мой баланс') }}</span>
+  <span class="chev">›</span>
+</a>
+
+{# v135: азырынча баары акысыз — төлөмдүн ордунда дос чакыруу #}
+{% if free_mode %}
+<a class="row-item" href="/invite?lang={{ lang }}">
+  <span class="ico">🎁</span>
+  <span class="nm">{{ t('Досторду чакыруу', 'Пригласить друзей') }}</span>
+  <span class="chev">›</span>
+</a>
+{% else %}
+<a class="row-item" href="/pay?lang={{ lang }}">
+  <span class="ico">💳</span>
+  <span class="nm">{{ t('Төлөм төлөймүн', 'Хочу оплатить') }}</span>
+  <span class="chev">›</span>
+</a>
+{% endif %}
+
+<a class="row-item" href="{{ channel_url }}">
+  <span class="ico">📣</span>
+  <span class="nm">{{ t("Telegram каналыбызга жазылуу", "Подписаться на наш Telegram-канал") }}</span>
+  <span class="chev">›</span>
+</a>
+
+<a class="row-item" href="/help?lang={{ lang }}">
+  <span class="ico">❓</span>
+  <span class="nm">{{ t('Жардам', 'Помощь') }}</span>
+  <span class="chev">›</span>
+</a>
+
+{% if me %}
+<a class="row-item" href="/logout?lang={{ lang }}">
+  <span class="ico">🚪</span>
+  <span class="nm">{{ t('Чыгуу', 'Выйти') }}</span>
+  <span class="chev">›</span>
+</a>
+{% endif %}
+
+<div class="brandpic">
+  <img src="/static/robotaxi.jpg?v=5" alt="Такси ТАП! Регион"
+       loading="lazy" width="900" height="498">
+</div>
+
+<div class="info-card">
+  {# v134: баары сайтта, бот — номер ырастоо гана #}
+  {{ t('Такси ТАП! Регион — Кыргызстандын такси платформасы. Жарыя берүү, издөө жана төлөм ушул сайтта. Telegram жана WhatsApp боттору номерди ырастоо үчүн керек.',
+       'Такси ТАП! Регион — платформа поиска такси по Кыргызстану. Объявления, поиск и оплата — на этом сайте. Боты Telegram и WhatsApp нужны для подтверждения номера.') }}
+</div>
+
+{% endblock %}
