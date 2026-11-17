@@ -3,6 +3,82 @@
 {% block title %}{{ t('Жардам', 'Помощь') }} — Такси ТАП! Регион{% endblock %}
 
 {% block content %}
+{# v201: Жардам — бөлүмдөрдүн эмодзилери Кабинеттегидей сары-кара
+   көлөмдүү иконкаларга алмашты. Аталыштар мурдагыдай app.py'ден
+   келет («📖 Нускама»); биринчи белги боюнча иконка тандалат.
+   Иконкасы жок жаңы бөлүм кошулса — эмодзи мурдагыдай чыгат. #}
+<style>
+  .acc summary.hx { gap: 13px; padding: 12px 16px 12px 12px; }
+  .acc summary.hx svg { width: 46px; height: 46px; flex: 0 0 auto;
+                       filter: drop-shadow(0 2.5px 2px rgba(0,0,0,.28)); }
+  .acc summary.hx .hx-t { font-size: 16.5px; font-weight: 900; letter-spacing: -.3px; }
+  .acc summary.hx .hx-e { width: 46px; text-align: center; font-size: 24px; flex: 0 0 auto; }
+</style>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <linearGradient id="hxY" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffe066"/><stop offset=".55" stop-color="#ffc61a"/>
+      <stop offset="1" stop-color="#f29e00"/></linearGradient>
+    <linearGradient id="hxK" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#3a3a42"/><stop offset="1" stop-color="#0d0d10"/></linearGradient>
+    <filter id="hxS" x="-20%" y="-20%" width="140%" height="150%">
+      <feDropShadow dx="0" dy="2.5" stdDeviation="1.8" flood-color="#000" flood-opacity=".28"/></filter>
+
+    <symbol id="hx-book" viewBox="0 0 56 56"><path d="M5 14q11-5 23 2v32q-12-7-23-2z" fill="url(#hxY)"/>
+      <path d="M51 14q-11-5-23 2v32q12-7 23-2z" fill="url(#hxK)"/><path d="M28 16v32" stroke="#16161a" stroke-width="2"/>
+      <path d="M10 21q6-2 13 1M10 28q6-2 13 1M10 35q6-2 13 1" stroke="#16161a" stroke-width="2.2" fill="none" stroke-linecap="round"/>
+      <path d="M33 22q6-3 13-1M33 29q6-3 13-1M33 36q6-3 13-1" stroke="#ffc61a" stroke-width="2.2" fill="none" stroke-linecap="round"/></symbol>
+    <symbol id="hx-plus" viewBox="0 0 56 56"><circle cx="28" cy="28" r="21" fill="url(#hxY)"/>
+      <path d="M28 17v22M17 28h22" stroke="#16161a" stroke-width="6" stroke-linecap="round"/>
+      <path d="M15 17a16 16 0 0 1 8-6" stroke="#fff" stroke-width="2.5" stroke-linecap="round" fill="none" opacity=".75"/></symbol>
+    <symbol id="hx-note" viewBox="0 0 56 56"><rect x="9" y="7" width="32" height="42" rx="5" fill="url(#hxK)"/>
+      <rect x="13" y="12" width="24" height="33" rx="2.5" fill="#fff"/><rect x="17" y="18" width="16" height="3" rx="1.5" fill="#ffc61a"/>
+      <rect x="17" y="25" width="16" height="3" rx="1.5" fill="#cfcfd6"/><rect x="17" y="32" width="10" height="3" rx="1.5" fill="#cfcfd6"/>
+      <path d="M33 44l14-22 5 3-14 22-6 3z" fill="url(#hxY)" stroke="#16161a" stroke-width="2"/></symbol>
+    <symbol id="hx-gift" viewBox="0 0 56 56"><rect x="9" y="22" width="38" height="28" rx="4" fill="url(#hxY)"/>
+      <rect x="6" y="15" width="44" height="10" rx="3" fill="url(#hxY)"/><rect x="24" y="15" width="8" height="35" fill="url(#hxK)"/>
+      <rect x="6" y="20" width="44" height="3" fill="#000" opacity=".12"/>
+      <path d="M28 15c-6-9-15-8-13-2 1 3 8 3 13 2zM28 15c6-9 15-8 13-2-1 3-8 3-13 2z" fill="url(#hxK)"/></symbol>
+    <symbol id="hx-search" viewBox="0 0 56 56"><path d="M35 35l12 12" stroke="url(#hxK)" stroke-width="8" stroke-linecap="round"/>
+      <circle cx="24" cy="24" r="15" fill="url(#hxY)" stroke="#16161a" stroke-width="4"/>
+      <path d="M16 20a9 9 0 0 1 6-6" stroke="#fff" stroke-width="3" stroke-linecap="round" fill="none" opacity=".85"/></symbol>
+    <symbol id="hx-plane" viewBox="0 0 56 56"><circle cx="28" cy="28" r="21" fill="url(#hxK)"/>
+      <path d="M28 9c2 0 3 2 3 5v9l13 8v4l-13-4v8l4 3v3l-7-2-7 2v-3l4-3v-8l-13 4v-4l13-8v-9c0-3 1-5 3-5z" fill="url(#hxY)"/></symbol>
+    <symbol id="hx-card" viewBox="0 0 56 56"><rect x="5" y="12" width="46" height="32" rx="6" fill="url(#hxY)"/>
+      <rect x="5" y="18" width="46" height="7" fill="url(#hxK)"/><rect x="10" y="32" width="14" height="5" rx="2" fill="#16161a"/>
+      <circle cx="40" cy="35" r="4" fill="#16161a" opacity=".85"/><circle cx="45" cy="35" r="4" fill="#16161a" opacity=".55"/></symbol>
+    <symbol id="hx-map" viewBox="0 0 56 56"><path d="M6 44l13-6 9 6 9-6 13 6V20l-13-6-9 6-9-6-13 6z" fill="url(#hxK)"/>
+      <path d="M8 40l11-5 9 6 9-6 11 5" stroke="url(#hxY)" stroke-width="2.5" fill="none"/>
+      <path d="M28 39S16 27 16 19a12 12 0 0 1 24 0c0 8-12 20-12 20z" fill="url(#hxY)"/>
+      <circle cx="28" cy="19" r="4.5" fill="#fff" stroke="#16161a" stroke-width="2.5"/></symbol>
+    <symbol id="hx-phone" viewBox="0 0 56 56"><circle cx="28" cy="28" r="21" fill="url(#hxY)"/>
+      <path d="M19 15l5-1 4 8-3 3q2 6 8 8l3-3 8 4-1 5q-2 4-7 3-19-4-23-23-1-5 6-4z" fill="url(#hxK)"/></symbol>
+    <symbol id="hx-shield" viewBox="0 0 56 56"><path d="M28 5l19 7v13c0 13-8 22-19 27C17 47 9 38 9 25V12z" fill="url(#hxK)"/>
+      <path d="M28 10l14 5v10c0 10-6 17-14 21-8-4-14-11-14-21V15z" fill="url(#hxY)"/>
+      <path d="M20 28l6 6 11-12" stroke="#16161a" stroke-width="4" fill="none" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="hx-light" viewBox="0 0 56 56"><rect x="17" y="4" width="22" height="46" rx="8" fill="url(#hxK)"/>
+      <circle cx="28" cy="14" r="5.5" fill="#4a4a52"/><circle cx="28" cy="27" r="5.5" fill="url(#hxY)"/>
+      <circle cx="28" cy="40" r="5.5" fill="#4a4a52"/><path d="M17 12h-5l5 5M17 25h-5l5 5M39 12h5l-5 5M39 25h5l-5 5" fill="#16161a"/></symbol>
+    <symbol id="hx-tools" viewBox="0 0 56 56"><path d="M12 44l20-20" stroke="url(#hxK)" stroke-width="7" stroke-linecap="round"/>
+      <path d="M33 9a11 11 0 0 0-9 14l7 7a11 11 0 0 0 14-9l-6 2-5-5 2-6z" fill="url(#hxY)" stroke="#16161a" stroke-width="2"/>
+      <path d="M40 44L22 26" stroke="url(#hxY)" stroke-width="6" stroke-linecap="round"/>
+      <rect x="9" y="9" width="13" height="8" rx="3" transform="rotate(45 15.5 13)" fill="url(#hxK)"/></symbol>
+    <symbol id="hx-scroll" viewBox="0 0 56 56"><rect x="11" y="8" width="34" height="40" rx="4" fill="url(#hxY)"/>
+      <rect x="7" y="6" width="42" height="8" rx="4" fill="url(#hxK)"/><rect x="7" y="42" width="42" height="8" rx="4" fill="url(#hxK)"/>
+      <path d="M17 21h22M17 27h22M17 33h14" stroke="#16161a" stroke-width="2.6" stroke-linecap="round"/></symbol>
+    <symbol id="hx-lock" viewBox="0 0 56 56"><rect x="10" y="24" width="36" height="26" rx="6" fill="url(#hxY)"/>
+      <path d="M17 24v-6a11 11 0 0 1 22 0v6" stroke="url(#hxK)" stroke-width="5" fill="none"/>
+      <circle cx="28" cy="35" r="4" fill="#16161a"/><rect x="26.5" y="36" width="3" height="7" rx="1.5" fill="#16161a"/></symbol>
+  </defs>
+</svg>
+
+{% set HX = {
+  '📖': 'book', '➕': 'plus', '📝': 'note', '🎁': 'gift', '🔍': 'search',
+  '✈️': 'plane', '✈': 'plane', '💳': 'card', '🗺': 'map', '🗺️': 'map',
+  '📞': 'phone', '🛡': 'shield', '🛡️': 'shield', '🚦': 'light',
+  '🛠': 'tools', '🛠️': 'tools', '📜': 'scroll', '🔒': 'lock'
+} %}
 
 <div class="page-head">
   <h1>{{ t('Жардам', 'Помощь') }}</h1>
@@ -13,8 +89,19 @@
 </div>
 
 {% for title, body in blocks %}
+  {% set _p = title.split(' ', 1) %}
+  {% set _k = HX.get(_p[0]) if _p|length > 1 else none %}
   <details class="acc">
-    <summary>{{ title }}</summary>
+    <summary class="hx">
+      {% if _k %}
+        <svg aria-hidden="true"><use href="#hx-{{ _k }}"/></svg>
+        <span class="hx-t">{{ _p[1] }}</span>
+      {% elif _p|length > 1 %}
+        <span class="hx-e">{{ _p[0] }}</span><span class="hx-t">{{ _p[1] }}</span>
+      {% else %}
+        <span class="hx-t">{{ title }}</span>
+      {% endif %}
+    </summary>
     <div class="acc-body">{{ body|safe }}</div>
   </details>
 {% endfor %}
