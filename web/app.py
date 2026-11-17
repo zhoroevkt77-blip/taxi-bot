@@ -2045,6 +2045,132 @@ def me_name():
     return redirect("/me?lang=%s&name=ok" % _lang())
 
 
+# ============ v204: Кабинеттеги профиль сүрөтү ============
+# Сүрөт браузерде эле 360x360'га кичирейтилип келет (~30 КБ).
+# Базада сакталат: Railway'дин диски убактылуу.
+AVATAR_MAX = 400_000            # 400 КБ'тан чоңун кабыл албайбыз
+_ava_ready = False
+
+
+def _ava_table(cur):
+    """Таблица жок болсо — бир жолу түзөт."""
+    global _ava_ready
+    if _ava_ready:
+        return
+    cur.execute("""CREATE TABLE IF NOT EXISTS account_avatars (
+        account_id INTEGER PRIMARY KEY,
+        mime       TEXT,
+        data       BYTEA,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )""")
+    _ava_ready = True
+
+
+def _img_mime(raw):
+    """Файлдын ичинен анык түрүн аныктайт (аты/башы алдабасын)."""
+    if raw[:3] == b"\xff\xd8\xff":
+        return "image/jpeg"
+    if raw[:8] == b"\x89PNG\r\n\x1a\n":
+        return "image/png"
+    if raw[:4] == b"RIFF" and raw[8:12] == b"WEBP":
+        return "image/webp"
+    return None
+
+
+def _ava_version(account_id):
+    """Сүрөт бар болсо — анын убактысы (кеш үчүн ?v=), жок болсо 0."""
+    if not account_id:
+        return 0
+    try:
+        with db() as conn:
+            cur = conn.cursor()
+            _ava_table(cur)
+            conn.commit()
+            cur.execute("SELECT EXTRACT(EPOCH FROM updated_at)::BIGINT AS v "
+                        "FROM account_avatars WHERE account_id = %s",
+                        (account_id,))
+            row = cur.fetchone()
+        return int(row["v"] or 0) if row else 0
+    except Exception as e:
+        print("[web] аватар версиясы:", e)
+        return 0
+
+
+@app.route("/me/photo", methods=["POST"])
+def me_photo_save():
+    """📷 Сүрөт коюу же өчүрүү. JSON гана кабыл алынат —
+    башка сайттан жашыруун форма менен жиберүүгө болбойт."""
+    import base64
+    me = current_account()
+    if not me:
+        return jsonify(ok=False, error="login"), 401
+    js = request.get_json(silent=True)
+    if not isinstance(js, dict):
+        return jsonify(ok=False, error="bad"), 400
+    aid = me.get("account_id")
+    try:
+        if js.get("delete"):
+            with db() as conn:
+                cur = conn.cursor()
+                _ava_table(cur)
+                cur.execute("DELETE FROM account_avatars WHERE account_id = %s",
+                            (aid,))
+                conn.commit()
+            return jsonify(ok=True)
+
+        head, _, b64 = str(js.get("img") or "").partition(",")
+        if not head.startswith("data:image/") or len(b64) > AVATAR_MAX * 4 // 3 + 8:
+            return jsonify(ok=False, error="bad"), 400
+        raw = base64.b64decode(b64, validate=False)
+        mime = _img_mime(raw)
+        if not mime or len(raw) > AVATAR_MAX:
+            return jsonify(ok=False, error="bad"), 400
+        with db() as conn:
+            cur = conn.cursor()
+            _ava_table(cur)
+            cur.execute("INSERT INTO account_avatars (account_id, mime, data) "
+                        "VALUES (%s, %s, %s) "
+                        "ON CONFLICT (account_id) DO UPDATE SET "
+                        "mime = EXCLUDED.mime, data = EXCLUDED.data, "
+                        "updated_at = CURRENT_TIMESTAMP",
+                        (aid, mime, raw))
+            conn.commit()
+    except Exception as e:
+        print("[web] аватарды сактоо:", e)
+        return jsonify(ok=False, error="db"), 500
+    return jsonify(ok=True)
+
+
+@app.route("/me/photo")
+def me_photo():
+    """Өз сүрөтүн гана берет. URL'де ?v= болгондуктан узак кештелет."""
+    from flask import abort
+    me = current_account()
+    if not me:
+        abort(404)
+    try:
+        with db() as conn:
+            cur = conn.cursor()
+            _ava_table(cur)
+            conn.commit()
+            cur.execute("SELECT mime, data FROM account_avatars "
+                        "WHERE account_id = %s", (me.get("account_id"),))
+            row = cur.fetchone()
+    except Exception as e:
+        print("[web] аватарды алуу:", e)
+        abort(404)
+    if not row or row["data"] is None:
+        abort(404)
+    raw = row["data"]
+    if isinstance(raw, memoryview):
+        raw = raw.tobytes()
+    resp = make_response(bytes(raw))
+    resp.headers["Content-Type"] = row["mime"] or "image/jpeg"
+    resp.headers["Cache-Control"] = "private, max-age=31536000"
+    resp.headers["X-Content-Type-Options"] = "nosniff"
+    return resp
+
+
 @app.route("/me")
 
 def me_page():
@@ -2069,7 +2195,9 @@ def me_page():
     # өзүнчө окуйт, ошондуктан үстүнөн жазып коёбуз.
     ctx = _base_ctx()
     ctx["me"] = me
-    html = render_template("me.html", pk_total=pk_total, **ctx)
+    # v204: профиль сүрөтү (жок болсо 0)
+    ava_v = _ava_version((me or {}).get("account_id")) if me else 0
+    html = render_template("me.html", pk_total=pk_total, ava_v=ava_v, **ctx)
     return _with_lang(make_response(html))
 
 
