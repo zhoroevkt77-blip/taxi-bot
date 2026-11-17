@@ -41,12 +41,12 @@
 </style>
 <div class="rolesw">
   <a class="{{ 'on' if role != 'passenger' else '' }}" href="{{ link(role='') }}">
-    <svg class="ti" aria-hidden="true"><use href="#ti-car"/></svg>
+    <img class="rimg car" src="/static/r_car.webp" alt="" width="45" height="27">
     {{ t('Айдоочулар', 'Водители') }}
     <span class="n num">{{ role_n.driver }}</span></a>
   <a class="{{ 'on' if role == 'passenger' else '' }}"
      href="{{ link(role='passenger') }}">
-    <svg class="ti" aria-hidden="true"><use href="#ti-bag"/></svg>
+    <img class="rimg bag" src="/static/r_bag.webp" alt="" width="30" height="30">
     {{ t('Жүргүнчүлөр', 'Пассажиры') }}
     <span class="n num">{{ role_n.passenger }}</span></a>
 </div>
