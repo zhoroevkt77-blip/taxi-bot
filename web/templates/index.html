@@ -30,14 +30,24 @@
     font-size: 12.5px; font-weight: 900; color: var(--grey);
   }
   .rolesw a.on .n { color: #7a5a00; }
+  /* v202: эмодзинин ордуна көлөмдүү иконка */
+  .rolesw .ti { width: 30px; height: 30px; }
+  /* v202: категориялардын иконкалары — сары чарчысыз, чоң */
+  .cat .ico.ti3, .cat.on .ico.ti3 {
+    background: none; box-shadow: none; border-radius: 0;
+    width: 46px; height: 46px; overflow: visible;
+  }
+  .cat .ico.ti3 .ti { width: 46px; height: 46px; }
 </style>
 <div class="rolesw">
   <a class="{{ 'on' if role != 'passenger' else '' }}" href="{{ link(role='') }}">
-    🚗 {{ t('Айдоочулар', 'Водители') }}
+    <svg class="ti" aria-hidden="true"><use href="#ti-car"/></svg>
+    {{ t('Айдоочулар', 'Водители') }}
     <span class="n num">{{ role_n.driver }}</span></a>
   <a class="{{ 'on' if role == 'passenger' else '' }}"
      href="{{ link(role='passenger') }}">
-    🧳 {{ t('Жүргүнчүлөр', 'Пассажиры') }}
+    <svg class="ti" aria-hidden="true"><use href="#ti-bag"/></svg>
+    {{ t('Жүргүнчүлөр', 'Пассажиры') }}
     <span class="n num">{{ role_n.passenger }}</span></a>
 </div>
 
@@ -63,51 +73,26 @@
   </a>
 
   <a class="cat {{ 'on' if cat == 'to' else '' }}" href="{{ link(cat='to') }}">
-    <div class="ico">
-      <svg viewBox="0 0 24 24" width="26" height="26" fill="none"
-           stroke="#16161a" stroke-width="2.6"
-           stroke-linecap="round" stroke-linejoin="round">
-        <path d="M4 12h15"/><path d="M13 6l6 6-6 6"/>
-      </svg>
-    </div>
+    <div class="ico ti3"><svg class="ti" aria-hidden="true"><use href="#ti-in"/></svg></div>
     <div class="nm">{{ t('Бишкекке бараткандар', 'Едут в Бишкек') }}
       <span class="n num">{{ cat_counts.to }}</span></div>
   </a>
 
   <a class="cat {{ 'on' if cat == 'from' else '' }}" href="{{ link(cat='from') }}">
-    <div class="ico">
-      <svg viewBox="0 0 24 24" width="26" height="26" fill="none"
-           stroke="#16161a" stroke-width="2.6"
-           stroke-linecap="round" stroke-linejoin="round">
-        <path d="M20 12H5"/><path d="M11 6l-6 6 6 6"/>
-      </svg>
-    </div>
+    <div class="ico ti3"><svg class="ti" aria-hidden="true"><use href="#ti-out"/></svg></div>
     <div class="nm">{{ t('Бишкектен кайткандар', 'Едут из Бишкека') }}
       <span class="n num">{{ cat_counts.from }}</span></div>
   </a>
 
   <a class="cat {{ 'on' if cat == 'local' else '' }}" href="{{ link(cat='local') }}">
-    <div class="ico">
-      <svg viewBox="0 0 24 24" width="26" height="26" fill="none"
-           stroke="#16161a" stroke-width="2.4"
-           stroke-linecap="round" stroke-linejoin="round">
-        <path d="M9 4L3 6.5v13L9 17l6 3 6-2.5v-13L15 7 9 4z"/>
-        <path d="M9 4v13M15 7v13"/>
-      </svg>
-    </div>
+    <div class="ico ti3"><svg class="ti" aria-hidden="true"><use href="#ti-map"/></svg></div>
     <div class="nm">{{ t('Район/шаар аралык', 'Между районами') }}
       <span class="n num">{{ cat_counts.local }}</span></div>
   </a>
 
   {# v149: ✈️ аэропорт багыттары #}
   <a class="cat {{ 'on' if cat == 'air' else '' }}" href="{{ link(cat='air') }}">
-    <div class="ico">
-      <svg viewBox="0 0 24 24" width="26" height="26" fill="none"
-           stroke="#16161a" stroke-width="2"
-           stroke-linecap="round" stroke-linejoin="round">
-        <path d="M10.2 3.2a1.6 1.6 0 0 1 3.1 0L14.6 9l6.1 3.1v2l-6.4-1.5-1 4 2.3 1.7v1.6l-3.6-1-3.6 1v-1.6L10.7 16.6l-1-4L3.3 14.1v-2L9.4 9l.8-5.8z"/>
-      </svg>
-    </div>
+    <div class="ico ti3"><svg class="ti" aria-hidden="true"><use href="#ti-plane"/></svg></div>
     <div class="nm">{{ t('Аэропорт', 'Аэропорт') }}
       <span class="n num">{{ cat_counts.air }}</span></div>
   </a>
@@ -157,12 +142,8 @@
 <a class="watch-link" id="watchLink"
    data-want="{{ 'passenger' if role == 'passenger' else 'driver' }}"
    href="/alerts?lang={{ lang }}{% if role == 'passenger' %}&amp;as=driver{% endif %}">
-  <span class="wl-ico">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-         stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-      <path d="M18 8.5a6 6 0 1 0-12 0c0 6-2.2 7.5-2.2 7.5h16.4S18 14.5 18 8.5z"/>
-      <path d="M13.7 19.5a2 2 0 0 1-3.4 0"/>
-    </svg>
+  <span class="wl-ico" style="background:none;width:46px;height:46px">
+    <svg class="ti" style="width:44px;height:44px" aria-hidden="true"><use href="#ti-bell"/></svg>
   </span>
   <span class="wl-t">
     {% if role == 'passenger' %}

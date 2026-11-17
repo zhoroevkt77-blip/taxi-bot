@@ -93,6 +93,10 @@
     border-radius: 18px; box-shadow: none; cursor: pointer;
     background: #f5f5f5; color: #111;
   }
+  /* v202: иконка менен жазуу бир сапта */
+  #wRole button { display: flex; align-items: center; justify-content: center; gap: 8px; }
+  #wRole .ti { width: 28px; height: 28px; }
+  #airGrid .airp .ti { width: 30px; height: 30px; display: block; margin: 0 auto 4px; }
   #wRole button.on {
     background: linear-gradient(135deg, var(--yellow, #ffc61a) 0%,
                                         var(--yellow-2, #ffb703) 100%);
@@ -107,7 +111,8 @@
 </style>
 
 <div class="page-head">
-  <h1>🔔 {{ t('Кабарлар', 'Уведомления') }}</h1>
+  <h1><svg class="ti" style="width:36px;height:36px;vertical-align:-5px" aria-hidden="true"><use href="#ti-bell"/></svg>
+    {{ t('Кабарлар', 'Уведомления') }}</h1>
   <p class="lead">
     {{ t('Керектүү багытты жазып коюңуз — ошол багытта жаңы жарыя чыкканда, телефонуңузга заматта кабар келет. Сайт жабык турса да иштейт.',
          'Подпишитесь на нужное направление — как только по нему появится новое объявление, вам придёт уведомление. Работает, даже когда сайт закрыт.') }}
@@ -121,9 +126,11 @@
     <div id="wRole">
       {# v188: Жарыя берүүдөгүдөй — Айдоочумун үстүндө #}
       <button type="button" data-r="driver">
-        🚗 {{ t('Айдоочумун', 'Я водитель') }}</button>
+        <svg class="ti" aria-hidden="true"><use href="#ti-car"/></svg>
+        {{ t('Айдоочумун', 'Я водитель') }}</button>
       <button type="button" data-r="passenger" class="on">
-        🧳 {{ t('Жүргүнчүмүн', 'Я пассажир') }}</button>
+        <svg class="ti" aria-hidden="true"><use href="#ti-bag"/></svg>
+        {{ t('Жүргүнчүмүн', 'Я пассажир') }}</button>
     </div>
     <div class="w-lead" data-for="passenger">
       <b>{{ t('Жүргүнчүмүн — айдоочулардын жаңы жарыялары жөнүндө билгим келет.',
@@ -145,25 +152,31 @@
     <div id="airGrid">
       <button type="button" class="airp"
               data-air="Бишкек шаары" data-dir="to">
-        🏙 {{ t('Бишкекке барам', 'В Бишкек') }}</button>
+        <svg class="ti" aria-hidden="true"><use href="#ti-city"/></svg>
+        {{ t('Бишкекке барам', 'В Бишкек') }}</button>
       <button type="button" class="airp"
               data-air="Бишкек шаары" data-dir="from">
-        🏙 {{ t('Бишкектен кайтам', 'Из Бишкека') }}</button>
+        <svg class="ti" aria-hidden="true"><use href="#ti-city"/></svg>
+        {{ t('Бишкектен кайтам', 'Из Бишкека') }}</button>
       <button type="button" class="airp"
               data-air="Манас аэропорту" data-dir="to">
-        ✈️ {{ t('Манас аэропортуна барам',
+        <svg class="ti" aria-hidden="true"><use href="#ti-up"/></svg>
+        {{ t('Манас аэропортуна барам',
                 'В аэропорт «Манас»') }}</button>
       <button type="button" class="airp"
               data-air="Манас аэропорту" data-dir="from">
-        🛬 {{ t('Манас аэропортунан кайтам',
+        <svg class="ti" aria-hidden="true"><use href="#ti-down"/></svg>
+        {{ t('Манас аэропортунан кайтам',
                 'Из аэропорта «Манас»') }}</button>
       <button type="button" class="airp"
               data-air="Ош аэропорту" data-dir="to">
-        ✈️ {{ t('Ош аэропортуна барам',
+        <svg class="ti" aria-hidden="true"><use href="#ti-up"/></svg>
+        {{ t('Ош аэропортуна барам',
                 'В аэропорт «Ош»') }}</button>
       <button type="button" class="airp"
               data-air="Ош аэропорту" data-dir="from">
-        🛬 {{ t('Ош аэропортунан кайтам',
+        <svg class="ti" aria-hidden="true"><use href="#ti-down"/></svg>
+        {{ t('Ош аэропортунан кайтам',
                 'Из аэропорта «Ош»') }}</button>
     </div>
     <div id="airHint"></div>
@@ -207,7 +220,8 @@
     </div>
 
     <button class="go" type="button" id="wAdd">
-      🔔 {{ t('Ушул багытка кабар алам', 'Получать по этому направлению') }}
+      <svg class="ti" aria-hidden="true"><use href="#ti-bell"/></svg>
+      {{ t('Ушул багытка кабар алам', 'Получать по этому направлению') }}
     </button>
     <div class="watch-note" id="wNote"></div>
 
