@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}{{ frm }} → {{ to }} — ТАКСИ роБОТ{% endblock %}
+{% block title %}{{ frm }} → {{ to }} — Такси ТАП! Регион{% endblock %}
 
 {% block content %}
 
@@ -550,7 +550,7 @@
                   "\n" + card.dataset.name + " · " + card.dataset.when +
                   (PHONES[id] ? "\n" + PHONES[id].phone : "");
         if (navigator.share) {
-          navigator.share({ title: "ТАКСИ роБОТ", text: txt, url: pageUrl })
+          navigator.share({ title: "Такси ТАП! Регион", text: txt, url: pageUrl })
                    .catch(function () {});
         } else if (navigator.clipboard) {
           navigator.clipboard.writeText(txt + "\n" + pageUrl);

@@ -2,7 +2,7 @@
 """
 web/app.py
 ==========
-ТАКСИ роБОТ — сайт бөлүгү.
+Такси ТАП! Регион — сайт бөлүгү.
 
 Түзүлүшү ТАП! сайтындай: башкы тилке → издөө сабы → категория
 карточкалары → облус чиптери → жарыялар. Түстөрү такси: кара, сары.
@@ -42,7 +42,7 @@ from core import logic as _logic
 from core.texts import render as tr_render
 from core.texts import FREE_MODE, INVITE_GOAL   # v135
 
-WEB_VERSION = "v195-speed"
+WEB_VERSION = "v197-tap"
 print(f"🌐 web/app.py жүктөлдү. Версия = {WEB_VERSION}")
 
 BOT_USERNAME = os.environ.get("BOT_USERNAME", "taxi_tap_region_bot")
@@ -680,9 +680,9 @@ def _base_ctx():
     # андан соң бот аны сайтка жөнөтөт.
     _tg_ref = f"https://t.me/{BOT_USERNAME}?start=ref{_aid}"
     _wa_ref = f"{_root}/wa?text=REF{_aid}"
-    _head = ("«ТАКСИ роБОТ» — водители и пассажиры по всему "
+    _head = ("«Такси ТАП! Регион» — водители и пассажиры по всему "
              "Кыргызстану." if _lg == "ru" else
-             "«ТАКСИ роБОТ» — Кыргызстан боюнча айдоочулар менен "
+             "«Такси ТАП! Регион» — Кыргызстан боюнча айдоочулар менен "
              "жүргүнчүлөр.")
     return {
         "lang": _lg,

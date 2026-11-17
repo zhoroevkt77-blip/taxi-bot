@@ -5,20 +5,20 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
-<title>{% block title %}ТАКСИ роБОТ{% endblock %}</title>
+<title>{% block title %}Такси ТАП! Регион{% endblock %}</title>
 
 <!-- ---- Телефонго орнотуу (PWA) ---- -->
 <link rel="manifest" href="/manifest.json">
 <meta name="theme-color" content="#fafafa">
-<link rel="icon" href="/static/icon-192.png?v=4" sizes="192x192">
-<link rel="apple-touch-icon" href="/static/icon-192.png?v=4">
+<link rel="icon" href="/static/icon-192.png?v=5" sizes="192x192">
+<link rel="apple-touch-icon" href="/static/icon-192.png?v=5">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
-<meta name="apple-mobile-web-app-title" content="ТАКСИ роБОТ">
+<meta name="apple-mobile-web-app-title" content="Такси ТАП! Регион">
 <meta name="description" content="Кыргызстан боюнча такси жарыялары: айдоочулар менен жүргүнчүлөрдү байланыштырган акылдуу сервис.">
 <style>
   /* ============================================================
-     ТАКСИ роБОТ — сайттын стили
+     Такси ТАП! Регион — сайттын стили
      WEB_VERSION = v47-grid
      Түстөр: кара (тилке), сары (акцент), ак (карточкалар).
      ============================================================ */
@@ -81,6 +81,12 @@
     box-shadow: 0 2px 7px rgba(20,20,30,.14);
   }
   .logo b { color: var(--yellow-2); }
+  /* v197: «регион» — логотиптин жанында кичине */
+  .logo .rg {
+    font-style: normal; font-size: 11.5px; font-weight: 800;
+    color: var(--grey); letter-spacing: .2px; align-self: flex-end;
+    margin: 0 0 2px -3px;
+  }
 
   .ver {
     flex: 0 0 auto;
@@ -841,7 +847,7 @@
 
 <div class="top">
   <div class="top-row">
-    <div class="logo"><img class="car" src="/static/icon-192.png?v=4" alt="">ТАКСИ<b>роБОТ</b></div>
+    <div class="logo"><img class="car" src="/static/icon-192.png?v=5" alt="">ТАКСИ<b>ТАП!</b><i class="rg">регион</i></div>
     <span class="ver">v47</span>
     <div class="lang">
       <a href="{{ lang_ky_url }}" class="{{ 'on' if lang == 'ky' else '' }}">KG</a>
@@ -929,7 +935,7 @@
 
 <!-- Орнотуу сунушу (Android/Chrome) -->
 <div class="install-bar" id="installBar">
-  <div class="ib-ico"><img src="/static/icon-192.png?v=4" alt=""></div>
+  <div class="ib-ico"><img src="/static/icon-192.png?v=5" alt=""></div>
   <div class="ib-txt">
     <div class="ib-t">{{ t('Телефонуңузга орнотуңуз', 'Установите на телефон') }}</div>
     <div class="ib-s">{{ t('Тез ачылат, интернетти аз жейт',

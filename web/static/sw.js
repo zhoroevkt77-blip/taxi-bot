@@ -1,5 +1,5 @@
 /* ============================================================
-   ТАКСИ роБОТ — service worker
+   Такси ТАП! Регион — service worker
    ============================================================
    Эмне кылат:
    1. Иконкаларды жана манифестти кештейт — тиркеме тез ачылат.
@@ -14,7 +14,7 @@
 
 /* v176: аты жаңырды — эски кампа, анын ичиндеги калып
    калган бош жооптор менен кошо, дароо өчөт. */
-const CACHE = "taxirobot-v4";
+const CACHE = "taxirobot-v4-tap1";
 
 // Алдын ала сакталуучу файлдар (жарыялар кирбейт!)
 const ASSETS = [
@@ -164,10 +164,10 @@ self.addEventListener("push", (e) => {
   try {
     d = e.data ? e.data.json() : {};
   } catch (err) {
-    d = { title: "ТАКСИ роБОТ", body: e.data ? e.data.text() : "" };
+    d = { title: "Такси ТАП! Регион", body: e.data ? e.data.text() : "" };
   }
 
-  const title = d.title || "ТАКСИ роБОТ";
+  const title = d.title || "Такси ТАП! Регион";
   const opts = {
     body: d.body || "",
     icon: "/static/icon-192.png",

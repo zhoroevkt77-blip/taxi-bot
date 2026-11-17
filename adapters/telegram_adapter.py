@@ -96,7 +96,7 @@ def main_reply_kb(lang="ky"):
 # Боттун өз аватары — /start'та салам катары чыгат.
 # Башталышта бир жолу алынып, file_id эсте калат (кайра-кайра сурабайбыз).
 BOT_PHOTO = None
-BOT_TITLE = "<b>ТАКСИ роБОТ</b>"
+BOT_TITLE = "<b>Такси ТАП! Регион</b>"
 
 
 def _load_bot_photo():
