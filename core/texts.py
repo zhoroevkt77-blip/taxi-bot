@@ -79,7 +79,7 @@ EXPIRY_WARN_MINUTES = 60         # ⏸ мөөнөт бүтөрдө эскерт�
 # Railway'дин Variables бөлүмүнөн SITE_URL өзгөрмөсүн алмаштырабыз —
 # кодго кол тийгизүүнүн кереги жок.
 SITE_URL = os.environ.get(
-    "SITE_URL", "https://taxi-bot-taxirobot.up.railway.app")
+    "SITE_URL", "https://taxi-tap-region.up.railway.app")
 
 # Текстте кыска көрүнсүн үчүн «https://» бөлүгүн алып салабыз
 SITE_SHORT = SITE_URL.replace("https://", "").replace("http://", "").rstrip("/")

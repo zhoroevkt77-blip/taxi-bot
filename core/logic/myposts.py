@@ -109,7 +109,7 @@ def pickup_start(messenger, msg, account, post_id):
 
     base = (globals().get("SITE_URL")
             or _pk_os.environ.get("SITE_URL")
-            or "https://taxi-bot-taxirobot.up.railway.app").rstrip("/")
+            or "https://taxi-tap-region.up.railway.app").rstrip("/")
     base = base.replace("http://", "https://")   # геолокация https талап кылат
     _say(messenger, msg, account, L(
         f"🗺 <b>Жүргүнчүлөрдү чогултуу</b>\n"

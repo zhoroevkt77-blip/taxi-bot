@@ -40,7 +40,7 @@ VAPID_PRIVATE = os.environ.get("VAPID_PRIVATE_KEY", "").strip()
 VAPID_EMAIL = os.environ.get("VAPID_EMAIL", "admin@taxirobot.kg").strip()
 
 SITE_URL = os.environ.get(
-    "SITE_URL", "https://taxi-bot-taxirobot.up.railway.app").rstrip("/")
+    "SITE_URL", "https://taxi-tap-region.up.railway.app").rstrip("/")
 
 # v170: чогултуу кабарлары ошол эле push_subs таблицасында жатат,
 # бирок багыттын ордуна ушул белги коюлат. Жаңы таблица керек эмес.
